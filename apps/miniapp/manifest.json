@@ -1,0 +1,10 @@
+{
+  "name": "SmartSeat",
+  "appid": "__PLACEHOLDER__",
+  "description": "SmartSeat uni-app mini program skeleton initialized only.",
+  "versionName": "0.0.0",
+  "versionCode": "0",
+  "mp-weixin": {
+    "appid": "__PLACEHOLDER__"
+  }
+}

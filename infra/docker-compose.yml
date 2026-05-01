@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: smartseat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartseat_dev
+      POSTGRES_USER: smartseat_dev
+      POSTGRES_PASSWORD: replace-with-local-placeholder
+    ports:
+      - '5432:5432'
+    volumes:
+      - smartseat-postgres-data:/var/lib/postgresql/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: smartseat-mosquitto
+    restart: unless-stopped
+    ports:
+      - '1883:1883'
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+volumes:
+  smartseat-postgres-data:

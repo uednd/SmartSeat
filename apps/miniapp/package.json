@@ -1,0 +1,10 @@
+{
+  "name": "@smartseat/miniapp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "uni-app WeChat mini program skeleton initialized only.",
+  "scripts": {
+    "lint": "echo \"@smartseat/miniapp initialized only: no lint target yet\"",
+    "typecheck": "echo \"@smartseat/miniapp initialized only: no typecheck target yet\""
+  }
+}

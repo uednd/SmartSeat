@@ -1,0 +1,39 @@
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+
+# Local infrastructure data
+infra/postgres-data/
+infra/mosquitto/data/
+infra/mosquitto/log/
+
+# ESP-IDF generated output
+firmware/**/build/
+firmware/**/sdkconfig
+firmware/**/sdkconfig.old

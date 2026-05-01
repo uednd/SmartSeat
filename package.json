@@ -1,0 +1,30 @@
+{
+  "name": "smartseat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SmartSeat monorepo initialized only. No business features are implemented.",
+  "type": "module",
+  "packageManager": "pnpm@10.10.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @smartseat/api dev",
+    "dev:sim": "pnpm --filter @smartseat/device-simulator dev",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --check .",
+    "infra:up": "docker compose -f infra/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.25.1",
+    "prettier": "^3.5.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.1"
+  }
+}

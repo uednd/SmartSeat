@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+
+# Existing business documents are preserved by initialization tasks.
+docs/
+
+# Generated dependency lockfile.
+pnpm-lock.yaml
+
+# Firmware build outputs.
+firmware/**/build/
