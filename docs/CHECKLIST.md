@@ -70,14 +70,23 @@
 
 ### CL-SHR-01 共享契约与 API Client 基线
 
-- [ ] 座位业务状态、设备在线状态、可用性状态、预约状态、异常状态与 PRD 一致。
-- [ ] REST DTO 覆盖登录、用户、座位、设备、预约、签到、异常、统计、排行榜、管理员接口的核心输入输出。
-- [ ] 统一错误码包含认证失败、权限不足、座位不可用、预约冲突、二维码过期、重复签到、设备离线、payload 非法等核心场景。
-- [ ] MQTT topic 与 payload 覆盖 heartbeat、presence、event、display、light、command。
-- [ ] `packages/api-client` 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
-- [ ] API、miniapp、simulator 不再各自重复手写核心状态字符串。
-- [ ] TypeScript 类型检查通过。
-- [ ] 证据路径已填写：____
+- [x] 座位业务状态、设备在线状态、可用性状态、预约状态、异常状态与 PRD 一致。
+- [x] REST DTO 覆盖登录、用户、座位、设备、预约、签到、异常、统计、排行榜、管理员接口的核心输入输出。
+- [x] 统一错误码包含认证失败、权限不足、座位不可用、预约冲突、二维码过期、重复签到、设备离线、payload 非法等核心场景。
+- [x] MQTT topic 与 payload 覆盖 heartbeat、presence、event、display、light、command。
+- [x] `packages/api-client` 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
+- [x] API、miniapp、simulator 不再各自重复手写核心状态字符串。
+- [x] TypeScript 类型检查通过。
+- [x] 证据路径已填写：
+
+  - 代码路径：`packages/contracts/src/enums.ts`、`packages/contracts/src/api.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`
+  - 类型样例：`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`
+  - 文档路径：`packages/contracts/README.md`、`packages/api-client/README.md`
+  - 测试命令：`pnpm --filter @smartseat/contracts typecheck`；`pnpm --filter @smartseat/api-client typecheck`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
+  - 测试结果：全部通过。
+  - 接口/OpenAPI/MQTT 证据：REST DTO、统一错误模型、MQTT topic pattern/build helper、heartbeat/presence/event/display/light/command payload 均在 `packages/contracts` 统一导出；API client 采用 operation_id + transport 注入，真实 REST path 等 API-PLT-01/OpenAPI 绑定。
+  - 截图/录屏/日志：不适用，SHR-01 不实现页面、真实后端或 MQTT 连接。
+  - 结论：通过。
 
 ### CL-API-PLT-01 后端平台基础
 

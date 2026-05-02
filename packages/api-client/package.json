@@ -10,6 +10,9 @@
     "lint": "eslint src --max-warnings 0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@smartseat/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@smartseat/config": "workspace:*"
   }

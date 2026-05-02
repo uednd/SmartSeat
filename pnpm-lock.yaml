@@ -61,6 +61,10 @@ importers:
   apps/miniapp: {}
 
   packages/api-client:
+    dependencies:
+      '@smartseat/contracts':
+        specifier: workspace:*
+        version: link:../contracts
     devDependencies:
       '@smartseat/config':
         specifier: workspace:*

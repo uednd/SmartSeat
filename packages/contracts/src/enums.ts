@@ -1,3 +1,18 @@
+export enum AuthMode {
+  WECHAT = 'WECHAT',
+  OIDC = 'OIDC'
+}
+
+export enum AuthProvider {
+  WECHAT = 'WECHAT',
+  OIDC = 'OIDC'
+}
+
+export enum UserRole {
+  STUDENT = 'STUDENT',
+  ADMIN = 'ADMIN'
+}
+
 export enum SeatStatus {
   FREE = 'FREE',
   RESERVED = 'RESERVED',
@@ -38,4 +53,89 @@ export enum PresenceStatus {
   ABSENT = 'ABSENT',
   UNKNOWN = 'UNKNOWN',
   ERROR = 'ERROR'
+}
+
+export enum SensorHealthStatus {
+  OK = 'OK',
+  UNKNOWN = 'UNKNOWN',
+  ERROR = 'ERROR'
+}
+
+export enum QRTokenStatus {
+  UNUSED = 'UNUSED',
+  USED = 'USED',
+  EXPIRED = 'EXPIRED'
+}
+
+export enum AnomalyType {
+  NO_SHOW = 'NO_SHOW',
+  UNRESERVED_OCCUPANCY = 'UNRESERVED_OCCUPANCY',
+  EARLY_LEAVE_SUSPECTED = 'EARLY_LEAVE_SUSPECTED',
+  OVERTIME_OCCUPANCY = 'OVERTIME_OCCUPANCY',
+  DEVICE_OFFLINE = 'DEVICE_OFFLINE',
+  SENSOR_ERROR = 'SENSOR_ERROR',
+  CHECKIN_FAILED = 'CHECKIN_FAILED'
+}
+
+export enum AnomalyStatus {
+  PENDING = 'PENDING',
+  HANDLED = 'HANDLED',
+  IGNORED = 'IGNORED'
+}
+
+export enum LeaderboardMetric {
+  WEEKLY_DURATION = 'WEEKLY_DURATION',
+  WEEKLY_VISITS = 'WEEKLY_VISITS',
+  STREAK_DAYS = 'STREAK_DAYS'
+}
+
+export enum DisplayLayout {
+  FREE = 'FREE',
+  RESERVED = 'RESERVED',
+  OCCUPIED = 'OCCUPIED',
+  ENDING_SOON = 'ENDING_SOON',
+  PENDING_RELEASE = 'PENDING_RELEASE',
+  MAINTENANCE = 'MAINTENANCE',
+  ERROR = 'ERROR'
+}
+
+export enum LightStatus {
+  FREE = 'FREE',
+  RESERVED = 'RESERVED',
+  OCCUPIED = 'OCCUPIED',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  OFF = 'OFF'
+}
+
+export enum LightMode {
+  SOLID = 'SOLID',
+  SLOW_BLINK = 'SLOW_BLINK',
+  FAST_BLINK = 'FAST_BLINK',
+  OFF = 'OFF'
+}
+
+export enum DeviceCommandType {
+  REBOOT = 'REBOOT',
+  REFRESH_STATE = 'REFRESH_STATE',
+  ENTER_MAINTENANCE = 'ENTER_MAINTENANCE',
+  EXIT_MAINTENANCE = 'EXIT_MAINTENANCE'
+}
+
+export enum MqttDeviceEventType {
+  BOOT = 'BOOT',
+  RECONNECTED = 'RECONNECTED',
+  SENSOR_ERROR = 'SENSOR_ERROR',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  DISPLAY_ERROR = 'DISPLAY_ERROR',
+  COMMAND_ACK = 'COMMAND_ACK'
+}
+
+export enum AdminActionType {
+  RELEASE_SEAT = 'RELEASE_SEAT',
+  SET_MAINTENANCE = 'SET_MAINTENANCE',
+  RESTORE_AVAILABLE = 'RESTORE_AVAILABLE',
+  HANDLE_ANOMALY = 'HANDLE_ANOMALY',
+  IGNORE_ANOMALY = 'IGNORE_ANOMALY',
+  UPDATE_AUTH_CONFIG = 'UPDATE_AUTH_CONFIG'
 }

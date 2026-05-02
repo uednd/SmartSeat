@@ -189,7 +189,7 @@ stateDiagram-v2
 |---|---|---|---|---|---|
 | GOV-01 | 需求追踪矩阵与完成性治理 | 文档/治理 | P0 | 无 | Done |
 | GOV-02 | ADR 决策包 | 架构/治理 | P0 | GOV-01 | Done |
-| SHR-01 | 共享契约与 API Client 基线 | packages | P0 | GOV-01 | Not Started |
+| SHR-01 | 共享契约与 API Client 基线 | packages | P0 | GOV-01 | Done |
 | API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Not Started |
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Not Started |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Not Started |
@@ -263,16 +263,16 @@ stateDiagram-v2
 | 非目标 | 不实现后端业务规则；不实现小程序页面；不连接真实 MQTT。 |
 | 前置条件 | GOV-01 完成。 |
 | 输入 | PRD 状态定义、数据模型、接口草案、MQTT 主题规划。 |
-| 输出 | `packages/contracts` 的枚举、DTO、错误码、MQTT payload；`packages/api-client` 的方法签名、请求封装、错误模型。 |
+| 输出 | `packages/contracts` 的枚举、DTO、错误码、MQTT payload；`packages/api-client` 的方法签名、请求封装、错误模型；client 采用 transport 注入，SHR-01 不提前固化 REST path，后续由 OpenAPI operation 绑定真实 endpoint。 |
 | 涉及文件/目录 | `packages/contracts/src/**`、`packages/api-client/src/**`。 |
-| 接口契约 | REST DTO、分页模型、错误响应模型、MQTT topic/payload 类型。 |
+| 接口契约 | REST DTO、分页模型、错误响应模型、MQTT topic/payload 类型；API client 方法按 auth、me、seats、devices、reservations、checkin、anomalies、stats、leaderboard、admin 分组暴露 typed 边界。 |
 | 数据变更 | 无。 |
 | 测试要求 | TypeScript 类型检查；为关键 DTO/payload 提供类型级或简单运行时测试。 |
-| 文档要求 | 在 contracts README 或注释中说明状态含义、topic 命名与错误码。 |
+| 文档要求 | 在 contracts/api-client README 或源码注释中说明状态含义、topic 命名、错误码、transport 注入与 OpenAPI-first 边界。 |
 | 部署/配置要求 | 无。 |
 | 回滚要求 | 契约变更需版本说明；不得无提示删除字段。 |
 | 监控与告警 | 无。 |
-| 验收标准 | API、miniapp、simulator 不再各自手写重复状态字符串；核心 REST/MQTT 模型均可从 contracts 引入。 |
+| 验收标准 | API、miniapp、simulator 后续可从 contracts 引入核心状态、DTO、错误码和 MQTT payload；api-client 提供 typed 方法边界、base URL/token 注入和统一错误处理；TypeScript 类型检查通过。 |
 | 可分配给编码智能体的提示 | 只改 shared packages；补齐枚举、DTO、错误码、MQTT payload 与 API client 方法签名；不要实现页面和后端业务逻辑。 |
 
 ### API-PLT-01 后端平台基础
