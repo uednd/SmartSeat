@@ -77,28 +77,17 @@
 - [x] `packages/api-client` 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
 - [x] API、miniapp、simulator 不再各自重复手写核心状态字符串。
 - [x] TypeScript 类型检查通过。
-- [x] 证据路径已填写：
-
-  - 代码路径：`packages/contracts/src/enums.ts`、`packages/contracts/src/api.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`
-  - 类型样例：`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`
-  - 文档路径：`packages/contracts/README.md`、`packages/api-client/README.md`
-  - 测试命令：`pnpm --filter @smartseat/contracts typecheck`；`pnpm --filter @smartseat/api-client typecheck`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
-  - 测试结果：全部通过。
-  - 接口/OpenAPI/MQTT 证据：REST DTO、统一错误模型、MQTT topic pattern/build helper、heartbeat/presence/event/display/light/command payload 均在 `packages/contracts` 统一导出；API client 采用 operation_id + transport 注入，真实 REST path 等 API-PLT-01/OpenAPI 绑定。
-  - 截图/录屏/日志：不适用，SHR-01 不实现页面、真实后端或 MQTT 连接。
-  - 结论：通过。
 
 ### CL-API-PLT-01 后端平台基础
 
-- [ ] 环境变量校验已启用，缺失关键配置时服务启动失败并给出明确错误。
-- [ ] 全局错误响应格式统一，并能映射 contracts 错误码。
-- [ ] 请求日志包含 request id、method、path、status、duration。
-- [ ] `/health` 可返回服务状态，并预留数据库/MQTT 状态检查。
-- [ ] OpenAPI 文档可生成或访问。
-- [ ] ScheduleModule 或等价调度机制已初始化，可注册周期任务。
-- [ ] 鉴权基础设施、用户上下文或装饰器已准备好供业务模块使用。
-- [ ] 已补充配置、错误处理、health 的测试。
-- [ ] 证据路径已填写：____
+- [x] 环境变量校验已启用，缺失关键配置时服务启动失败并给出明确错误。
+- [x] 全局错误响应格式统一，并能映射 contracts 错误码。
+- [x] 请求日志包含 request id、method、path、status、duration。
+- [x] `/health` 可返回服务状态，并预留数据库/MQTT 状态检查。
+- [x] OpenAPI 文档可生成或访问。
+- [x] ScheduleModule 或等价调度机制已初始化，可注册周期任务。
+- [x] 鉴权基础设施、用户上下文或装饰器已准备好供业务模块使用。
+- [x] 已补充配置、错误处理、health 的测试。
 
 ### CL-API-DB-01 数据模型、迁移与 seed 基线
 

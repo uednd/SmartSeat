@@ -190,7 +190,7 @@ stateDiagram-v2
 | GOV-01 | 需求追踪矩阵与完成性治理 | 文档/治理 | P0 | 无 | Done |
 | GOV-02 | ADR 决策包 | 架构/治理 | P0 | GOV-01 | Done |
 | SHR-01 | 共享契约与 API Client 基线 | packages | P0 | GOV-01 | Done |
-| API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Not Started |
+| API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Not Started |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Not Started |
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
@@ -283,16 +283,16 @@ stateDiagram-v2
 | 非目标 | 不实现具体预约、登录、MQTT 业务规则。 |
 | 前置条件 | GOV-02、SHR-01 完成。 |
 | 输入 | `.env.example`、NestJS 骨架、contracts 错误码。 |
-| 输出 | `common/` 基础设施、配置模块、全局异常过滤器、请求日志、OpenAPI 输出、ScheduleModule 初始化、增强版 `/health`。 |
-| 涉及文件/目录 | `apps/api/src/main.ts`、`apps/api/src/app.module.ts`、`apps/api/src/common/**`。 |
-| 接口契约 | `GET /health`、OpenAPI 文档路径、统一错误响应格式。 |
+| 输出 | `common/` 基础设施、配置模块、全局异常过滤器、请求日志、OpenAPI 输出、ScheduleModule 初始化、基础用户上下文装饰器、增强版 `/health`。 |
+| 涉及文件/目录 | `apps/api/src/**`、`apps/api/package.json`、`apps/api/README.md`。 |
+| 接口契约 | `GET /health`、`GET /docs`、`GET /openapi.json`、统一错误响应格式。 |
 | 数据变更 | 无。 |
-| 测试要求 | 配置缺失启动失败测试；错误格式测试；health 接口测试。 |
-| 文档要求 | 更新后端启动说明、环境变量说明、OpenAPI 访问方式。 |
-| 部署/配置要求 | 所有环境变量写入 `.env.example`，不提交真实值。 |
+| 测试要求 | 配置缺失启动失败测试；错误格式测试；health 接口测试；OpenAPI JSON smoke 测试。 |
+| 文档要求 | `apps/api/README.md` 记录后端启动说明、环境变量说明、OpenAPI 访问方式和无真实依赖探活边界。 |
+| 部署/配置要求 | 使用 `.env` + `.env.example` fallback 读取既有占位变量；本任务未新增环境变量，`production` 环境拒绝占位 secret。 |
 | 回滚要求 | 可恢复到原 `/health` 骨架；配置项新增需可禁用。 |
-| 监控与告警 | 日志包含 request id、status、duration；health 暴露依赖状态占位。 |
-| 验收标准 | 后端启动时环境变量可校验；错误响应统一；OpenAPI 可生成；调度模块可注册任务。 |
+| 监控与告警 | 日志包含 request id、method、path、status、duration；health 暴露数据库/MQTT 配置状态占位。 |
+| 验收标准 | 后端启动时环境变量可校验；错误响应统一；OpenAPI 可通过 `/docs` 与 `/openapi.json` 访问；调度模块可注册任务；本任务不连接数据库或 MQTT。 |
 | 可分配给编码智能体的提示 | 只实现平台层能力；不要写任何业务状态机；补齐配置校验、全局错误、日志、Swagger/OpenAPI、ScheduleModule 和基础测试。 |
 
 ### API-DB-01 数据模型、迁移与 seed 基线
