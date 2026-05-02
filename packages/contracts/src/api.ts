@@ -131,6 +131,10 @@ export interface AuthSessionResponse {
 }
 
 export interface MeResponse {
+  user_id: EntityId;
+  role: UserRole;
+  display_name: string;
+  anonymous_name: string;
   user: UserDto;
   roles: UserRole[];
   auth_mode: AuthMode;

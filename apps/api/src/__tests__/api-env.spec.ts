@@ -20,7 +20,10 @@ const baseEnv = {
   WECHAT_APP_ID: 'replace-with-placeholder',
   WECHAT_APP_SECRET: 'replace-with-placeholder',
   OIDC_CLIENT_ID: 'replace-with-placeholder',
-  OIDC_CLIENT_SECRET: 'replace-with-placeholder'
+  OIDC_CLIENT_SECRET: 'replace-with-placeholder',
+  AUTH_TOKEN_SECRET: 'replace-with-local-placeholder',
+  AUTH_TOKEN_TTL_SECONDS: '3600',
+  DEFAULT_AUTH_MODE: 'WECHAT'
 } satisfies Record<string, string>;
 
 describe('validateApiEnv', () => {
@@ -30,7 +33,9 @@ describe('validateApiEnv', () => {
       API_HOST: '0.0.0.0',
       API_PORT: 3000,
       POSTGRES_PORT: 5432,
-      MQTT_PORT: 1883
+      MQTT_PORT: 1883,
+      AUTH_TOKEN_TTL_SECONDS: 3600,
+      DEFAULT_AUTH_MODE: 'WECHAT'
     });
   });
 
@@ -47,10 +52,28 @@ describe('validateApiEnv', () => {
     expect(() =>
       validateApiEnv({
         ...baseEnv,
+        POSTGRES_PASSWORD: 'production-postgres-password',
+        DATABASE_URL:
+          'postgresql://smartseat_prod:production-postgres-password@localhost:5432/smartseat_prod',
+        MQTT_USERNAME: 'smartseat-prod-mqtt',
+        MQTT_PASSWORD: 'production-mqtt-password',
+        WECHAT_APP_ID: 'wx-production-appid',
+        WECHAT_APP_SECRET: 'production-wechat-secret',
+        OIDC_CLIENT_ID: 'production-oidc-client',
+        OIDC_CLIENT_SECRET: 'production-oidc-secret',
         NODE_ENV: 'production'
       })
     ).toThrow(
-      'Production API environment variable cannot use placeholder value: POSTGRES_PASSWORD'
+      'Production API environment variable cannot use placeholder value: AUTH_TOKEN_SECRET'
     );
+  });
+
+  it('rejects invalid default auth mode values', () => {
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        DEFAULT_AUTH_MODE: 'PASSWORD'
+      })
+    ).toThrow('Invalid auth mode in API environment variable: DEFAULT_AUTH_MODE');
   });
 });

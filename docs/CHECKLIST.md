@@ -136,15 +136,22 @@
 
 ### CL-API-AUTH-01 登录模式配置、用户角色与首个管理员引导
 
-- [ ] `GET /auth/mode` 可返回当前登录模式和前端需要的脱敏配置状态。
-- [ ] 管理员可通过受保护接口切换登录模式。
-- [ ] 配置接口不返回 `client_secret`、微信 secret 或其他敏感明文。
-- [ ] `/me` 可返回当前用户、角色、匿名名、nextRoute 等小程序路由所需信息。
-- [ ] 系统无用户时，首个注册/登录用户成为管理员；该规则只触发一次。
-- [ ] 普通用户不能访问管理员配置接口。
-- [ ] token 签发、解析、过期处理具备基础测试。
-- [ ] 登录模式变更和首个管理员初始化有审计或日志记录。
-- [ ] 证据路径已填写：____
+- [x] `GET /auth/mode` 可返回当前登录模式和前端需要的脱敏配置状态。
+- [x] 管理员可通过受保护接口切换登录模式。
+- [x] 配置接口不返回 `client_secret`、微信 secret 或其他敏感明文。
+- [x] `/me` 可返回当前用户、角色、匿名名、nextRoute 等小程序路由所需信息。
+- [x] 系统无用户时，首个注册/登录用户成为管理员；该规则只触发一次。
+- [x] 普通用户不能访问管理员配置接口。
+- [x] token 签发、解析、过期处理具备基础测试。
+- [x] 登录模式变更和首个管理员初始化有审计或日志记录。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/auth/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/src/app.module.ts`、`packages/contracts/src/api.ts`、`.env.example`、`apps/api/package.json`
+  - 测试路径：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`
+  - 文档路径：`docs/PLAN.md`、`docs/CHECKLIST.md`
+  - 已通过命令：`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`
+  - 阻塞命令：无。本任务未启动 Docker，未做真实微信 code 换 openid 或 OIDC 授权码回调联调。
+  - 结论：通过；API-AUTH-01 状态已更新为 Done。
 
 ### CL-API-AUTH-02 微信登录闭环
 

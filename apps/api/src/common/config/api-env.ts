@@ -1,6 +1,8 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { AuthMode } from '@smartseat/contracts';
+
 export type ApiNodeEnv = 'development' | 'test' | 'production';
 
 export interface ApiEnv {
@@ -21,6 +23,9 @@ export interface ApiEnv {
   WECHAT_APP_SECRET: string;
   OIDC_CLIENT_ID: string;
   OIDC_CLIENT_SECRET: string;
+  AUTH_TOKEN_SECRET: string;
+  AUTH_TOKEN_TTL_SECONDS: number;
+  DEFAULT_AUTH_MODE: AuthMode;
 }
 
 type ApiEnvKey = keyof ApiEnv;
@@ -33,10 +38,12 @@ const PRODUCTION_PLACEHOLDER_KEYS = [
   'WECHAT_APP_ID',
   'WECHAT_APP_SECRET',
   'OIDC_CLIENT_ID',
-  'OIDC_CLIENT_SECRET'
+  'OIDC_CLIENT_SECRET',
+  'AUTH_TOKEN_SECRET'
 ] as const;
 
 const VALID_NODE_ENVS = new Set<ApiNodeEnv>(['development', 'test', 'production']);
+const VALID_AUTH_MODES = new Set<AuthMode>([AuthMode.WECHAT, AuthMode.OIDC]);
 
 export const getApiEnvFilePaths = (): string[] => {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -67,6 +74,30 @@ const readPort = (
   }
 
   return parsed;
+};
+
+const readPositiveInteger = (
+  config: Record<string, unknown>,
+  key: 'AUTH_TOKEN_TTL_SECONDS'
+): number => {
+  const rawValue = readRequiredString(config, key);
+  const parsed = Number.parseInt(rawValue, 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1 || String(parsed) !== rawValue) {
+    throw new Error(`Invalid positive integer in API environment variable: ${key}`);
+  }
+
+  return parsed;
+};
+
+const readAuthMode = (config: Record<string, unknown>, key: 'DEFAULT_AUTH_MODE'): AuthMode => {
+  const value = readRequiredString(config, key);
+
+  if (!VALID_AUTH_MODES.has(value as AuthMode)) {
+    throw new Error(`Invalid auth mode in API environment variable: ${key}`);
+  }
+
+  return value as AuthMode;
 };
 
 const assertNoProductionPlaceholder = (env: ApiNodeEnv, config: Record<string, unknown>): void => {
@@ -115,6 +146,9 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
     WECHAT_APP_ID: readRequiredString(config, 'WECHAT_APP_ID'),
     WECHAT_APP_SECRET: readRequiredString(config, 'WECHAT_APP_SECRET'),
     OIDC_CLIENT_ID: readRequiredString(config, 'OIDC_CLIENT_ID'),
-    OIDC_CLIENT_SECRET: readRequiredString(config, 'OIDC_CLIENT_SECRET')
+    OIDC_CLIENT_SECRET: readRequiredString(config, 'OIDC_CLIENT_SECRET'),
+    AUTH_TOKEN_SECRET: readRequiredString(config, 'AUTH_TOKEN_SECRET'),
+    AUTH_TOKEN_TTL_SECONDS: readPositiveInteger(config, 'AUTH_TOKEN_TTL_SECONDS'),
+    DEFAULT_AUTH_MODE: readAuthMode(config, 'DEFAULT_AUTH_MODE')
   };
 };

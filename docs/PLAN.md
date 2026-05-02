@@ -192,7 +192,7 @@ stateDiagram-v2
 | SHR-01 | 共享契约与 API Client 基线 | packages | P0 | GOV-01 | Done |
 | API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Done |
-| API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Not Started |
+| API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Done |
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Not Started |
@@ -327,17 +327,21 @@ stateDiagram-v2
 | 非目标 | 不实现具体微信 code 换 openid；不实现 OIDC 授权码回调。 |
 | 前置条件 | API-PLT-01、API-DB-01 完成。 |
 | 输入 | PRD 2.1–2.6、7.3.1、AuthConfig/User 模型。 |
-| 输出 | `auth`、`users` 模块基础接口；管理员配置登录模式接口；用户身份上下文。 |
-| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`。 |
+| 输出 | `auth`、`users` 模块基础接口；管理员配置登录模式接口；用户身份上下文；Bearer token 签发/解析守卫。 |
+| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/auth/**`、`apps/api/src/common/config/**`、`apps/api/src/app.module.ts`、`apps/api/src/__tests__/api-auth.spec.ts`、`packages/contracts/src/api.ts`、`.env.example`、`apps/api/package.json`。 |
 | 接口契约 | `GET /auth/mode`、`PUT /admin/auth/mode`、`GET /me`。 |
-| 数据变更 | AuthConfig 初始化；User 角色与匿名名字段读写。 |
+| 数据变更 | AuthConfig 默认记录按 `DEFAULT_AUTH_MODE` 初始化；User 角色与匿名名字段读写；登录模式变更写入 AdminActionLog；不新增 Prisma schema 或 migration。 |
 | 测试要求 | 首个用户引导仅发生一次；普通用户不能改登录模式；secret 字段不明文返回。 |
-| 文档要求 | 说明登录模式、角色、首个管理员规则、脱敏返回格式。 |
-| 部署/配置要求 | token 签名密钥、默认登录模式写入 `.env.example`。 |
+| 文档要求 | 说明登录模式、角色、首个管理员规则、脱敏返回格式、内部初始化服务边界。 |
+| 部署/配置要求 | 使用 `jose` 实现 HS256 JWT；`AUTH_TOKEN_SECRET`、`AUTH_TOKEN_TTL_SECONDS`、`DEFAULT_AUTH_MODE` 写入 `.env.example`；production 禁止 token secret 占位值。 |
 | 回滚要求 | 支持恢复默认登录模式；不删除用户数据。 |
-| 监控与告警 | 记录登录模式变更和首个管理员初始化日志。 |
+| 监控与告警 | 登录模式变更写入 AdminActionLog；首个管理员初始化写结构化服务日志。 |
 | 验收标准 | 后端可识别 STUDENT/ADMIN；`/me` 返回角色路由所需信息；系统无用户时首个登录用户可成为管理员。 |
 | 可分配给编码智能体的提示 | 只做登录模式、角色、`/me`、首个管理员引导；不要实现微信/OIDC 换码；必须补权限与脱敏测试。 |
+| 当前状态 | Done；已实现登录模式读取/管理员修改、脱敏 AuthConfig 返回、Bearer token 签发/解析、管理员守卫、`/me` 角色路由字段、首个用户成为管理员的内部初始化规则。 |
+| 证据路径 | 代码：`apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/auth/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/src/app.module.ts`、`packages/contracts/src/api.ts`、`.env.example`、`apps/api/package.json`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
+| 阻塞核验 | 无；本任务未启动 Docker 或真实微信/OIDC 联调。 |
 
 ### API-AUTH-02 微信登录闭环
 
