@@ -4,10 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema prisma/schema.prisma",
+    "db:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
+    "db:reset-demo": "prisma migrate reset --force --schema prisma/schema.prisma",
+    "db:seed": "prisma db seed --schema prisma/schema.prisma",
     "dev": "tsx src/main.ts",
     "lint": "eslint src --max-warnings 0",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
@@ -16,14 +24,19 @@
     "@nestjs/platform-express": "^11.1.19",
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/swagger": "^11.4.2",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "@smartseat/contracts": "workspace:*",
+    "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.19",
     "@smartseat/config": "workspace:*",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
+    "prisma": "^7.8.0",
     "supertest": "^7.2.2",
     "vitest": "^4.1.5"
   }

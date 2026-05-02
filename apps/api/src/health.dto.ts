@@ -1,14 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export type HealthStatus = 'ok';
-export type DependencyStatus = 'configured' | 'not_configured' | 'unknown';
+export type DependencyStatus =
+  | 'available'
+  | 'unavailable'
+  | 'configured'
+  | 'not_configured'
+  | 'unknown';
 
 export class DependencyHealthDto {
-  @ApiProperty({ enum: ['configured', 'not_configured', 'unknown'], type: String })
+  @ApiProperty({
+    enum: ['available', 'unavailable', 'configured', 'not_configured', 'unknown'],
+    type: String
+  })
   status!: DependencyStatus;
 
-  @ApiProperty({ example: false, type: Boolean })
-  checked!: false;
+  @ApiProperty({ example: true, type: Boolean })
+  checked!: boolean;
 
   @ApiProperty({
     example: 'Configuration is present; live connection is not checked in API-PLT-01.',

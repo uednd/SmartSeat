@@ -50,8 +50,7 @@ describe('API platform', () => {
       environment: 'test',
       dependencies: {
         database: {
-          status: 'configured',
-          checked: false
+          checked: true
         },
         mqtt: {
           status: 'configured',
@@ -59,6 +58,7 @@ describe('API platform', () => {
         }
       }
     });
+    expect(['available', 'unavailable']).toContain(response.body.dependencies.database.status);
     expect(response.body.timestamp).toEqual(expect.any(String));
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
   });

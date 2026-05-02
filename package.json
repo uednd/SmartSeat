@@ -10,6 +10,11 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
+    "db:generate": "pnpm --filter @smartseat/api db:generate",
+    "db:migrate": "pnpm --filter @smartseat/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @smartseat/api db:migrate:dev",
+    "db:reset-demo": "pnpm --filter @smartseat/api db:reset-demo",
+    "db:seed": "pnpm --filter @smartseat/api db:seed",
     "dev:api": "pnpm --filter @smartseat/api dev",
     "dev:sim": "pnpm --filter @smartseat/device-simulator dev",
     "lint": "eslint . --max-warnings 0",

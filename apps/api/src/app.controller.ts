@@ -3,17 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { getConfigString } from './common/config/config-reader.js';
+import { PrismaService } from './common/database/prisma.service.js';
 import { HealthResponseDto, type DependencyHealthDto } from './health.dto.js';
 
 @ApiTags('platform')
 @Controller()
 export class AppController {
-  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    private readonly prisma: PrismaService
+  ) {}
 
   @Get('health')
   @ApiOperation({ summary: 'Get API platform health status' })
   @ApiOkResponse({ type: HealthResponseDto })
-  getHealth(): HealthResponseDto {
+  async getHealth(): Promise<HealthResponseDto> {
     return {
       status: 'ok',
       service: 'smartseat-api',
@@ -21,8 +25,12 @@ export class AppController {
       environment: getConfigString(this.configService, 'NODE_ENV'),
       timestamp: new Date().toISOString(),
       dependencies: {
-        database: this.getDependencyHealth(this.hasDatabaseConfig()),
-        mqtt: this.getDependencyHealth(this.hasMqttConfig())
+        database: await this.getDatabaseHealth(),
+        mqtt: this.getConfiguredDependencyHealth(
+          this.hasMqttConfig(),
+          'Configuration is present; live MQTT connection is not checked in API-DB-01.',
+          'Configuration is missing; live MQTT connection is not checked in API-DB-01.'
+        )
       }
     };
   }
@@ -41,13 +49,41 @@ export class AppController {
     );
   }
 
-  private getDependencyHealth(configured: boolean): DependencyHealthDto {
+  private async getDatabaseHealth(): Promise<DependencyHealthDto> {
+    if (!this.hasDatabaseConfig()) {
+      return {
+        status: 'not_configured',
+        checked: false,
+        message: 'Database configuration is missing; live connection was not checked.'
+      };
+    }
+
+    try {
+      await this.prisma.checkConnection();
+
+      return {
+        status: 'available',
+        checked: true,
+        message: 'Database connection check succeeded.'
+      };
+    } catch {
+      return {
+        status: 'unavailable',
+        checked: true,
+        message: 'Database configuration is present, but live connection check failed.'
+      };
+    }
+  }
+
+  private getConfiguredDependencyHealth(
+    configured: boolean,
+    configuredMessage: string,
+    missingMessage: string
+  ): DependencyHealthDto {
     return {
       status: configured ? 'configured' : 'not_configured',
       checked: false,
-      message: configured
-        ? 'Configuration is present; live connection is not checked in API-PLT-01.'
-        : 'Configuration is missing; live connection is not checked in API-PLT-01.'
+      message: configured ? configuredMessage : missingMessage
     };
   }
 }

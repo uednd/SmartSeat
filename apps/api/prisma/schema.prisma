@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AuthMode {
+  WECHAT
+  OIDC
+}
+
+enum AuthProvider {
+  WECHAT
+  OIDC
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum SeatStatus {
+  FREE
+  RESERVED
+  OCCUPIED
+  ENDING_SOON
+  PENDING_RELEASE
+}
+
+enum DeviceOnlineStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum SeatAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum SeatUnavailableReason {
+  DEVICE_OFFLINE
+  SENSOR_ERROR
+  ADMIN_MAINTENANCE
+}
+
+enum ReservationStatus {
+  WAITING_CHECKIN
+  CHECKED_IN
+  FINISHED
+  CANCELLED
+  NO_SHOW
+  USER_RELEASED
+  ADMIN_RELEASED
+  TIMEOUT_FINISHED
+}
+
+enum PresenceStatus {
+  PRESENT
+  ABSENT
+  UNKNOWN
+  ERROR
+}
+
+enum SensorHealthStatus {
+  OK
+  UNKNOWN
+  ERROR
+}
+
+enum QRTokenStatus {
+  UNUSED
+  USED
+  EXPIRED
+}
+
+enum AnomalyType {
+  NO_SHOW
+  UNRESERVED_OCCUPANCY
+  EARLY_LEAVE_SUSPECTED
+  OVERTIME_OCCUPANCY
+  DEVICE_OFFLINE
+  SENSOR_ERROR
+  CHECKIN_FAILED
+}
+
+enum AnomalyStatus {
+  PENDING
+  HANDLED
+  IGNORED
+}
+
+enum AdminActionType {
+  RELEASE_SEAT
+  SET_MAINTENANCE
+  RESTORE_AVAILABLE
+  HANDLE_ANOMALY
+  IGNORE_ANOMALY
+  UPDATE_AUTH_CONFIG
+}
+
+model User {
+  userId             String              @id @default(cuid()) @map("user_id")
+  authProvider       AuthProvider        @map("auth_provider")
+  openid             String?             @unique
+  unionid            String?             @unique
+  oidcSub            String?             @unique @map("oidc_sub")
+  externalUserNo     String?             @unique @map("external_user_no")
+  roles              UserRole[]          @default([STUDENT])
+  anonymousName      String              @map("anonymous_name")
+  leaderboardEnabled Boolean             @default(true) @map("leaderboard_enabled")
+  noShowCountWeek    Int                 @default(0) @map("no_show_count_week")
+  noShowCountMonth   Int                 @default(0) @map("no_show_count_month")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  reservations       Reservation[]
+  checkInRecords     CheckInRecord[]
+  anomalies          AnomalyEvent[]      @relation("AnomalyUser")
+  handledAnomalies   AnomalyEvent[]      @relation("AnomalyHandler")
+  studyRecords       StudyRecord[]
+  adminActionLogs    AdminActionLog[]    @relation("AdminActionActor")
+  authConfigUpdates  AuthConfig[]        @relation("AuthConfigUpdatedBy")
+  maintenanceStarted MaintenanceRecord[] @relation("MaintenanceStartedBy")
+  maintenanceEnded   MaintenanceRecord[] @relation("MaintenanceEndedBy")
+
+  @@index([authProvider])
+  @@index([roles], type: Gin)
+  @@map("users")
+}
+
+model AuthConfig {
+  configId         String   @id @map("config_id")
+  authMode         AuthMode @default(WECHAT) @map("auth_mode")
+  oidcIssuer       String?  @map("oidc_issuer")
+  oidcClientId     String?  @map("oidc_client_id")
+  oidcClientSecret String?  @map("oidc_client_secret")
+  oidcRedirectUri  String?  @map("oidc_redirect_uri")
+  adminMappingRule String?  @map("admin_mapping_rule")
+  wechatAppid      String?  @map("wechat_appid")
+  wechatSecret     String?  @map("wechat_secret")
+  updatedById      String?  @map("updated_by")
+  updatedBy        User?    @relation("AuthConfigUpdatedBy", fields: [updatedById], references: [userId], onDelete: SetNull)
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("auth_configs")
+}
+
+model Seat {
+  seatId             String                 @id @default(cuid()) @map("seat_id")
+  seatNo             String                 @unique @map("seat_no")
+  area               String
+  businessStatus     SeatStatus             @default(FREE) @map("business_status")
+  availabilityStatus SeatAvailability       @default(AVAILABLE) @map("availability_status")
+  unavailableReason  SeatUnavailableReason? @map("unavailable_reason")
+  deviceId           String?                @map("device_id")
+  presenceStatus     PresenceStatus         @default(UNKNOWN) @map("presence_status")
+  maintenance        Boolean                @default(false)
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  bindings           DeviceSeatBinding[]
+  reservations       Reservation[]
+  qrTokens           QRToken[]
+  checkInRecords     CheckInRecord[]
+  sensorReadings     SensorReading[]
+  anomalies          AnomalyEvent[]
+  maintenanceRecords MaintenanceRecord[]
+  studyRecords       StudyRecord[]
+
+  @@index([businessStatus])
+  @@index([availabilityStatus])
+  @@index([deviceId])
+  @@map("seats")
+}
+
+model Device {
+  deviceId        String              @id @default(cuid()) @map("device_id")
+  seatId          String?             @map("seat_id")
+  mqttClientId    String              @unique @map("mqtt_client_id")
+  onlineStatus    DeviceOnlineStatus  @default(OFFLINE) @map("online_status")
+  lastHeartbeatAt DateTime?           @map("last_heartbeat_at")
+  sensorStatus    SensorHealthStatus  @default(UNKNOWN) @map("sensor_status")
+  sensorModel     String?             @map("sensor_model")
+  firmwareVersion String?             @map("firmware_version")
+  hardwareVersion String?             @map("hardware_version")
+  networkStatus   String?             @map("network_status")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  bindings        DeviceSeatBinding[]
+  qrTokens        QRToken[]
+  checkInRecords  CheckInRecord[]
+  sensorReadings  SensorReading[]
+  anomalies       AnomalyEvent[]
+
+  @@index([seatId])
+  @@index([onlineStatus])
+  @@map("devices")
+}
+
+model DeviceSeatBinding {
+  bindingId String    @id @default(cuid()) @map("binding_id")
+  deviceId  String    @map("device_id")
+  seatId    String    @map("seat_id")
+  boundAt   DateTime  @default(now()) @map("bound_at")
+  unboundAt DateTime? @map("unbound_at")
+  reason    String?
+  device    Device    @relation(fields: [deviceId], references: [deviceId], onDelete: Restrict)
+  seat      Seat      @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+
+  @@index([deviceId, boundAt])
+  @@index([seatId, boundAt])
+  @@map("device_seat_bindings")
+}
+
+model Reservation {
+  reservationId    String            @id @default(cuid()) @map("reservation_id")
+  userId           String            @map("user_id")
+  seatId           String            @map("seat_id")
+  startTime        DateTime          @map("start_time")
+  endTime          DateTime          @map("end_time")
+  checkinStartTime DateTime          @map("checkin_start_time")
+  checkinDeadline  DateTime          @map("checkin_deadline")
+  status           ReservationStatus @default(WAITING_CHECKIN)
+  checkedInAt      DateTime?         @map("checked_in_at")
+  releasedAt       DateTime?         @map("released_at")
+  releaseReason    String?           @map("release_reason")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  user             User              @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  seat             Seat              @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  qrTokens         QRToken[]
+  checkInRecords   CheckInRecord[]
+  anomalies        AnomalyEvent[]
+  studyRecords     StudyRecord[]
+
+  @@index([userId, status])
+  @@index([seatId, status])
+  @@index([startTime, endTime])
+  @@map("reservations")
+}
+
+model QRToken {
+  tokenId       String         @id @default(cuid()) @map("token_id")
+  token         String         @unique
+  reservationId String?        @map("reservation_id")
+  seatId        String         @map("seat_id")
+  deviceId      String         @map("device_id")
+  generatedAt   DateTime       @default(now()) @map("generated_at")
+  expiredAt     DateTime       @map("expired_at")
+  usedAt        DateTime?      @map("used_at")
+  status        QRTokenStatus  @default(UNUSED)
+  reservation   Reservation?   @relation(fields: [reservationId], references: [reservationId], onDelete: SetNull)
+  seat          Seat           @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  device        Device         @relation(fields: [deviceId], references: [deviceId], onDelete: Restrict)
+  checkInRecord CheckInRecord?
+
+  @@index([seatId, status])
+  @@index([deviceId, generatedAt])
+  @@index([reservationId])
+  @@map("qr_tokens")
+}
+
+model CheckInRecord {
+  checkInId      String          @id @default(cuid()) @map("checkin_id")
+  reservationId  String          @map("reservation_id")
+  userId         String          @map("user_id")
+  seatId         String          @map("seat_id")
+  deviceId       String          @map("device_id")
+  qrTokenId      String?         @unique @map("qr_token_id")
+  checkedInAt    DateTime        @map("checked_in_at")
+  presenceStatus PresenceStatus? @map("presence_status")
+  source         String          @default("qr_token")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  reservation    Reservation     @relation(fields: [reservationId], references: [reservationId], onDelete: Restrict)
+  user           User            @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  seat           Seat            @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  device         Device          @relation(fields: [deviceId], references: [deviceId], onDelete: Restrict)
+  qrToken        QRToken?        @relation(fields: [qrTokenId], references: [tokenId], onDelete: SetNull)
+
+  @@index([reservationId])
+  @@index([userId, checkedInAt])
+  @@index([seatId, checkedInAt])
+  @@map("checkin_records")
+}
+
+model SensorReading {
+  readingId      String              @id @default(cuid()) @map("reading_id")
+  deviceId       String              @map("device_id")
+  seatId         String              @map("seat_id")
+  presenceStatus PresenceStatus      @map("presence_status")
+  sensorStatus   SensorHealthStatus? @map("sensor_status")
+  rawValue       Json?               @map("raw_value")
+  reportedAt     DateTime            @map("reported_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  device         Device              @relation(fields: [deviceId], references: [deviceId], onDelete: Restrict)
+  seat           Seat                @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+
+  @@index([deviceId, reportedAt])
+  @@index([seatId, reportedAt])
+  @@index([presenceStatus])
+  @@map("sensor_readings")
+}
+
+model AnomalyEvent {
+  eventId       String        @id @default(cuid()) @map("event_id")
+  eventType     AnomalyType   @map("event_type")
+  seatId        String        @map("seat_id")
+  userId        String?       @map("user_id")
+  deviceId      String?       @map("device_id")
+  reservationId String?       @map("reservation_id")
+  description   String
+  status        AnomalyStatus @default(PENDING)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  handledById   String?       @map("handled_by")
+  handledAt     DateTime?     @map("handled_at")
+  handleNote    String?       @map("handle_note")
+  seat          Seat          @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  user          User?         @relation("AnomalyUser", fields: [userId], references: [userId], onDelete: SetNull)
+  device        Device?       @relation(fields: [deviceId], references: [deviceId], onDelete: SetNull)
+  reservation   Reservation?  @relation(fields: [reservationId], references: [reservationId], onDelete: SetNull)
+  handledBy     User?         @relation("AnomalyHandler", fields: [handledById], references: [userId], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([eventType])
+  @@index([seatId, status])
+  @@map("anomaly_events")
+}
+
+model MaintenanceRecord {
+  maintenanceId String    @id @default(cuid()) @map("maintenance_id")
+  seatId        String    @map("seat_id")
+  startedById   String    @map("started_by")
+  endedById     String?   @map("ended_by")
+  reason        String?
+  detail        Json?
+  startedAt     DateTime  @default(now()) @map("started_at")
+  endedAt       DateTime? @map("ended_at")
+  seat          Seat      @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  startedBy     User      @relation("MaintenanceStartedBy", fields: [startedById], references: [userId], onDelete: Restrict)
+  endedBy       User?     @relation("MaintenanceEndedBy", fields: [endedById], references: [userId], onDelete: SetNull)
+
+  @@index([seatId, endedAt])
+  @@index([startedById, startedAt])
+  @@map("maintenance_records")
+}
+
+model StudyRecord {
+  recordId        String      @id @default(cuid()) @map("record_id")
+  userId          String      @map("user_id")
+  reservationId   String      @map("reservation_id")
+  seatId          String      @map("seat_id")
+  startTime       DateTime    @map("start_time")
+  endTime         DateTime    @map("end_time")
+  durationMinutes Int         @map("duration_minutes")
+  validFlag       Boolean     @default(true) @map("valid_flag")
+  invalidReason   String?     @map("invalid_reason")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  user            User        @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  reservation     Reservation @relation(fields: [reservationId], references: [reservationId], onDelete: Restrict)
+  seat            Seat        @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+
+  @@unique([reservationId])
+  @@index([userId, startTime])
+  @@index([seatId, startTime])
+  @@index([validFlag, startTime])
+  @@map("study_records")
+}
+
+model AdminActionLog {
+  logId      String          @id @default(cuid()) @map("log_id")
+  adminId    String          @map("admin_id")
+  actionType AdminActionType @map("action_type")
+  targetType String          @map("target_type")
+  targetId   String          @map("target_id")
+  reason     String?
+  detail     Json?
+  createdAt  DateTime        @default(now()) @map("created_at")
+  admin      User            @relation("AdminActionActor", fields: [adminId], references: [userId], onDelete: Restrict)
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map("admin_action_logs")
+}

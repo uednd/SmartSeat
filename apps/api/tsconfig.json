@@ -1,11 +1,11 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "prisma/**/*.ts", "prisma.config.ts"]
 }

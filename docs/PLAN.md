@@ -18,15 +18,15 @@
 
 ## 2. 当前仓库基线
 
-当前仓库已完成 monorepo 与目录骨架、ADR 决策包、共享契约/API client 基线、NestJS 后端平台基础；认证、预约、数据库业务、真实 MQTT、小程序页面、设备模拟器闭环和固件业务仍未实现。后续任务必须以此事实为基线，不得假设已有隐藏实现。
+当前仓库已完成 monorepo 与目录骨架、ADR 决策包、共享契约/API client 基线、NestJS 后端平台基础，以及 API-DB-01 的 Prisma schema、migration、seed 与数据库访问封装实现；认证、预约业务、真实 MQTT、小程序页面、设备模拟器闭环和固件业务仍未实现。API-DB-01 的实库迁移与 seed 核验当前受本机 Docker/PostgreSQL 不可用阻塞。后续任务必须以此事实为基线，不得假设已有隐藏实现。
 
 | 区域 | 当前状态 | 后续计划含义 |
 |---|---|---|
 | 根工程 | 已有 pnpm workspace、根 `package.json`、基础 lint/format 配置 | 可继续保持 TypeScript monorepo 组织方式 |
 | `docs/PRD.md` | 已定义角色、登录、状态机、MQTT、终端、小程序、后端、数据模型、流程、非功能需求 | 作为唯一需求基线 |
-| `docs/PLAN.md` | 已重构为任务真源，SHR-01 与 API-PLT-01 已完成 | 后续任务按依赖继续推进 |
-| `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录 SHR-01/API-PLT-01 证据 | 后续任务完成时继续补证据路径 |
-| `apps/api` | 已有 NestJS 平台层：配置校验、统一错误、请求日志、OpenAPI、ScheduleModule、增强版 `/health` | 认证、数据模型、业务模块、真实数据库/MQTT 接入仍需后续任务实现 |
+| `docs/PLAN.md` | 已重构为任务真源，SHR-01 与 API-PLT-01 已完成，API-DB-01 实现完成但实库核验阻塞 | 后续任务按依赖继续推进；API-DB-01 需补跑数据库核验后改为 Done |
+| `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录 SHR-01/API-PLT-01/API-DB-01 证据 | 后续任务完成时继续补证据路径 |
+| `apps/api` | 已有 NestJS 平台层：配置校验、统一错误、请求日志、OpenAPI、ScheduleModule、增强版 `/health`；已补 Prisma 数据模型、migration、seed、数据库访问封装 | 认证、预约业务模块、真实 MQTT 接入仍需后续任务实现；数据库实库核验待 Docker/PostgreSQL 可用后补跑 |
 | `apps/miniapp` | `pages.json` 为空，页面目录仅有占位 | 需要先实现页面注册、壳层、登录与角色路由 |
 | `apps/device-simulator` | 仅输出初始化提示 | 需要实现 MQTT 设备模拟与演示场景驱动 |
 | `packages/contracts` | 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload | 后续接口、状态机或 MQTT 契约变更必须继续同步 |
@@ -191,7 +191,7 @@ stateDiagram-v2
 | GOV-02 | ADR 决策包 | 架构/治理 | P0 | GOV-01 | Done |
 | SHR-01 | 共享契约与 API Client 基线 | packages | P0 | GOV-01 | Done |
 | API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Done |
-| API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Not Started |
+| API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Blocked |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Not Started |
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
@@ -303,8 +303,8 @@ stateDiagram-v2
 | 非目标 | 不实现登录、预约、MQTT 或页面逻辑。 |
 | 前置条件 | GOV-02、SHR-01 完成。 |
 | 输入 | PRD 第 8 章数据模型、ADR 中 ORM 决策。 |
-| 输出 | User、AuthConfig、Seat、Device、Reservation、QRToken、SensorReading、AnomalyEvent、StudyRecord、AdminActionLog 模型；迁移脚本；seed 数据。 |
-| 涉及文件/目录 | ORM schema/实体、migration 目录、seed 脚本、`apps/api/src/modules/*` 必要 repository。 |
+| 输出 | User、AuthConfig、Seat、Device、DeviceSeatBinding、Reservation、QRToken、CheckInRecord、SensorReading、AnomalyEvent、MaintenanceRecord、StudyRecord、AdminActionLog 模型；迁移脚本；seed 数据；基础 repository/service。 |
+| 涉及文件/目录 | `apps/api/prisma/**`、`apps/api/src/common/database/**`、`apps/api/src/modules/database-baseline/**`、`apps/api/src/__tests__/api-db-*.ts`。 |
 | 接口契约 | 无外部接口；内部 repository/service 契约。 |
 | 数据变更 | 新建核心业务表、索引、唯一约束、外键、枚举字段。 |
 | 测试要求 | 迁移可执行；seed 可重复运行；关键唯一约束与外键约束测试。 |
@@ -314,6 +314,10 @@ stateDiagram-v2
 | 监控与告警 | 记录 migration/seed 执行日志。 |
 | 验收标准 | PRD 第 8 章所有实体均有模型；演示所需 1 个终端、座位、学生、管理员测试数据可 seed。 |
 | 可分配给编码智能体的提示 | 按 ADR 选定 ORM 实现 schema、migration 和 seed；不要实现业务接口；准备最小演示数据和约束测试。 |
+| 当前状态 | 实现已完成；本机 Docker daemon 不可用，`pnpm infra:up`、`pnpm db:reset-demo`、`pnpm db:seed` 和 `RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` 的实库核验暂阻塞。 |
+| 证据路径 | 代码：`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502000000_api_db_01_baseline/migration.sql`、`apps/api/prisma/seed.ts`、`apps/api/src/common/database/prisma.service.ts`、`apps/api/src/modules/database-baseline/seed-baseline.service.ts`；测试：`apps/api/src/__tests__/api-db-enums.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`；文档：`apps/api/README.md`。 |
+| 已执行核验 | `pnpm install` 通过；`pnpm --filter @smartseat/api db:generate` 通过；`pnpm --filter @smartseat/api test` 通过，数据库集成测试默认跳过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm --filter @smartseat/api lint` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过；`docker compose -f infra/docker-compose.yml config` 通过。 |
+| 阻塞核验 | `pnpm infra:up` 因 Docker daemon socket 不存在失败；`pnpm db:reset-demo` 因 PostgreSQL 不可连接失败；`pnpm db:seed` 编译进入 seed 后因 PostgreSQL `ECONNREFUSED` 失败；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` 因 PostgreSQL 不可连接失败。 |
 
 ### API-AUTH-01 登录模式配置、用户角色与首个管理员引导
 
@@ -719,7 +723,7 @@ stateDiagram-v2
 
 | ID | 风险/未决问题 | 影响 | 处理方式 | 责任角色 |
 |---|---|---|---|---|
-| R01 | ORM 未在当前骨架中落地 | 影响模型、迁移、seed、测试 | ADR-0001 已选择 Prisma；由 API-DB-01 落地 schema、migration 与 seed | 架构师 |
+| R01 | 本机 Docker/PostgreSQL 不可用导致 API-DB-01 实库核验阻塞 | 影响 migration、seed 幂等和数据库集成测试最终验收 | ORM 已按 ADR-0001 接入 Prisma，schema/migration/seed 已实现；Docker/PostgreSQL 可用后补跑 `pnpm db:reset-demo`、重复 `pnpm db:seed`、`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` | 架构师/运维 |
 | R02 | 微信与 OIDC 真实凭据、回调域名、测试环境未明确 | 认证闭环可能阻塞 | ADR-0008 明确 secret 后端管理与 mock provider；真实联调仍为 API-AUTH-02/03 阻塞项 | 产品/运维/架构师 |
 | R03 | 毫米波传感器型号未确定 | 固件驱动不可定稿 | ADR-0006 明确四态 adapter；FW-01 先做抽象，型号确定后补具体实现 | 硬件负责人 |
 | R04 | 当前无 CI/CD 配置 | Checklist 难以自动化为闸门 | ADR-0004 明确本阶段暂缓 CI/CD；QA-01 先用本地质量闸门 | 开发负责人 |
