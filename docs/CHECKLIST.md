@@ -20,7 +20,7 @@
 | G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [x] | 当前已完成任务证据见 `CL-SHR-01`、`CL-API-PLT-01`；变更集中在 shared packages、`apps/api` 与任务文档。 |
 | G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02、SHR-01、API-PLT-01 为 Done，并保留后续任务依赖。 |
 | G-03 | contracts / DTO / 错误码 / MQTT payload / OpenAPI 已按需同步 | [x] | SHR-01 已同步 contracts/API client；API-PLT-01 已提供 `/docs` 与 `/openapi.json`。 |
-| G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [x] | API-DB-01 已补 Prisma schema、migration 与 seed；实库 migration/seed 核验因本机 Docker/PostgreSQL 不可用暂阻塞，详见 `CL-API-DB-01`。 |
+| G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [x] | API-DB-01 已补 Prisma schema、migration 与 seed；Docker/PostgreSQL 可用后已完成实库 migration、seed 幂等和数据库集成测试核验，详见 `CL-API-DB-01`。 |
 | G-05 | 单元测试、集成测试或 E2E 测试已覆盖至少一个正向场景和一个失败/边界场景 | [x] | contracts/api-client 类型样例覆盖正反向；API 平台测试覆盖 health/OpenAPI 正向与配置/错误边界。 |
 | G-06 | 测试命令已实际执行并记录结果；无法执行时已记录原因 | [x] | 证据见 `CL-SHR-01`、`CL-API-PLT-01` 的测试命令与结果。 |
 | G-07 | README、模块文档、接口文档或联调说明已按需更新 | [x] | `packages/contracts/README.md`、`packages/api-client/README.md`、`apps/api/README.md`、根 `README.md` 已记录当前边界。 |
@@ -123,16 +123,16 @@
 - [x] StudyRecord 模型已支持有效学习时长、开始/结束时间、来源预约。
 - [x] AdminActionLog 模型已支持 admin、action、target、reason、detail、timestamp。
 - [x] 索引、唯一约束、外键已按查询和状态机需要配置。
-- [ ] migration 可执行，rollback/down 或等价回滚说明已提供：代码与命令已补齐，rollback 等价策略已写入 `apps/api/README.md`；本机 Docker daemon 不可用，实库执行暂未通过。
-- [ ] seed 可生成至少 1 个座位、1 个设备、学生/管理员测试账号、排行榜演示数据：seed 脚本已补齐并可进入执行；本机 PostgreSQL 不可连接，落库验证暂未通过。
+- [x] migration 可执行，rollback/down 或等价回滚说明已提供：Docker PostgreSQL 已执行 `api-db-init`，migration 输出 `No pending migrations to apply`；rollback 等价策略已写入 `apps/api/README.md`。
+- [x] seed 可生成至少 1 个座位、1 个设备、学生/管理员测试账号、排行榜演示数据：Docker PostgreSQL 已落库，重复 seed 输出 `API-DB-01 seed complete: users=4, seats=1, devices=1, study_records=4`。
 - [x] 证据路径已填写：
 
   - 代码路径：`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502000000_api_db_01_baseline/migration.sql`、`apps/api/prisma/seed.ts`、`apps/api/src/common/database/prisma.service.ts`、`apps/api/src/modules/database-baseline/**`
   - 测试路径：`apps/api/src/__tests__/api-db-enums.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`
   - 文档路径：`apps/api/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`
-  - 已通过命令：`pnpm install`；`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api lint`；`pnpm lint`；`pnpm typecheck`；`pnpm format`；`docker compose -f infra/docker-compose.yml config`
-  - 阻塞命令：`pnpm infra:up` 因 Docker daemon socket 不存在失败；`pnpm db:reset-demo` 因 PostgreSQL 不可连接失败；`pnpm db:seed` 因 PostgreSQL `ECONNREFUSED` 失败；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` 因 PostgreSQL 不可连接失败。
-  - 结论：实现完成；API-DB-01 需在 Docker/PostgreSQL 可用后补跑实库 migration、seed 幂等和数据库集成测试，才可将任务状态改为 Done。
+  - 已通过命令：`pnpm install`；`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api test`；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`；`pnpm docker:config`；`pnpm docker:build`；`pnpm docker:up`；重复 `docker compose --env-file .env.deploy -f infra/docker-compose.deploy.yml run --rm api-db-init`；`curl http://localhost:3000/health`；`curl http://localhost:3000/openapi.json`
+  - 阻塞命令：无。首次 `pnpm docker:build` 曾遇到 Docker Hub `node:24-alpine` metadata EOF，重试后通过。
+  - 结论：通过；API-DB-01 状态已更新为 Done。
 
 ### CL-API-AUTH-01 登录模式配置、用户角色与首个管理员引导
 
@@ -365,15 +365,20 @@
 
 ### CL-OPS-01 本地基础设施、seed 与 demo reset
 
-- [ ] `docker-compose` 或等价命令可启动 PostgreSQL 与 Mosquitto。
-- [ ] 本地 MQTT 匿名配置的边界已写明，仅用于本地/演示。
+- [x] `docker-compose` 或等价命令可启动 PostgreSQL 与 Mosquitto：`pnpm docker:up` 已启动单机 deploy compose；`pnpm docker:ps` 显示 PostgreSQL 与 Mosquitto healthy。
+- [x] 本地 MQTT 匿名配置的边界已写明，仅用于本地/演示。
 - [ ] `.env.example` 覆盖 API、miniapp、simulator、firmware 本地联调所需配置。
-- [ ] seed 可创建演示座位、设备、学生、管理员、学习记录。
+- [x] seed 可创建演示座位、设备、学生、管理员、学习记录：`api-db-init` 重复执行通过，输出 `users=4, seats=1, devices=1, study_records=4`。
 - [ ] reset-demo 可重复执行，并恢复演示初始状态。
 - [ ] 脚本失败时输出可诊断错误。
-- [ ] README 或联调文档说明启动顺序、常见问题、停止/清理命令。
-- [ ] 回滚/清理步骤已写明，包括数据库 volume 或演示数据清理。
-- [ ] 证据路径已填写：____
+- [x] README 或联调文档说明启动顺序、常见问题、停止/清理命令。
+- [x] 回滚/清理步骤已写明，包括数据库 volume 或演示数据清理。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/Dockerfile`、`infra/docker-compose.deploy.yml`、`.dockerignore`、`.env.deploy.example`、根 `package.json`
+  - 文档路径：`README.md`、`apps/api/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`
+  - 已通过命令：`pnpm docker:config`；`pnpm docker:build`；`pnpm docker:up`；`pnpm docker:ps`；`curl http://localhost:3000/health`；`curl http://localhost:3000/openapi.json`；重复 `docker compose --env-file .env.deploy -f infra/docker-compose.deploy.yml run --rm api-db-init`
+  - 剩余未勾选项：`.env.example` 全端联调覆盖、完整 reset-demo、脚本失败诊断、SIM-01 联动和端到端演示证据仍待 OPS-01 后续完成。
 
 ### CL-QA-01 测试、E2E、演示证据与发布闸门
 

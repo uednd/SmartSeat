@@ -62,6 +62,61 @@ Seed 中的设备在线状态和心跳时间只是演示数据，不表示真实
 
 Prisma Migrate 不维护手写 down migration。本地/演示回滚等价操作是 `pnpm db:reset-demo` 重建；已提交 migration 的修正通过新增 migration 或恢复数据库备份完成。
 
+## 准生产单机 Docker 部署
+
+仓库根目录提供 `infra/docker-compose.deploy.yml` 和 `apps/api/Dockerfile`，用于打包当前可运行的后端部署单元：
+
+- `api`：NestJS API 容器，基于 Node.js 24 Alpine，非 root 用户运行，暴露 `3000`，使用 `/health` 做 Docker healthcheck。
+- `postgres`：PostgreSQL 17 Alpine，使用 named volume 持久化。
+- `mosquitto`：Mosquitto 2，复用 `infra/mosquitto/mosquitto.conf`。当前后端仍不连接真实 MQTT broker。
+- `api-db-init`：一次性初始化服务，在 PostgreSQL healthy 后执行 migration 和 seed。
+
+部署前准备：
+
+```bash
+cp .env.deploy.example .env.deploy
+```
+
+编辑 `.env.deploy`，替换数据库密码、MQTT 凭据、微信/OIDC 配置占位值。`.env.deploy` 不应提交到 Git。
+
+常用命令：
+
+```bash
+pnpm docker:config
+pnpm docker:build
+pnpm docker:up
+pnpm docker:ps
+pnpm docker:logs
+pnpm docker:down
+```
+
+验证端点：
+
+```bash
+curl http://localhost:${SMARTSEAT_API_PORT:-3000}/health
+curl http://localhost:${SMARTSEAT_API_PORT:-3000}/openapi.json
+```
+
+`/health` 中 database dependency 会执行真实 `SELECT 1`；MQTT dependency 仍只是配置存在性检查，不代表真实 MQTT 消费、发布或设备在线判定已实现。
+
+重复验证 migration/seed 幂等性：
+
+```bash
+docker compose --env-file .env.deploy -f infra/docker-compose.deploy.yml run --rm api-db-init
+```
+
+停止服务不会删除数据库 volume：
+
+```bash
+pnpm docker:down
+```
+
+需要清空单机部署数据库时，使用：
+
+```bash
+docker compose --env-file .env.deploy -f infra/docker-compose.deploy.yml down -v
+```
+
 ## 日志与调度
 
 请求日志包含 `request_id`、`method`、`path`、`status`、`duration_ms`。日志不记录请求体，也不输出 token、secret、password 等敏感字段。

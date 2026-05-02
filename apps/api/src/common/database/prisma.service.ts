@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
@@ -7,14 +7,11 @@ import { getConfigString } from '../config/config-reader.js';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
-  constructor(configService: ConfigService) {
+  constructor(@Inject(ConfigService) configService: ConfigService) {
     const connectionString = getConfigString(configService, 'DATABASE_URL');
 
     super({
-      adapter: new PrismaPg({
-        connectionString,
-        connectionTimeoutMillis: 500
-      })
+      adapter: new PrismaPg({ connectionString })
     });
   }
 

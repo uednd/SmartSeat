@@ -11,7 +11,7 @@ import { HealthResponseDto, type DependencyHealthDto } from './health.dto.js';
 export class AppController {
   constructor(
     @Inject(ConfigService) private readonly configService: ConfigService,
-    private readonly prisma: PrismaService
+    @Inject(PrismaService) private readonly prisma: PrismaService
   ) {}
 
   @Get('health')

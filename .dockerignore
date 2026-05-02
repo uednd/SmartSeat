@@ -1,16 +1,23 @@
 .DS_Store
 
-# Environment files
+# Environment and secrets
 .env
 .env.*
 !.env.example
 !.env.deploy.example
 
-# Dependencies
+# Git and editor metadata
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+
+# Dependencies and package-manager caches
 node_modules/
 .pnpm-store/
 
-# Build outputs
+# Build/test outputs
 dist/
 build/
 coverage/
@@ -23,11 +30,6 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Editor and OS files
-.idea/
-.vscode/
-*.swp
 
 # Local infrastructure data
 infra/postgres-data/
