@@ -17,18 +17,18 @@
 
 | 编号 | 核查项 | 结果 | 证据/备注 |
 |---|---|---|---|
-| G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [ ] |  |
-| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [ ] |  |
-| G-03 | contracts / DTO / 错误码 / MQTT payload / OpenAPI 已按需同步 | [ ] |  |
-| G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [ ] |  |
-| G-05 | 单元测试、集成测试或 E2E 测试已覆盖至少一个正向场景和一个失败/边界场景 | [ ] |  |
-| G-06 | 测试命令已实际执行并记录结果；无法执行时已记录原因 | [ ] |  |
-| G-07 | README、模块文档、接口文档或联调说明已按需更新 | [ ] |  |
-| G-08 | 新增环境变量已写入 `.env.example`，未提交真实 secret | [ ] |  |
-| G-09 | 回滚或降级步骤已记录 | [ ] |  |
-| G-10 | 日志、监控、告警或至少可诊断日志已按需补齐 | [ ] |  |
-| G-11 | 权限、安全、隐私、匿名化检查已完成 | [ ] |  |
-| G-12 | 高风险任务的处理结论与处理意见已记录 | [ ] |  |
+| G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [x] | 当前已完成任务证据见 `CL-SHR-01`、`CL-API-PLT-01`；变更集中在 shared packages、`apps/api` 与任务文档。 |
+| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02、SHR-01、API-PLT-01 为 Done，并保留后续任务依赖。 |
+| G-03 | contracts / DTO / 错误码 / MQTT payload / OpenAPI 已按需同步 | [x] | SHR-01 已同步 contracts/API client；API-PLT-01 已提供 `/docs` 与 `/openapi.json`。 |
+| G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [x] | SHR-01/API-PLT-01 不涉及数据库 schema、migration、seed 或业务 mock 数据；API-DB-01 仍为 Not Started。 |
+| G-05 | 单元测试、集成测试或 E2E 测试已覆盖至少一个正向场景和一个失败/边界场景 | [x] | contracts/api-client 类型样例覆盖正反向；API 平台测试覆盖 health/OpenAPI 正向与配置/错误边界。 |
+| G-06 | 测试命令已实际执行并记录结果；无法执行时已记录原因 | [x] | 证据见 `CL-SHR-01`、`CL-API-PLT-01` 的测试命令与结果。 |
+| G-07 | README、模块文档、接口文档或联调说明已按需更新 | [x] | `packages/contracts/README.md`、`packages/api-client/README.md`、`apps/api/README.md`、根 `README.md` 已记录当前边界。 |
+| G-08 | 新增环境变量已写入 `.env.example`，未提交真实 secret | [x] | API-PLT-01 未新增环境变量；启动校验使用 `.env.example` 既有占位变量，未提交真实 secret。 |
+| G-09 | 回滚或降级步骤已记录 | [x] | SHR-01 与 API-PLT-01 的回滚要求保留在 `docs/PLAN.md` 对应任务说明中。 |
+| G-10 | 日志、监控、告警或至少可诊断日志已按需补齐 | [x] | API-PLT-01 请求日志包含 request id、method、path、status、duration；health 暴露依赖状态占位。 |
+| G-11 | 权限、安全、隐私、匿名化检查已完成 | [x] | 本阶段未实现登录/权限/用户数据；secret 只使用占位值，未知异常不向客户端暴露 stack。 |
+| G-12 | 高风险任务的处理结论与处理意见已记录 | [x] | 高风险业务仍在后续任务；当前风险与处理方式保留在 `docs/PLAN.md` 风险清单和 ADR 中。 |
 
 ## 3. 证据记录格式
 
@@ -77,6 +77,16 @@
 - [x] `packages/api-client` 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
 - [x] API、miniapp、simulator 不再各自重复手写核心状态字符串。
 - [x] TypeScript 类型检查通过。
+- [x] 证据路径已填写：
+
+  - 代码路径：`packages/contracts/src/enums.ts`、`packages/contracts/src/api.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`
+  - 类型样例：`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`
+  - 文档路径：`packages/contracts/README.md`、`packages/api-client/README.md`
+  - 测试命令：`pnpm --filter @smartseat/contracts typecheck`；`pnpm --filter @smartseat/api-client typecheck`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
+  - 测试结果：全部通过。
+  - 接口/OpenAPI/MQTT 证据：REST DTO、统一错误模型、MQTT topic pattern/build helper、heartbeat/presence/event/display/light/command payload 均在 `packages/contracts` 统一导出；API client 采用 operation_id + transport 注入，真实 REST path 等 API-PLT-01/OpenAPI 绑定。
+  - 截图/录屏/日志：不适用，SHR-01 不实现页面、真实后端或 MQTT 连接。
+  - 结论：通过。
 
 ### CL-API-PLT-01 后端平台基础
 
@@ -88,6 +98,17 @@
 - [x] ScheduleModule 或等价调度机制已初始化，可注册周期任务。
 - [x] 鉴权基础设施、用户上下文或装饰器已准备好供业务模块使用。
 - [x] 已补充配置、错误处理、health 的测试。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/src/common/config/api-env.ts`、`apps/api/src/common/errors/http-exception.filter.ts`、`apps/api/src/common/request/request-logging.middleware.ts`、`apps/api/src/common/openapi/openapi.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/app.module.ts`
+  - 鉴权占位：`apps/api/src/common/auth/request-user.ts`、`apps/api/src/common/auth/current-user.decorator.ts`
+  - 测试路径：`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`
+  - 文档路径：`apps/api/README.md`
+  - 测试命令：`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api lint`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
+  - 测试结果：全部通过。
+  - 接口/OpenAPI/MQTT 证据：`GET /health` smoke 返回 `status/service/version/environment/dependencies`；`GET /openapi.json` smoke 返回 OpenAPI `3.0.0` 且包含 `/health`；`GET /docs` smoke 返回 HTTP 200；本任务不实现真实 MQTT 连接。
+  - 截图/录屏/日志：`pnpm dev:api` 本地启动成功；请求日志输出 `request_id/method/path/status/duration_ms`；手动 `SIGINT` 停止服务导致 dev 命令以 130 退出，属于人工停止。
+  - 结论：通过。
 
 ### CL-API-DB-01 数据模型、迁移与 seed 基线
 

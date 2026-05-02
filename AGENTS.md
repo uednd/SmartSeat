@@ -6,7 +6,7 @@
 
 必须阅读一遍 `docs/PLAN.md`：任务拆解与依赖文档，了解项目当前基线。
 
-## 初始化阶段与编码任务边界
+## 当前基线与编码任务边界
 
 ### 关键边界：
 
@@ -15,7 +15,15 @@
 - 设备通信采用 MQTT。
 - 毫米波人体存在传感器必须通过统一适配层接入。
 
-### 初始化阶段边界
+### 当前已完成基线
+
+- `packages/contracts` 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload。
+- `packages/api-client` 已提供 typed client 方法边界、transport 注入、base URL/token 注入与统一错误归一化。
+- `apps/api` 已具备 NestJS 平台层：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`。
+- `apps/miniapp`、`apps/device-simulator`、`firmware/smart-seat-terminal` 仍以骨架/占位为主。
+- 数据库业务 schema、Prisma 模型/迁移/seed、真实 MQTT 连接、认证与预约等业务模块仍未实现。
+
+### 未实现业务边界
 
 除非任务明确要求，否则不得实现以下内容：
 
@@ -29,7 +37,7 @@
 - 毫米波传感器真实适配。
 - 真实密钥、生产配置或可用于生产的账号密码。
 
-占位任务中允许输出 initialized-only 提示，但不得伪造业务行为、模拟真实鉴权结果、写入测试用户数据或创建业务状态流转。
+占位任务中允许输出 initialized-only 提示，但不得伪造业务行为、模拟真实鉴权结果、写入测试用户数据或创建业务状态流转。已完成的平台层、contracts 和 api-client 只能作为后续业务实现的基础，不代表认证、预约、数据库、MQTT 或小程序业务已完成。
 
 ### 任务边界
 
@@ -37,7 +45,7 @@
 
 1. 只修改任务明确列出的文件或目录；确需越界时，先同步 `docs/PLAN.md` 中的任务边界、依赖关系与对应 `docs/CHECKLIST.md` 核查项。
 2. 不在一个任务中顺手完成无关模块。例如实现扫码签到时，不得同时实现排行榜页面、管理员页面或固件联动之外的额外能力。
-3. 不假设仓库中存在未声明的隐藏实现。当前工程基线以本文件“当前工程状态”和 `docs/PLAN.md` 第 2 章为准，新增能力必须从现有骨架明确落地。
+3. 不假设仓库中存在未声明的隐藏实现。当前工程基线以本文件“当前已完成基线”和 `docs/PLAN.md` 第 2 章为准，新增能力必须从现有骨架明确落地。
 4. 跨端状态、DTO、错误码、MQTT payload 统一进入 `packages/contracts`，小程序访问封装优先进入 `packages/api-client`，不要在多端重复定义。
 5. 后端始终是业务状态可信源；小程序、设备固件、设备模拟器只负责展示、输入、上报和联调，不做最终状态裁决。
 6. 接口、数据模型、配置项、MQTT topic、错误码、状态机变更都必须同步代码、测试与文档，并核对 `docs/PRD.md`、`docs/PLAN.md`、`docs/DEMO.md`、`docs/CHECKLIST.md` 是否仍一致。
@@ -188,7 +196,7 @@ pnpm infra:down
 
 说明：
 
-- `pnpm dev:api` 当前只启动 `/health` 占位服务。
+- `pnpm dev:api` 当前启动 NestJS API 平台服务，暴露 `/health`、`/docs`、`/openapi.json`；仍未实现认证、数据库业务或真实 MQTT。
 - `pnpm dev:sim` 当前只打印 initialized-only 信息。
 - `pnpm infra:up` 需要 Docker daemon 已启动。如果因 Docker daemon 未运行失败，不要修改 Compose 文件，先说明环境问题。
 - 固件目录不纳入 pnpm 构建链，ESP-IDF 构建需单独处理。

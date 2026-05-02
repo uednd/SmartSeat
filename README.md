@@ -1,17 +1,17 @@
 # SmartSeat
 
-SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库已初始化为 pnpm monorepo，后续用于承载 ESP32-P4 终端、uni-app 微信小程序、后端 API、MQTT Broker 集成、设备模拟器和 PostgreSQL 相关服务。
+SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线与 NestJS 后端平台基础，后续继续落地 ESP32-P4 终端、uni-app 微信小程序、MQTT Broker 集成、设备模拟器和 PostgreSQL 业务能力。
 
 ## 仓库结构
 
 ```text
-apps/miniapp              uni-app 微信小程序骨架
-apps/api                  仅提供 /health 的 NestJS API 占位服务
+apps/miniapp              uni-app 微信小程序骨架，业务页面和角色路由尚未实现
+apps/api                  NestJS API 平台层，包含配置校验、统一错误、日志、OpenAPI、调度和 /health
 apps/device-simulator     TypeScript CLI 占位程序
 firmware/smart-seat-terminal
                           ESP32-P4 固件工程骨架
-packages/contracts        共享 TypeScript 枚举和空接口占位
-packages/api-client       空的 API client 包入口
+packages/contracts        共享状态枚举、DTO、错误码、MQTT topic/payload 契约
+packages/api-client       typed API client 与 transport/token/error 基础封装
 packages/config           共享 TypeScript、ESLint、Prettier 配置
 infra                     本地 PostgreSQL 与 Mosquitto Docker Compose 配置
 docs                      已存在的产品与计划文档
@@ -41,22 +41,28 @@ pnpm infra:down
 
 当前命令行为说明：
 
-- `pnpm dev:api` 会启动 NestJS 占位 API 服务，并暴露 `GET /health`。
+- `pnpm dev:api` 会启动 NestJS API 平台服务，并暴露 `GET /health`、`GET /docs`、`GET /openapi.json`。
 - `pnpm dev:sim` 只输出 initialized-only 的模拟器信息并退出。
-- `pnpm lint` 用于检查当前初始化后的 TypeScript 工程骨架。
+- `pnpm lint` 用于检查当前 TypeScript workspace。
 - `pnpm typecheck` 用于运行 workspace 范围内的严格 TypeScript 检查。
 - `pnpm infra:up` 会在 Docker 可用时启动本地 PostgreSQL 与 Mosquitto。
 - `pnpm infra:down` 会停止本地基础设施服务。
 
-## API 占位说明
+## 当前实现状态
 
-当前 NestJS API 仅提供以下接口：
+已完成：
 
-```text
-GET /health
-```
+- `packages/contracts`：共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload。
+- `packages/api-client`：typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化。
+- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`。
 
-返回内容只是 initialized-only 的健康检查结果。未实现认证、数据库连接、MQTT 连接、业务模块或持久化逻辑。
+后端平台接口：
+
+- `GET /health`
+- `GET /docs`
+- `GET /openapi.json`
+
+仍未实现：登录、预约、座位/设备业务接口、真实数据库模型/迁移/seed、真实 MQTT 连接、统计、排行榜、小程序真实页面、固件业务逻辑。
 
 ## 本地基础设施
 

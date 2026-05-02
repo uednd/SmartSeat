@@ -18,19 +18,19 @@
 
 ## 2. 当前仓库基线
 
-当前仓库已完成 monorepo 与目录骨架，但业务功能尚未实现。后续任务必须以此事实为基线，不得假设已有隐藏实现。
+当前仓库已完成 monorepo 与目录骨架、ADR 决策包、共享契约/API client 基线、NestJS 后端平台基础；认证、预约、数据库业务、真实 MQTT、小程序页面、设备模拟器闭环和固件业务仍未实现。后续任务必须以此事实为基线，不得假设已有隐藏实现。
 
 | 区域 | 当前状态 | 后续计划含义 |
 |---|---|---|
 | 根工程 | 已有 pnpm workspace、根 `package.json`、基础 lint/format 配置 | 可继续保持 TypeScript monorepo 组织方式 |
 | `docs/PRD.md` | 已定义角色、登录、状态机、MQTT、终端、小程序、后端、数据模型、流程、非功能需求 | 作为唯一需求基线 |
-| `docs/PLAN.md` | 当前是周计划粒度 | 由本文件重构为任务真源 |
-| `docs/CHECKLIST.md` | 当前是高层验收项 | 由对应 CHECKLIST 重构为任务级核查清单 |
-| `apps/api` | 仅有 NestJS 启动骨架和 `/health` | 后端业务需从模块边界、配置、数据模型开始实现 |
+| `docs/PLAN.md` | 已重构为任务真源，SHR-01 与 API-PLT-01 已完成 | 后续任务按依赖继续推进 |
+| `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录 SHR-01/API-PLT-01 证据 | 后续任务完成时继续补证据路径 |
+| `apps/api` | 已有 NestJS 平台层：配置校验、统一错误、请求日志、OpenAPI、ScheduleModule、增强版 `/health` | 认证、数据模型、业务模块、真实数据库/MQTT 接入仍需后续任务实现 |
 | `apps/miniapp` | `pages.json` 为空，页面目录仅有占位 | 需要先实现页面注册、壳层、登录与角色路由 |
 | `apps/device-simulator` | 仅输出初始化提示 | 需要实现 MQTT 设备模拟与演示场景驱动 |
-| `packages/contracts` | 有状态枚举雏形，API/MQTT 仍为空接口 | 需要成为跨端状态、DTO、MQTT payload、错误码真源 |
-| `packages/api-client` | 仅有空入口 | 需要生成或手写 typed API client，供小程序与测试使用 |
+| `packages/contracts` | 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload | 后续接口、状态机或 MQTT 契约变更必须继续同步 |
+| `packages/api-client` | 已提供 typed client 方法边界、transport 注入、base URL/token 注入与统一错误归一化 | 后续 API-PLT/OpenAPI 与业务接口落地后绑定真实 endpoint |
 | `firmware/smart-seat-terminal` | ESP-IDF 目录骨架，组件目录为空 | 需要先建立组件边界，再实现 Wi-Fi/MQTT/显示/灯光/传感器适配 |
 | `infra` | 本地 PostgreSQL + Mosquitto，Mosquitto 当前允许匿名 | 适合本地联调；正式安全策略需另行配置 |
 | `scripts` | 仅占位 | 需要补齐启动、seed、reset-demo、演示脚本 |
@@ -56,7 +56,7 @@
 
 ### 3.3 编码智能体任务边界
 
-编码智能体任务边界已迁移至根目录 [`AGENTS.md`](../AGENTS.md) 的“3.2 编码智能体任务边界”小节统一维护。
+编码智能体任务边界已迁移至根目录 [`AGENTS.md`](../AGENTS.md) 的“当前基线与编码任务边界”小节统一维护。
 
 执行本计划中的任何任务时，均以 `AGENTS.md` 中对应章节为准；本计划不再重复维护该约束全文，避免双份规则漂移。
 
