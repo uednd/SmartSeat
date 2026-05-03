@@ -174,15 +174,22 @@
 
 ### CL-API-AUTH-03 OIDC 登录闭环
 
-- [ ] `GET /auth/oidc/start` 可生成授权地址或返回小程序可处理的授权信息。
-- [ ] `GET /auth/oidc/callback` 可完成 code 换 token/userinfo 或等价 subject 获取。
-- [ ] OIDC state/nonce 或等价防重放机制已实现。
-- [ ] `client_secret` 仅后端使用，不出现在小程序代码、接口返回、普通日志中。
-- [ ] OIDC 模式下无前端注册入口和后端注册接口。
-- [ ] 已存在 subject 可映射到用户；未授权或未登记用户按产品规则处理。
-- [ ] 回调失败、provider 不可达、登录模式不匹配均有明确错误码。
-- [ ] `.env.example` 已记录 issuer、client id、redirect uri、scope 等配置项。
-- [ ] 证据路径已填写：____
+- [x] `GET /auth/oidc/authorize-url` 可生成授权地址并返回小程序可处理的 `state`。
+- [x] `POST /auth/oidc/callback` 可完成 mock code 换 subject、用户绑定和系统 token 签发。
+- [x] OIDC state/nonce 或等价防重放机制已实现。
+- [x] `client_secret` 仅后端使用，不出现在小程序代码、接口返回、普通日志中。
+- [x] OIDC 模式下无前端注册入口和后端注册接口。
+- [x] 已存在 subject 可映射到用户；新用户按首个管理员规则创建。
+- [x] 回调失败、provider 不可达、登录模式不匹配均有明确错误码。
+- [x] `.env.example` 已记录 issuer、client id、client secret、redirect uri、provider mode 等配置项。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/common/config/api-env.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`
+  - 测试路径：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`
+  - 文档路径：`docs/PLAN.md`、`docs/CHECKLIST.md`
+  - 已通过命令：`pnpm add openid-client@^6.8.4 --filter @smartseat/api`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`
+  - 阻塞命令：无。本任务未启动真实学校 OIDC Provider 外网联调，未实现小程序页面或 OIDC 管理员组映射。
+  - 结论：通过；API-AUTH-03 状态已更新为 Done。
 
 ### CL-API-SEAT-01 座位/设备查询聚合
 

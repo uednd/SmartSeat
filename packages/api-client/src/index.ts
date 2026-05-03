@@ -23,8 +23,7 @@ import {
   type MeResponse,
   type NoShowRecordDto,
   type OidcCallbackRequest,
-  type OidcStartRequest,
-  type OidcStartResponse,
+  type OidcAuthorizeUrlResponse,
   type PageRequest,
   type PageResponse,
   type ReservationDto,
@@ -319,7 +318,8 @@ function normalizeErrorResponse(payload: unknown): ApiErrorResponse {
 export interface AuthApi {
   getLoginMode(): Promise<LoginModeResponse>;
   loginWechat(request: WechatLoginRequest): Promise<AuthSessionResponse>;
-  startOidc(request?: OidcStartRequest): Promise<OidcStartResponse>;
+  getOidcAuthorizeUrl(): Promise<OidcAuthorizeUrlResponse>;
+  startOidc(): Promise<OidcAuthorizeUrlResponse>;
   completeOidc(request: OidcCallbackRequest): Promise<AuthSessionResponse>;
 }
 
@@ -395,8 +395,10 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
       getLoginMode: () => transport.request({ operation_id: 'auth.getLoginMode', method: 'GET' }),
       loginWechat: (request) =>
         transport.request({ operation_id: 'auth.loginWechat', method: 'POST', body: request }),
-      startOidc: (request) =>
-        transport.request({ operation_id: 'auth.startOidc', method: 'POST', body: request }),
+      getOidcAuthorizeUrl: () =>
+        transport.request({ operation_id: 'auth.getOidcAuthorizeUrl', method: 'GET' }),
+      startOidc: () =>
+        transport.request({ operation_id: 'auth.getOidcAuthorizeUrl', method: 'GET' }),
       completeOidc: (request) =>
         transport.request({ operation_id: 'auth.completeOidc', method: 'POST', body: request })
     },

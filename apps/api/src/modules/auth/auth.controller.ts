@@ -4,6 +4,8 @@ import {
   type AuthSessionResponse,
   type AuthConfigPublicDto,
   type LoginModeResponse,
+  type OidcAuthorizeUrlResponse,
+  type OidcCallbackRequest,
   type UpdateAuthConfigRequest,
   type WechatLoginRequest
 } from '@smartseat/contracts';
@@ -13,6 +15,7 @@ import { BearerAuthGuard } from '../../common/auth/bearer-auth.guard.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import { type RequestUser } from '../../common/auth/request-user.js';
 import { AuthConfigService } from './auth-config.service.js';
+import { OidcAuthService } from './oidc-auth.service.js';
 import { WeChatAuthService } from './wechat-auth.service.js';
 
 @ApiTags('auth')
@@ -20,6 +23,7 @@ import { WeChatAuthService } from './wechat-auth.service.js';
 export class AuthController {
   constructor(
     private readonly authConfigService: AuthConfigService,
+    private readonly oidcAuthService: OidcAuthService,
     private readonly weChatAuthService: WeChatAuthService
   ) {}
 
@@ -34,6 +38,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in with WeChat miniapp wx.login code' })
   async loginWithWeChat(@Body() request: WechatLoginRequest): Promise<AuthSessionResponse> {
     return await this.weChatAuthService.login(request);
+  }
+
+  @Get('oidc/authorize-url')
+  @ApiOperation({ summary: 'Get OIDC authorization URL and state' })
+  async getOidcAuthorizeUrl(): Promise<OidcAuthorizeUrlResponse> {
+    return await this.oidcAuthService.getAuthorizeUrl();
+  }
+
+  @Post('oidc/callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete OIDC authorization code login' })
+  async oidcCallback(@Body() request: OidcCallbackRequest): Promise<AuthSessionResponse> {
+    return await this.oidcAuthService.callback(request);
   }
 }
 

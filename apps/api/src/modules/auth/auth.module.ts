@@ -7,6 +7,13 @@ import { UsersModule } from '../users/users.module.js';
 import { AdminAuthController, AuthController } from './auth.controller.js';
 import { AuthConfigService } from './auth-config.service.js';
 import { MeController } from './me.controller.js';
+import {
+  MockOidcAuthProvider,
+  OidcAuthProviderSelector,
+  RealOidcAuthProvider
+} from './oidc-auth.provider.js';
+import { OidcAuthService } from './oidc-auth.service.js';
+import { OidcStateService } from './oidc-state.service.js';
 import { TokenService } from './token.service.js';
 import {
   MockWeChatAuthProvider,
@@ -21,6 +28,11 @@ import { WeChatAuthService } from './wechat-auth.service.js';
   providers: [
     AuthConfigService,
     TokenService,
+    OidcAuthService,
+    OidcStateService,
+    MockOidcAuthProvider,
+    RealOidcAuthProvider,
+    OidcAuthProviderSelector,
     WeChatAuthService,
     MockWeChatAuthProvider,
     RealWeChatAuthProvider,

@@ -5,6 +5,7 @@ import { AuthMode } from '@smartseat/contracts';
 
 export type ApiNodeEnv = 'development' | 'test' | 'production';
 export type WeChatAuthProviderMode = 'mock' | 'real';
+export type OidcAuthProviderMode = 'mock' | 'real';
 
 export interface ApiEnv {
   NODE_ENV: ApiNodeEnv;
@@ -23,8 +24,11 @@ export interface ApiEnv {
   WECHAT_APP_ID: string;
   WECHAT_APP_SECRET: string;
   WECHAT_AUTH_PROVIDER_MODE: WeChatAuthProviderMode;
+  OIDC_ISSUER: string;
   OIDC_CLIENT_ID: string;
   OIDC_CLIENT_SECRET: string;
+  OIDC_REDIRECT_URI: string;
+  OIDC_AUTH_PROVIDER_MODE: OidcAuthProviderMode;
   AUTH_TOKEN_SECRET: string;
   AUTH_TOKEN_TTL_SECONDS: number;
   DEFAULT_AUTH_MODE: AuthMode;
@@ -39,14 +43,17 @@ const PRODUCTION_PLACEHOLDER_KEYS = [
   'MQTT_PASSWORD',
   'WECHAT_APP_ID',
   'WECHAT_APP_SECRET',
+  'OIDC_ISSUER',
   'OIDC_CLIENT_ID',
   'OIDC_CLIENT_SECRET',
+  'OIDC_REDIRECT_URI',
   'AUTH_TOKEN_SECRET'
 ] as const;
 
 const VALID_NODE_ENVS = new Set<ApiNodeEnv>(['development', 'test', 'production']);
 const VALID_AUTH_MODES = new Set<AuthMode>([AuthMode.WECHAT, AuthMode.OIDC]);
 const VALID_WECHAT_AUTH_PROVIDER_MODES = new Set<WeChatAuthProviderMode>(['mock', 'real']);
+const VALID_OIDC_AUTH_PROVIDER_MODES = new Set<OidcAuthProviderMode>(['mock', 'real']);
 
 export const getApiEnvFilePaths = (): string[] => {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -116,6 +123,19 @@ const readWeChatAuthProviderMode = (
   return value as WeChatAuthProviderMode;
 };
 
+const readOidcAuthProviderMode = (
+  config: Record<string, unknown>,
+  key: 'OIDC_AUTH_PROVIDER_MODE'
+): OidcAuthProviderMode => {
+  const value = readRequiredString(config, key);
+
+  if (!VALID_OIDC_AUTH_PROVIDER_MODES.has(value as OidcAuthProviderMode)) {
+    throw new Error(`Invalid OIDC auth provider mode in API environment variable: ${key}`);
+  }
+
+  return value as OidcAuthProviderMode;
+};
+
 const assertNoProductionPlaceholder = (env: ApiNodeEnv, config: Record<string, unknown>): void => {
   if (env !== 'production') {
     return;
@@ -162,8 +182,11 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
     WECHAT_APP_ID: readRequiredString(config, 'WECHAT_APP_ID'),
     WECHAT_APP_SECRET: readRequiredString(config, 'WECHAT_APP_SECRET'),
     WECHAT_AUTH_PROVIDER_MODE: readWeChatAuthProviderMode(config, 'WECHAT_AUTH_PROVIDER_MODE'),
+    OIDC_ISSUER: readRequiredString(config, 'OIDC_ISSUER'),
     OIDC_CLIENT_ID: readRequiredString(config, 'OIDC_CLIENT_ID'),
     OIDC_CLIENT_SECRET: readRequiredString(config, 'OIDC_CLIENT_SECRET'),
+    OIDC_REDIRECT_URI: readRequiredString(config, 'OIDC_REDIRECT_URI'),
+    OIDC_AUTH_PROVIDER_MODE: readOidcAuthProviderMode(config, 'OIDC_AUTH_PROVIDER_MODE'),
     AUTH_TOKEN_SECRET: readRequiredString(config, 'AUTH_TOKEN_SECRET'),
     AUTH_TOKEN_TTL_SECONDS: readPositiveInteger(config, 'AUTH_TOKEN_TTL_SECONDS'),
     DEFAULT_AUTH_MODE: readAuthMode(config, 'DEFAULT_AUTH_MODE')

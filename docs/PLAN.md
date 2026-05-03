@@ -194,7 +194,7 @@ stateDiagram-v2
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Done |
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
-| API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
+| API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Not Started |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Not Started |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Not Started |
@@ -375,17 +375,21 @@ stateDiagram-v2
 | 非目标 | 不实现微信登录；不在前端保存 `client_secret`；不提供 OIDC 模式注册入口。 |
 | 前置条件 | API-AUTH-01 完成。 |
 | 输入 | 学校 OIDC Provider 配置、PRD 2.5、7.3.3。 |
-| 输出 | `GET /auth/oidc/start`、`GET /auth/oidc/callback`、OIDC provider 封装、用户映射。 |
-| 涉及文件/目录 | `apps/api/src/modules/auth/**`、contracts auth DTO。 |
-| 接口契约 | start 返回授权地址或重定向信息；callback 返回系统 token 或可被小程序消费的结果。 |
-| 数据变更 | User 增加/更新 oidc subject 映射。 |
+| 输出 | `GET /auth/oidc/authorize-url`、`POST /auth/oidc/callback`、OIDC provider 封装、用户映射。 |
+| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/config/**`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`、`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`。 |
+| 接口契约 | `authorize-url` 返回 `authorization_url` 与签名 `state`；`callback` 输入 `code`/`state`，成功返回兼容 `AuthSessionResponse` 的系统 token、用户、角色和 `next_route`。 |
+| 数据变更 | 复用现有 User `oidc_sub` 与 `external_user_no` 字段；以 `issuer + subject` 作为稳定绑定键；不新增 Prisma migration。 |
 | 测试要求 | state 校验、回调失败、未授权用户、已存在 subject、登录模式不匹配、secret 不出后端。 |
 | 文档要求 | 说明 issuer、client id、client secret、redirect uri、scope 配置。 |
-| 部署/配置要求 | OIDC 相关环境变量写入 `.env.example`，真实 secret 不入库。 |
+| 部署/配置要求 | `OIDC_ISSUER`、`OIDC_CLIENT_ID`、`OIDC_CLIENT_SECRET`、`OIDC_REDIRECT_URI`、`OIDC_AUTH_PROVIDER_MODE=mock/real` 写入 `.env.example`；真实 secret 不入库；production 禁止 placeholder。 |
 | 回滚要求 | 可关闭 OIDC 模式；保留用户映射。 |
 | 监控与告警 | 登录失败率、回调失败原因、provider 不可达日志。 |
 | 验收标准 | OIDC 模式下通过学校身份源登录；不出现注册入口；secret 仅后端使用；角色路由信息完整。 |
 | 可分配给编码智能体的提示 | 采用后端持有 secret 的授权码流；只做 start/callback 与 subject 映射；不要改 UI；必须补安全与失败用例。 |
+| 当前状态 | Done；已实现 mock/real OIDC provider、`GET /auth/oidc/authorize-url`、`POST /auth/oidc/callback`、签名 state、OIDC 用户创建/复用、token 签发和模式/错误码校验。 |
+| 证据路径 | 代码：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/src/common/config/api-env.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm add openid-client@^6.8.4 --filter @smartseat/api` 完成依赖与 lockfile 更新；`pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
+| 阻塞核验 | 无；本任务未做真实学校 OIDC Provider 外网联调，未实现小程序页面或 OIDC 管理员组映射。 |
 
 ### API-SEAT-01 座位/设备查询聚合
 

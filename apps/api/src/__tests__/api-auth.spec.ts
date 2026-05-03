@@ -226,6 +226,23 @@ describe('API-AUTH-01 auth and users module', () => {
   let tokenService: TokenService;
   let usersService: UsersService;
 
+  const seedOidcAuthConfig = (): void => {
+    prisma.authConfigs.push(
+      prisma.createAuthConfig({
+        authMode: AuthMode.OIDC,
+        oidcIssuer: 'https://idp.example.test',
+        oidcClientId: 'smartseat-oidc-client',
+        oidcClientSecret: 'oidc-client-secret-plain',
+        oidcRedirectUri: 'https://api.example.test/auth/oidc/callback'
+      })
+    );
+  };
+
+  const getOidcState = async (): Promise<string> => {
+    const response = await request(app.getHttpServer()).get('/auth/oidc/authorize-url').expect(200);
+    return response.body.state as string;
+  };
+
   beforeEach(async () => {
     prisma = new FakePrismaService();
 
@@ -532,6 +549,199 @@ describe('API-AUTH-01 auth and users module', () => {
     expect(response.body).toMatchObject({
       code: ApiErrorCode.AUTH_LOGIN_MODE_MISMATCH
     });
+    expect(prisma.users).toHaveLength(0);
+  });
+
+  it('returns a mock OIDC authorization URL and state without leaking secrets', async () => {
+    seedOidcAuthConfig();
+
+    const response = await request(app.getHttpServer()).get('/auth/oidc/authorize-url').expect(200);
+    const authorizationUrl = new URL(response.body.authorization_url as string);
+
+    expect(response.body).toMatchObject({
+      authorization_url: expect.any(String),
+      state: expect.any(String)
+    });
+    expect(authorizationUrl.origin).toBe('https://idp.example.test');
+    expect(authorizationUrl.searchParams.get('client_id')).toBe('smartseat-oidc-client');
+    expect(authorizationUrl.searchParams.get('redirect_uri')).toBe(
+      'https://api.example.test/auth/oidc/callback'
+    );
+    expect(authorizationUrl.searchParams.get('response_type')).toBe('code');
+    expect(authorizationUrl.searchParams.get('state')).toBe(response.body.state);
+    expect(JSON.stringify(response.body)).not.toContain('oidc-client-secret-plain');
+    expect(JSON.stringify(response.body)).not.toContain('mock_subject');
+  });
+
+  it('logs in with mock OIDC provider and keeps /me route data consistent', async () => {
+    seedOidcAuthConfig();
+    const firstState = await getOidcState();
+    const firstResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-first',
+        state: firstState
+      })
+      .expect(200);
+    const meResponse = await request(app.getHttpServer())
+      .get('/me')
+      .set('Authorization', `Bearer ${firstResponse.body.token}`)
+      .expect(200);
+    const secondState = await getOidcState();
+    const secondResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-second',
+        state: secondState
+      })
+      .expect(200);
+
+    expect(firstResponse.body).toMatchObject({
+      token: expect.any(String),
+      token_type: 'Bearer',
+      expires_at: expect.any(String),
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      next_route: 'admin',
+      user: {
+        auth_provider: AuthProvider.OIDC,
+        roles: [UserRole.ADMIN],
+        anonymous_name: '系统管理员',
+        display_name: 'OIDC 测试用户 first',
+        avatar_url: 'https://avatar.example.test/oidc/first.png'
+      }
+    });
+    expect(meResponse.body).toMatchObject({
+      user_id: firstResponse.body.user.user_id,
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      display_name: 'OIDC 测试用户 first',
+      anonymous_name: '系统管理员',
+      auth_mode: AuthMode.OIDC,
+      next_route: 'admin'
+    });
+    expect(secondResponse.body).toMatchObject({
+      role: UserRole.STUDENT,
+      roles: [UserRole.STUDENT],
+      next_route: 'student'
+    });
+    expect(prisma.users).toHaveLength(2);
+    expect(prisma.users[0]).toMatchObject({
+      oidcSub: 'https://idp.example.test#mock_subject_first',
+      externalUserNo: 'mock_user_first',
+      roles: [UserRole.ADMIN]
+    });
+    expect(prisma.users[1]).toMatchObject({
+      oidcSub: 'https://idp.example.test#mock_subject_second',
+      roles: [UserRole.STUDENT]
+    });
+    expect(JSON.stringify(firstResponse.body)).not.toContain('mock_subject_first');
+    expect(JSON.stringify(firstResponse.body)).not.toContain('oidc-client-secret-plain');
+  });
+
+  it('returns the same user for an existing mock OIDC subject', async () => {
+    seedOidcAuthConfig();
+    const firstResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-repeat',
+        state: await getOidcState()
+      })
+      .expect(200);
+    const secondResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-repeat',
+        state: await getOidcState()
+      })
+      .expect(200);
+
+    expect(secondResponse.body.user.user_id).toBe(firstResponse.body.user.user_id);
+    expect(prisma.users).toHaveLength(1);
+  });
+
+  it('rejects missing and invalid OIDC state with validation errors', async () => {
+    seedOidcAuthConfig();
+    const validState = await getOidcState();
+    const missingStateResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({ code: 'mock-oidc-code-state' })
+      .expect(400);
+    const invalidStateResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-state',
+        state: `${validState.slice(0, -1)}x`
+      })
+      .expect(400);
+
+    expect(missingStateResponse.body).toMatchObject({
+      code: ApiErrorCode.VALIDATION_FAILED
+    });
+    expect(invalidStateResponse.body).toMatchObject({
+      code: ApiErrorCode.VALIDATION_FAILED
+    });
+    expect(prisma.users).toHaveLength(0);
+  });
+
+  it('rejects OIDC authorize and callback when the current auth mode is WeChat', async () => {
+    const authorizeResponse = await request(app.getHttpServer())
+      .get('/auth/oidc/authorize-url')
+      .expect(409);
+    const callbackResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-wechat-mode',
+        state: 'opaque-state'
+      })
+      .expect(409);
+
+    expect(authorizeResponse.body).toMatchObject({
+      code: ApiErrorCode.AUTH_LOGIN_MODE_MISMATCH
+    });
+    expect(callbackResponse.body).toMatchObject({
+      code: ApiErrorCode.AUTH_LOGIN_MODE_MISMATCH
+    });
+    expect(prisma.users).toHaveLength(0);
+  });
+
+  it('maps mock OIDC provider failures without leaking sensitive details', async () => {
+    seedOidcAuthConfig();
+    const invalidCodeResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'invalid-oidc-code',
+        state: await getOidcState()
+      })
+      .expect(401);
+    const providerFailureResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-error',
+        state: await getOidcState()
+      })
+      .expect(502);
+    const missingIdentityResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-no-sub',
+        state: await getOidcState()
+      })
+      .expect(502);
+
+    for (const response of [
+      invalidCodeResponse,
+      providerFailureResponse,
+      missingIdentityResponse
+    ]) {
+      expect(response.body).toMatchObject({
+        code: ApiErrorCode.AUTH_PROVIDER_FAILED
+      });
+      expect(JSON.stringify(response.body)).not.toContain('mock-oidc-code');
+      expect(JSON.stringify(response.body)).not.toContain('mock_subject');
+      expect(JSON.stringify(response.body)).not.toContain('oidc-client-secret-plain');
+      expect(JSON.stringify(response.body)).not.toContain('invalid-oidc-code');
+    }
     expect(prisma.users).toHaveLength(0);
   });
 });

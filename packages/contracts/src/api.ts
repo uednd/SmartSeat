@@ -115,10 +115,12 @@ export interface OidcStartRequest {
   redirect_uri?: string;
 }
 
-export interface OidcStartResponse {
+export interface OidcAuthorizeUrlResponse {
   authorization_url: string;
   state: string;
 }
+
+export type OidcStartResponse = OidcAuthorizeUrlResponse;
 
 export interface OidcCallbackRequest {
   code: string;

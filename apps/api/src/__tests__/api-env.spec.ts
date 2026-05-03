@@ -20,8 +20,11 @@ const baseEnv = {
   WECHAT_APP_ID: 'replace-with-placeholder',
   WECHAT_APP_SECRET: 'replace-with-placeholder',
   WECHAT_AUTH_PROVIDER_MODE: 'mock',
+  OIDC_ISSUER: 'https://placeholder-idp.example.test',
   OIDC_CLIENT_ID: 'replace-with-placeholder',
   OIDC_CLIENT_SECRET: 'replace-with-placeholder',
+  OIDC_REDIRECT_URI: 'https://placeholder-api.example.test/auth/oidc/callback',
+  OIDC_AUTH_PROVIDER_MODE: 'mock',
   AUTH_TOKEN_SECRET: 'replace-with-local-placeholder',
   AUTH_TOKEN_TTL_SECONDS: '3600',
   DEFAULT_AUTH_MODE: 'WECHAT'
@@ -36,6 +39,7 @@ describe('validateApiEnv', () => {
       POSTGRES_PORT: 5432,
       MQTT_PORT: 1883,
       WECHAT_AUTH_PROVIDER_MODE: 'mock',
+      OIDC_AUTH_PROVIDER_MODE: 'mock',
       AUTH_TOKEN_TTL_SECONDS: 3600,
       DEFAULT_AUTH_MODE: 'WECHAT'
     });
@@ -61,8 +65,10 @@ describe('validateApiEnv', () => {
         MQTT_PASSWORD: 'production-mqtt-password',
         WECHAT_APP_ID: 'wx-production-appid',
         WECHAT_APP_SECRET: 'production-wechat-secret',
+        OIDC_ISSUER: 'https://idp.smartseat-prod.invalid',
         OIDC_CLIENT_ID: 'production-oidc-client',
         OIDC_CLIENT_SECRET: 'production-oidc-secret',
+        OIDC_REDIRECT_URI: 'https://api.smartseat-prod.invalid/auth/oidc/callback',
         NODE_ENV: 'production'
       })
     ).toThrow(
@@ -98,6 +104,44 @@ describe('validateApiEnv', () => {
       })
     ).toThrow(
       'Invalid WeChat auth provider mode in API environment variable: WECHAT_AUTH_PROVIDER_MODE'
+    );
+  });
+
+  it('accepts real OIDC provider mode', () => {
+    expect(
+      validateApiEnv({
+        ...baseEnv,
+        OIDC_AUTH_PROVIDER_MODE: 'real'
+      })
+    ).toMatchObject({
+      OIDC_AUTH_PROVIDER_MODE: 'real'
+    });
+  });
+
+  it('rejects invalid OIDC provider mode values', () => {
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        OIDC_AUTH_PROVIDER_MODE: 'fixture'
+      })
+    ).toThrow(
+      'Invalid OIDC auth provider mode in API environment variable: OIDC_AUTH_PROVIDER_MODE'
+    );
+  });
+
+  it('requires OIDC issuer and redirect URI', () => {
+    const missingIssuer: Record<string, string> = { ...baseEnv };
+    delete missingIssuer.OIDC_ISSUER;
+
+    expect(() => validateApiEnv(missingIssuer)).toThrow(
+      'Missing required API environment variable: OIDC_ISSUER'
+    );
+
+    const missingRedirectUri: Record<string, string> = { ...baseEnv };
+    delete missingRedirectUri.OIDC_REDIRECT_URI;
+
+    expect(() => validateApiEnv(missingRedirectUri)).toThrow(
+      'Missing required API environment variable: OIDC_REDIRECT_URI'
     );
   });
 });
