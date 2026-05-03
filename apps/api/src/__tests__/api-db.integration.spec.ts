@@ -1,5 +1,12 @@
 import { type TestingModule, Test } from '@nestjs/testing';
-import { ReservationStatus, SeatAvailability, SeatStatus, UserRole } from '@prisma/client';
+import {
+  PresenceStatus,
+  ReservationStatus,
+  SeatAvailability,
+  SeatStatus,
+  SensorHealthStatus,
+  UserRole
+} from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiConfigModule } from '../common/config/api-config.module.js';
@@ -174,6 +181,60 @@ describeDatabase('API-DB-01 database baseline', () => {
       }),
       'P2003'
     );
+  });
+
+  it('persists sensor readings by device, seat, and reported timestamp', async () => {
+    await prisma.sensorReading.deleteMany({
+      where: {
+        readingId: 'sensor_persistence_test'
+      }
+    });
+
+    const reportedAt = new Date('2026-05-03T08:30:00.000Z');
+
+    await prisma.sensorReading.create({
+      data: {
+        readingId: 'sensor_persistence_test',
+        deviceId: 'device_demo_esp32p4_001',
+        seatId: 'seat_demo_001',
+        presenceStatus: PresenceStatus.PRESENT,
+        sensorStatus: SensorHealthStatus.OK,
+        rawValue: {
+          distance_mm: 760,
+          debug: {
+            zone: 'desk'
+          }
+        },
+        reportedAt
+      }
+    });
+
+    const reading = await prisma.sensorReading.findFirst({
+      where: {
+        deviceId: 'device_demo_esp32p4_001',
+        seatId: 'seat_demo_001',
+        reportedAt
+      }
+    });
+
+    expect(reading).toMatchObject({
+      readingId: 'sensor_persistence_test',
+      deviceId: 'device_demo_esp32p4_001',
+      seatId: 'seat_demo_001',
+      presenceStatus: PresenceStatus.PRESENT,
+      sensorStatus: SensorHealthStatus.OK,
+      reportedAt
+    });
+
+    expect(reading?.rawValue).toMatchObject({
+      distance_mm: 760
+    });
+
+    await prisma.sensorReading.delete({
+      where: {
+        readingId: 'sensor_persistence_test'
+      }
+    });
   });
 
   it('enforces effective reservation overlap constraints while allowing released history', async () => {

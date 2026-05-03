@@ -11,6 +11,7 @@ import { DevicesModule } from './modules/devices/devices.module.js';
 import { MqttModule } from './modules/mqtt/mqtt.module.js';
 import { ReservationsModule } from './modules/reservations/reservations.module.js';
 import { SeatsModule } from './modules/seats/seats.module.js';
+import { SensorsModule } from './modules/sensors/sensors.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -23,6 +24,7 @@ import { UsersModule } from './modules/users/users.module.js';
     SeatsModule,
     ReservationsModule,
     DevicesModule,
+    SensorsModule,
     MqttModule,
     ScheduleModule.forRoot()
   ],

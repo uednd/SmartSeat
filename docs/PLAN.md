@@ -200,7 +200,7 @@ stateDiagram-v2
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Done |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Done |
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
-| API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Not Started |
+| API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Done |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Not Started |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Not Started |
 | API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Not Started |
@@ -523,6 +523,10 @@ stateDiagram-v2
 | 回滚要求 | 可停用 presence 规则，仅保留原始记录。 |
 | 监控与告警 | payload 校验失败、传感器错误状态、长时间 UNKNOWN。 |
 | 验收标准 | 后端可稳定记录传感器上报，并按持续时间形成可信 presence 判断。 |
+| 当前状态 | Done；已实现 `seat/+/presence` MQTT 订阅、presence payload 校验、`PRESENT/ABSENT/UNKNOWN/ERROR` 统一状态映射、`raw_value` 调试字段保留、SensorReading 持久化、可配置持续时间阈值、抖动保护，以及稳定 presence 派生更新 Seat/Device；未实现异常事件引擎、自动释放规则、管理员页面、小程序页面、设备模拟器或固件驱动。 |
+| 阈值与回滚 | 默认 `PRESENCE_PRESENT_STABLE_SECONDS=60`、`PRESENCE_ABSENT_STABLE_SECONDS=300`、`PRESENCE_UNTRUSTED_STABLE_SECONDS=120`；`PRESENCE_EVALUATION_ENABLED=false` 时仅记录 SensorReading，不更新稳定 presence 派生状态。 |
+| 传感器适配边界 | 后端只信任 contracts 中的四态 presence；型号私有值只保留在 `raw_value`，不参与核心业务判断；非法 payload 记录日志并安全忽略。 |
+| 证据路径 | 代码：`apps/api/src/modules/sensors/**`、`apps/api/src/modules/mqtt/mqtt-presence.service.ts`、`apps/api/src/modules/mqtt/mqtt.module.ts`、`apps/api/src/app.module.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`；测试：`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm --filter @smartseat/api lint`、`pnpm lint`、`pnpm typecheck`、`pnpm format`；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` 已执行但受本地 PostgreSQL 凭据 `28P01` 阻塞。 |
 | 可分配给编码智能体的提示 | 只做 presence 抽象、持久化和持续时间判断；不要写前端页面；保留 `raw_value` 调试字段。 |
 
 ### API-IOT-03 调度任务、自动规则与异常事件

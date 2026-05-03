@@ -263,15 +263,15 @@
 
 ### CL-API-IOT-02 传感器接入与持续时间判断
 
-- [ ] presence payload 统一映射为 `PRESENT/ABSENT/UNKNOWN/ERROR`。
-- [ ] 原始传感器值 `raw_value` 或等价调试字段已保留。
-- [ ] SensorReading 可按 device_id、seat_id、timestamp 持久化。
-- [ ] PRESENT 持续阈值判断正确。
-- [ ] ABSENT 持续阈值判断正确。
-- [ ] UNKNOWN/ERROR 持续阈值判断正确。
-- [ ] 抖动数据不会立即触发误判。
-- [ ] 阈值可配置并记录在 `.env.example` 或文档中。
-- [ ] 证据路径已填写：____
+- [x] presence payload 统一映射为 `PRESENT/ABSENT/UNKNOWN/ERROR`。
+- [x] 原始传感器值 `raw_value` 或等价调试字段已保留。
+- [x] SensorReading 可按 device_id、seat_id、timestamp 持久化。
+- [x] PRESENT 持续阈值判断正确。
+- [x] ABSENT 持续阈值判断正确。
+- [x] UNKNOWN/ERROR 持续阈值判断正确。
+- [x] 抖动数据不会立即触发误判。
+- [x] 阈值可配置并记录在 `.env.example` 或文档中。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/sensors/**`、`apps/api/src/modules/mqtt/mqtt-presence.service.ts`、`apps/api/src/modules/mqtt/mqtt.module.ts`、`apps/api/src/app.module.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`；测试 `apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`；文档 `docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm --filter @smartseat/api lint`、`pnpm lint`、`pnpm typecheck`、`pnpm format`；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test` 已执行但受本地 PostgreSQL 凭据 `28P01` 阻塞。
 
 ### CL-API-IOT-03 调度任务、自动规则与异常事件
 

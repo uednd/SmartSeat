@@ -21,6 +21,10 @@ const baseEnv = {
   MQTT_BROKER_URL: 'mqtt://localhost:1883',
   MQTT_CLIENT_ID: 'smartseat-api-test',
   MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: '75',
+  PRESENCE_PRESENT_STABLE_SECONDS: '60',
+  PRESENCE_ABSENT_STABLE_SECONDS: '300',
+  PRESENCE_UNTRUSTED_STABLE_SECONDS: '120',
+  PRESENCE_EVALUATION_ENABLED: 'true',
   QR_TOKEN_REFRESH_SECONDS: '15',
   QR_TOKEN_TTL_SECONDS: '30',
   CHECKIN_ENABLED: 'true',
@@ -49,6 +53,10 @@ describe('validateApiEnv', () => {
       MQTT_BROKER_URL: 'mqtt://localhost:1883',
       MQTT_CLIENT_ID: 'smartseat-api-test',
       MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75,
+      PRESENCE_PRESENT_STABLE_SECONDS: 60,
+      PRESENCE_ABSENT_STABLE_SECONDS: 300,
+      PRESENCE_UNTRUSTED_STABLE_SECONDS: 120,
+      PRESENCE_EVALUATION_ENABLED: true,
       QR_TOKEN_REFRESH_SECONDS: 15,
       QR_TOKEN_TTL_SECONDS: 30,
       CHECKIN_ENABLED: true,
@@ -105,6 +113,10 @@ describe('validateApiEnv', () => {
     delete legacyMqttEnv.MQTT_CLIENT_ID;
     delete legacyMqttEnv.MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS;
     delete legacyMqttEnv.MQTT_ENABLED;
+    delete legacyMqttEnv.PRESENCE_PRESENT_STABLE_SECONDS;
+    delete legacyMqttEnv.PRESENCE_ABSENT_STABLE_SECONDS;
+    delete legacyMqttEnv.PRESENCE_UNTRUSTED_STABLE_SECONDS;
+    delete legacyMqttEnv.PRESENCE_EVALUATION_ENABLED;
     delete legacyMqttEnv.QR_TOKEN_REFRESH_SECONDS;
     delete legacyMqttEnv.QR_TOKEN_TTL_SECONDS;
     delete legacyMqttEnv.CHECKIN_ENABLED;
@@ -114,6 +126,10 @@ describe('validateApiEnv', () => {
       MQTT_BROKER_URL: 'mqtt://localhost:1883',
       MQTT_CLIENT_ID: 'smartseat-api',
       MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75,
+      PRESENCE_PRESENT_STABLE_SECONDS: 60,
+      PRESENCE_ABSENT_STABLE_SECONDS: 300,
+      PRESENCE_UNTRUSTED_STABLE_SECONDS: 120,
+      PRESENCE_EVALUATION_ENABLED: true,
       QR_TOKEN_REFRESH_SECONDS: 15,
       QR_TOKEN_TTL_SECONDS: 30,
       CHECKIN_ENABLED: true
@@ -140,6 +156,57 @@ describe('validateApiEnv', () => {
     ).toThrow(
       'Invalid positive integer in API environment variable: MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
     );
+  });
+
+  it('accepts presence evaluation config and rejects invalid values', () => {
+    expect(
+      validateApiEnv({
+        ...baseEnv,
+        PRESENCE_PRESENT_STABLE_SECONDS: '30',
+        PRESENCE_ABSENT_STABLE_SECONDS: '180',
+        PRESENCE_UNTRUSTED_STABLE_SECONDS: '90',
+        PRESENCE_EVALUATION_ENABLED: 'false'
+      })
+    ).toMatchObject({
+      PRESENCE_PRESENT_STABLE_SECONDS: 30,
+      PRESENCE_ABSENT_STABLE_SECONDS: 180,
+      PRESENCE_UNTRUSTED_STABLE_SECONDS: 90,
+      PRESENCE_EVALUATION_ENABLED: false
+    });
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        PRESENCE_PRESENT_STABLE_SECONDS: '0'
+      })
+    ).toThrow(
+      'Invalid positive integer in API environment variable: PRESENCE_PRESENT_STABLE_SECONDS'
+    );
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        PRESENCE_ABSENT_STABLE_SECONDS: '-1'
+      })
+    ).toThrow(
+      'Invalid positive integer in API environment variable: PRESENCE_ABSENT_STABLE_SECONDS'
+    );
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        PRESENCE_UNTRUSTED_STABLE_SECONDS: '1.5'
+      })
+    ).toThrow(
+      'Invalid positive integer in API environment variable: PRESENCE_UNTRUSTED_STABLE_SECONDS'
+    );
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        PRESENCE_EVALUATION_ENABLED: 'maybe'
+      })
+    ).toThrow('Invalid boolean in API environment variable: PRESENCE_EVALUATION_ENABLED');
   });
 
   it('accepts disabled checkin mode and rejects invalid QR timing values', () => {

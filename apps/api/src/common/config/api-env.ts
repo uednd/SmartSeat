@@ -25,6 +25,10 @@ export interface ApiEnv {
   MQTT_BROKER_URL: string;
   MQTT_CLIENT_ID: string;
   MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: number;
+  PRESENCE_PRESENT_STABLE_SECONDS: number;
+  PRESENCE_ABSENT_STABLE_SECONDS: number;
+  PRESENCE_UNTRUSTED_STABLE_SECONDS: number;
+  PRESENCE_EVALUATION_ENABLED: boolean;
   QR_TOKEN_REFRESH_SECONDS: number;
   QR_TOKEN_TTL_SECONDS: number;
   CHECKIN_ENABLED: boolean;
@@ -112,6 +116,9 @@ const readPositiveInteger = (
   key:
     | 'AUTH_TOKEN_TTL_SECONDS'
     | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+    | 'PRESENCE_PRESENT_STABLE_SECONDS'
+    | 'PRESENCE_ABSENT_STABLE_SECONDS'
+    | 'PRESENCE_UNTRUSTED_STABLE_SECONDS'
     | 'QR_TOKEN_REFRESH_SECONDS'
     | 'QR_TOKEN_TTL_SECONDS'
 ): number => {
@@ -129,6 +136,9 @@ const readOptionalPositiveInteger = (
   config: Record<string, unknown>,
   key:
     | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+    | 'PRESENCE_PRESENT_STABLE_SECONDS'
+    | 'PRESENCE_ABSENT_STABLE_SECONDS'
+    | 'PRESENCE_UNTRUSTED_STABLE_SECONDS'
     | 'QR_TOKEN_REFRESH_SECONDS'
     | 'QR_TOKEN_TTL_SECONDS',
   fallback: number
@@ -144,7 +154,7 @@ const readOptionalPositiveInteger = (
 
 const readOptionalBoolean = (
   config: Record<string, unknown>,
-  key: 'MQTT_ENABLED' | 'CHECKIN_ENABLED',
+  key: 'MQTT_ENABLED' | 'CHECKIN_ENABLED' | 'PRESENCE_EVALUATION_ENABLED',
   fallback: boolean
 ): boolean => {
   const value = config[key];
@@ -259,6 +269,22 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
       'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS',
       75
     ),
+    PRESENCE_PRESENT_STABLE_SECONDS: readOptionalPositiveInteger(
+      config,
+      'PRESENCE_PRESENT_STABLE_SECONDS',
+      60
+    ),
+    PRESENCE_ABSENT_STABLE_SECONDS: readOptionalPositiveInteger(
+      config,
+      'PRESENCE_ABSENT_STABLE_SECONDS',
+      300
+    ),
+    PRESENCE_UNTRUSTED_STABLE_SECONDS: readOptionalPositiveInteger(
+      config,
+      'PRESENCE_UNTRUSTED_STABLE_SECONDS',
+      120
+    ),
+    PRESENCE_EVALUATION_ENABLED: readOptionalBoolean(config, 'PRESENCE_EVALUATION_ENABLED', true),
     QR_TOKEN_REFRESH_SECONDS: readOptionalPositiveInteger(config, 'QR_TOKEN_REFRESH_SECONDS', 15),
     QR_TOKEN_TTL_SECONDS: readOptionalPositiveInteger(config, 'QR_TOKEN_TTL_SECONDS', 30),
     CHECKIN_ENABLED: readOptionalBoolean(config, 'CHECKIN_ENABLED', true),
