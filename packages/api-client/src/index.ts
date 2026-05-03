@@ -448,22 +448,51 @@ function createCancelReservationMethod(transport: ApiTransport): ReservationsApi
 export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiClient {
   return {
     auth: {
-      getLoginMode: () => transport.request({ operation_id: 'auth.getLoginMode', method: 'GET' }),
+      getLoginMode: () =>
+        transport.request({
+          operation_id: 'auth.getLoginMode',
+          method: 'GET',
+          path: '/auth/mode'
+        }),
       loginWechat: (request) =>
-        transport.request({ operation_id: 'auth.loginWechat', method: 'POST', body: request }),
+        transport.request({
+          operation_id: 'auth.loginWechat',
+          method: 'POST',
+          path: '/auth/wechat/login',
+          body: request
+        }),
       getOidcAuthorizeUrl: () =>
-        transport.request({ operation_id: 'auth.getOidcAuthorizeUrl', method: 'GET' }),
+        transport.request({
+          operation_id: 'auth.getOidcAuthorizeUrl',
+          method: 'GET',
+          path: '/auth/oidc/authorize-url'
+        }),
       startOidc: () =>
-        transport.request({ operation_id: 'auth.getOidcAuthorizeUrl', method: 'GET' }),
+        transport.request({
+          operation_id: 'auth.getOidcAuthorizeUrl',
+          method: 'GET',
+          path: '/auth/oidc/authorize-url'
+        }),
       completeOidc: (request) =>
-        transport.request({ operation_id: 'auth.completeOidc', method: 'POST', body: request })
+        transport.request({
+          operation_id: 'auth.completeOidc',
+          method: 'POST',
+          path: '/auth/oidc/callback',
+          body: request
+        })
     },
     me: {
-      get: () => transport.request({ operation_id: 'me.get', method: 'GET' }),
+      get: () =>
+        transport.request({
+          operation_id: 'me.get',
+          method: 'GET',
+          path: '/me'
+        }),
       updateLeaderboardPreference: (request) =>
         transport.request({
           operation_id: 'me.updateLeaderboardPreference',
           method: 'PATCH',
+          path: '/me/leaderboard-preference',
           body: request
         })
     },
@@ -674,9 +703,18 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
       handleAnomaly: (request) =>
         transport.request({ operation_id: 'admin.handleAnomaly', method: 'POST', body: request }),
       getAuthConfig: () =>
-        transport.request({ operation_id: 'admin.getAuthConfig', method: 'GET' }),
+        transport.request({
+          operation_id: 'admin.getAuthConfig',
+          method: 'GET',
+          path: '/admin/auth/mode'
+        }),
       updateAuthConfig: (request) =>
-        transport.request({ operation_id: 'admin.updateAuthConfig', method: 'PUT', body: request }),
+        transport.request({
+          operation_id: 'admin.updateAuthConfig',
+          method: 'PUT',
+          path: '/admin/auth/mode',
+          body: request
+        }),
       actionLogs: (request) =>
         transport.request({ operation_id: 'admin.actionLogs', method: 'GET', query: request })
     }

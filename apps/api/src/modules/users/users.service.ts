@@ -6,6 +6,7 @@ import {
   AuthProvider as ContractAuthProvider,
   UserRole,
   type MeResponse,
+  type UpdateLeaderboardPreferenceRequest,
   type UserDto
 } from '@smartseat/contracts';
 
@@ -159,6 +160,34 @@ export class UsersService {
     return await this.prisma.user.update({
       where: { userId },
       data
+    });
+  }
+
+  async updateLeaderboardPreference(
+    userId: string,
+    request: UpdateLeaderboardPreferenceRequest
+  ): Promise<User> {
+    if (typeof request !== 'object' || request === null || Array.isArray(request)) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'Leaderboard preference payload must be an object.'
+      );
+    }
+
+    if (typeof request.leaderboard_enabled !== 'boolean') {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'leaderboard_enabled must be a boolean.'
+      );
+    }
+
+    return await this.prisma.user.update({
+      where: { userId },
+      data: {
+        leaderboardEnabled: request.leaderboard_enabled
+      }
     });
   }
 

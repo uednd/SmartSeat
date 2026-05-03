@@ -101,6 +101,10 @@ class FakePrismaService {
       Object.assign(existing, {
         displayName: this.valueOrExisting(data, 'displayName', existing.displayName),
         avatarUrl: this.valueOrExisting(data, 'avatarUrl', existing.avatarUrl),
+        leaderboardEnabled:
+          data.leaderboardEnabled === undefined
+            ? existing.leaderboardEnabled
+            : data.leaderboardEnabled,
         updatedAt: new Date('2026-05-02T08:30:00.000Z')
       });
 
@@ -338,6 +342,41 @@ describe('API-AUTH-01 auth and users module', () => {
     expect(JSON.stringify(prisma.adminActionLogs)).not.toContain('wechat-secret-plain');
   });
 
+  it('allows admins to read masked auth config from admin route', async () => {
+    prisma.authConfigs.push(
+      prisma.createAuthConfig({
+        authMode: AuthMode.OIDC,
+        oidcIssuer: 'https://idp.example.test',
+        oidcClientId: 'smartseat-oidc-client',
+        oidcClientSecret: 'oidc-client-secret-plain',
+        wechatSecret: 'wechat-secret-plain'
+      })
+    );
+    const admin = prisma.seedUser({
+      userId: 'user_admin_read_auth',
+      roles: [UserRole.ADMIN]
+    });
+    const { token } = await tokenService.signUserToken({
+      user_id: admin.userId,
+      roles: admin.roles
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/admin/auth/mode')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      auth_mode: AuthMode.OIDC,
+      oidc_issuer: 'https://idp.example.test',
+      oidc_client_id: 'smartseat-oidc-client',
+      oidc_secret_configured: true,
+      wechat_secret_configured: true
+    });
+    expect(JSON.stringify(response.body)).not.toContain('oidc-client-secret-plain');
+    expect(JSON.stringify(response.body)).not.toContain('wechat-secret-plain');
+  });
+
   it('initializes the first user as admin only once', async () => {
     const first = await usersService.initializeUserFromIdentity({
       userId: 'user_first',
@@ -383,6 +422,35 @@ describe('API-AUTH-01 auth and users module', () => {
         roles: [UserRole.ADMIN],
         anonymous_name: '演示管理员'
       }
+    });
+  });
+
+  it('updates current user leaderboard preference from /me', async () => {
+    prisma.authConfigs.push(prisma.createAuthConfig({ authMode: AuthMode.WECHAT }));
+    const user = prisma.seedUser({
+      userId: 'user_preference',
+      roles: [UserRole.STUDENT],
+      leaderboardEnabled: true
+    });
+    const { token } = await tokenService.signUserToken({
+      user_id: user.userId,
+      roles: user.roles
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/me/leaderboard-preference')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ leaderboard_enabled: false })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      user_id: 'user_preference',
+      user: {
+        leaderboard_enabled: false
+      }
+    });
+    expect(prisma.users.find((candidate) => candidate.userId === 'user_preference')).toMatchObject({
+      leaderboardEnabled: false
     });
   });
 

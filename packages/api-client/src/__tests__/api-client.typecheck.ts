@@ -8,6 +8,7 @@ import {
   type ApiTransportRequest,
   type SmartSeatApiClient
 } from '../index.js';
+import { AuthMode } from '@smartseat/contracts';
 
 const transport: ApiTransport = {
   async request<TResponse>(request: ApiTransportRequest) {
@@ -28,6 +29,13 @@ const transport: ApiTransport = {
 
 const client = createSmartSeatApiClient(transport) satisfies SmartSeatApiClient;
 const loginMode = await client.auth.getLoginMode();
+const wechatSession = await client.auth.loginWechat({ code: 'wx-code' });
+const oidcStart = await client.auth.getOidcAuthorizeUrl();
+const oidcSession = await client.auth.completeOidc({ code: 'oidc-code', state: 'oidc-state' });
+const me = await client.me.get();
+const updatedMePreference = await client.me.updateLeaderboardPreference({
+  leaderboard_enabled: false
+});
 const seats = await client.seats.list({ page: 1, page_size: 20 });
 const seat = await client.seats.get('seat-1');
 const devices = await client.devices.list({ page: 1 });
@@ -76,6 +84,10 @@ const checkedInReservation = await client.checkin.submit({
 });
 const adminReservations = await client.admin.listCurrentReservations({ page: 1 });
 const adminSeatReservation = await client.admin.getSeatReservation('seat-1');
+const adminAuthConfig = await client.admin.getAuthConfig();
+const updatedAdminAuthConfig = await client.admin.updateAuthConfig({
+  auth_mode: AuthMode.WECHAT
+});
 
 const httpTransport = createHttpTransport({
   baseUrl: 'http://localhost:3000',
@@ -112,6 +124,11 @@ const clientError = new ApiClientError({
 const isErrorResponse = isApiErrorResponse(clientError.response);
 
 void loginMode;
+void wechatSession;
+void oidcStart;
+void oidcSession;
+void me;
+void updatedMePreference;
 void seats;
 void seat;
 void devices;
@@ -138,6 +155,8 @@ void legacyCancelledReservation;
 void checkedInReservation;
 void adminReservations;
 void adminSeatReservation;
+void adminAuthConfig;
+void updatedAdminAuthConfig;
 void httpTransport;
 void clientError;
 void isErrorResponse;

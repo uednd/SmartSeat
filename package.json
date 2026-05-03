@@ -2,7 +2,7 @@
   "name": "smartseat",
   "version": "0.0.0",
   "private": true,
-  "description": "SmartSeat monorepo initialized only. No business features are implemented.",
+  "description": "SmartSeat campus library seat-management prototype monorepo.",
   "type": "module",
   "packageManager": "pnpm@10.10.0",
   "engines": {

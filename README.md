@@ -1,12 +1,12 @@
 # SmartSeat
 
-SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线和后端认证/用户基础能力，后续继续落地 ESP32-P4 终端、uni-app 微信小程序、MQTT Broker 集成、设备模拟器和座位预约等业务能力。
+SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路和 MQTT 设备在线/命令总线能力。后续继续落地 ESP32-P4 终端、uni-app 微信小程序、设备模拟器、传感器异常、统计和管理员释放等业务能力。
 
 ## 仓库结构
 
 ```text
 apps/miniapp              uni-app 微信小程序骨架，业务页面和角色路由尚未实现
-apps/api                  NestJS API，包含平台层、数据库基线、认证/用户基础模块和 /health
+apps/api                  NestJS API，包含平台层、数据库基线、认证、座位/设备、预约/签到、MQTT 和 /health
 apps/device-simulator     TypeScript CLI 占位程序
 firmware/smart-seat-terminal
                           ESP32-P4 固件工程骨架
@@ -41,7 +41,7 @@ pnpm infra:down
 
 当前命令行为说明：
 
-- `pnpm dev:api` 会启动 NestJS API 服务，并暴露健康检查、OpenAPI 和已实现的认证/用户接口。
+- `pnpm dev:api` 会启动 NestJS API 服务，并暴露健康检查、OpenAPI 和已实现的后端业务接口。
 - `pnpm dev:sim` 只输出 initialized-only 的模拟器信息并退出。
 - `pnpm lint` 用于检查当前 TypeScript workspace。
 - `pnpm typecheck` 用于运行 workspace 范围内的严格 TypeScript 检查。
@@ -75,7 +75,7 @@ pnpm docker:down
 
 - `packages/contracts`：共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload。
 - `packages/api-client`：typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化。
-- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、`/me`、首个管理员引导、微信登录 mock/real provider、OIDC 登录 mock/real provider、系统 token 签发/解析。
+- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、`/me`、微信/OIDC 登录、座位/设备查询、预约创建/取消、续约/离座/到期推进、动态二维码扫码签到、MQTT 心跳与 display/light/command 命令总线。
 - 准生产单机 Docker 部署包：NestJS API、PostgreSQL、Mosquitto、一次性 migrate + seed 初始化服务。
 
 后端平台接口：
@@ -87,13 +87,17 @@ pnpm docker:down
 后端认证/用户接口：
 
 - `GET /auth/mode`
+- `GET /admin/auth/mode`
 - `PUT /admin/auth/mode`
 - `POST /auth/wechat/login`
 - `GET /auth/oidc/authorize-url`
 - `POST /auth/oidc/callback`
 - `GET /me`
+- `PATCH /me/leaderboard-preference`
 
-仍未实现：座位/设备业务接口、预约、扫码签到、续约、离座、真实 MQTT 连接、统计计算、排行榜接口、小程序真实页面与角色路由、固件业务逻辑。真实微信和学校 OIDC 外网联调需要按部署环境另行配置，不使用仓库占位 secret。
+后端座位、设备、预约与扫码签到接口已在 OpenAPI 中暴露，包括 `/seats`、`/devices`、`/reservations`、`/current-usage`、`/checkin` 和对应管理员查询接口。
+
+仍未实现：presence 持续时间判断、异常事件引擎、管理员手动释放、统计计算、排行榜接口、小程序真实页面与角色路由、设备模拟器业务流、固件业务逻辑。真实微信和学校 OIDC 外网联调需要按部署环境另行配置，不使用仓库占位 secret。
 
 ## 本地基础设施
 

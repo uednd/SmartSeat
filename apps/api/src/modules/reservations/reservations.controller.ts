@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AdminReservationListRequest,
   type CancelReservationRequest,
@@ -29,6 +29,17 @@ import { AdminGuard } from '../../common/auth/admin.guard.js';
 import { BearerAuthGuard } from '../../common/auth/bearer-auth.guard.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
 import type { RequestUser } from '../../common/auth/request-user.js';
+import {
+  apiPageOf,
+  cancelReservationRequestSchema,
+  checkinRequestSchema,
+  checkinResponseSchema,
+  createReservationRequestSchema,
+  currentUsageResponseSchema,
+  extendReservationRequestSchema,
+  reservationSchema,
+  userReleaseReservationRequestSchema
+} from '../../common/openapi/schemas.js';
 import { ReservationsService } from './reservations.service.js';
 
 @ApiTags('reservations')
@@ -40,6 +51,8 @@ export class ReservationsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a student reservation' })
+  @ApiBody({ schema: createReservationRequestSchema })
+  @ApiOkResponse({ schema: reservationSchema })
   async createReservation(
     @CurrentUser() user: RequestUser,
     @Body() request: CreateReservationRequest
@@ -49,6 +62,7 @@ export class ReservationsController {
 
   @Get('current')
   @ApiOperation({ summary: 'Get the current student reservation' })
+  @ApiOkResponse({ schema: reservationSchema })
   async getCurrentReservation(
     @CurrentUser() user: RequestUser
   ): Promise<ReservationDto | undefined> {
@@ -57,6 +71,7 @@ export class ReservationsController {
 
   @Get('history')
   @ApiOperation({ summary: 'List current student reservation history' })
+  @ApiOkResponse({ schema: apiPageOf(reservationSchema) })
   async listReservationHistory(
     @CurrentUser() user: RequestUser,
     @Query() request: PageRequest
@@ -67,6 +82,8 @@ export class ReservationsController {
   @Delete(':reservation_id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancel a waiting check-in reservation' })
+  @ApiBody({ schema: cancelReservationRequestSchema })
+  @ApiOkResponse({ schema: reservationSchema })
   async cancelReservation(
     @CurrentUser() user: RequestUser,
     @Param('reservation_id') reservationId: string,
@@ -77,6 +94,8 @@ export class ReservationsController {
 
   @Post(':reservation_id/extend')
   @ApiOperation({ summary: 'Extend a checked-in reservation' })
+  @ApiBody({ schema: extendReservationRequestSchema })
+  @ApiOkResponse({ schema: reservationSchema })
   async extendReservation(
     @CurrentUser() user: RequestUser,
     @Param('reservation_id') reservationId: string,
@@ -95,6 +114,7 @@ export class CurrentUsageController {
 
   @Get()
   @ApiOperation({ summary: 'Get the current checked-in usage for a student' })
+  @ApiOkResponse({ schema: currentUsageResponseSchema })
   async getCurrentUsage(
     @CurrentUser() user: RequestUser
   ): Promise<CurrentUsageResponse | undefined> {
@@ -103,6 +123,8 @@ export class CurrentUsageController {
 
   @Post('release')
   @ApiOperation({ summary: 'Release the current checked-in usage as a student' })
+  @ApiBody({ schema: userReleaseReservationRequestSchema })
+  @ApiOkResponse({ schema: reservationSchema })
   async releaseCurrentUsage(
     @CurrentUser() user: RequestUser,
     @Body() request: UserReleaseReservationRequest
@@ -120,6 +142,8 @@ export class CheckinController {
 
   @Post()
   @ApiOperation({ summary: 'Check in to a reservation with a dynamic QR token' })
+  @ApiBody({ schema: checkinRequestSchema })
+  @ApiOkResponse({ schema: checkinResponseSchema })
   async checkin(
     @CurrentUser() user: RequestUser,
     @Body() request: CheckinRequest
@@ -137,6 +161,7 @@ export class AdminReservationsController {
 
   @Get('current')
   @ApiOperation({ summary: 'List current reservations for administrators' })
+  @ApiOkResponse({ schema: apiPageOf(reservationSchema) })
   async listCurrentReservations(
     @Query() request: AdminReservationListRequest
   ): Promise<PageResponse<ReservationDto>> {
@@ -145,6 +170,7 @@ export class AdminReservationsController {
 
   @Get('seats/:seat_id')
   @ApiOperation({ summary: 'Get current reservation status for a seat' })
+  @ApiOkResponse({ schema: reservationSchema })
   async getSeatReservation(@Param('seat_id') seatId: string): Promise<ReservationDto | undefined> {
     return await this.reservationsService.getAdminSeatReservation(seatId);
   }

@@ -137,5 +137,35 @@ describe('API platform', () => {
     expect(response.body.paths).toHaveProperty('/health');
     expect(response.body.paths).toHaveProperty('/checkin');
     expect(response.body.paths['/checkin']).toHaveProperty('post');
+    expect(response.body.paths['/auth/wechat/login'].post.requestBody.content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining(['code']),
+          properties: {
+            code: expect.objectContaining({ type: 'string' })
+          }
+        }
+      }
+    });
+    expect(response.body.paths['/checkin'].post.requestBody.content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining(['seat_id', 'device_id', 'token', 'timestamp']),
+          properties: {
+            token: expect.objectContaining({ type: 'string' })
+          }
+        }
+      }
+    });
+    expect(response.body.paths['/me'].get.responses['200'].content).toMatchObject({
+      'application/json': {
+        schema: {
+          properties: {
+            user_id: expect.objectContaining({ type: 'string' }),
+            user: expect.objectContaining({ type: 'object' })
+          }
+        }
+      }
+    });
   });
 });

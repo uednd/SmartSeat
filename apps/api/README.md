@@ -1,6 +1,6 @@
 # @smartseat/api
 
-SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力，以及 `API-IOT-01` MQTT 心跳、设备在线状态和 display/light/command 命令总线。扫码签到、presence 持续时间判断、异常检测、统计计算和小程序页面仍未实现。
+SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力、`API-SEAT-01` 座位/设备查询、`API-RES-01/02/03` 预约与扫码签到链路，以及 `API-IOT-01` MQTT 心跳、设备在线状态和 display/light/command 命令总线。presence 持续时间判断、异常检测、统计计算、排行榜和小程序页面仍未实现。
 
 ## 启动配置
 
@@ -11,6 +11,7 @@ SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数
 - `NODE_ENV`、`API_HOST`、`API_PORT`
 - PostgreSQL 配置：`POSTGRES_HOST`、`POSTGRES_PORT`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`、`DATABASE_URL`
 - MQTT 配置：`MQTT_ENABLED`、`MQTT_BROKER_URL`、`MQTT_CLIENT_ID`、`MQTT_HOST`、`MQTT_PORT`、`MQTT_USERNAME`、`MQTT_PASSWORD`、`MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS`
+- 动态二维码配置：`QR_TOKEN_REFRESH_SECONDS`、`QR_TOKEN_TTL_SECONDS`、`CHECKIN_ENABLED`
 - 认证配置：`WECHAT_APP_ID`、`WECHAT_APP_SECRET`、`WECHAT_AUTH_PROVIDER_MODE`、`OIDC_ISSUER`、`OIDC_CLIENT_ID`、`OIDC_CLIENT_SECRET`、`OIDC_REDIRECT_URI`、`OIDC_AUTH_PROVIDER_MODE`、`AUTH_TOKEN_SECRET`、`AUTH_TOKEN_TTL_SECONDS`、`DEFAULT_AUTH_MODE`
 
 `production` 环境会拒绝 `replace-with-*`、`placeholder`、`example`、`changeme` 等占位 secret 或凭据值。
@@ -24,11 +25,13 @@ SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数
 ## 认证与用户接口
 
 - `GET /auth/mode`：返回当前登录模式和脱敏认证配置。
+- `GET /admin/auth/mode`：管理员读取脱敏认证配置。
 - `PUT /admin/auth/mode`：管理员修改登录模式和认证配置，secret 不明文返回。
 - `POST /auth/wechat/login`：微信登录模式下使用 code 登录；支持 mock/real provider，测试不依赖微信外网。
 - `GET /auth/oidc/authorize-url`：OIDC 登录模式下返回授权 URL 和签名 state。
 - `POST /auth/oidc/callback`：OIDC 登录模式下完成 code 回调、用户绑定和系统 token 签发；支持 mock/real provider，测试不依赖学校真实 Provider。
 - `GET /me`：返回当前用户、角色、匿名名、展示名、登录模式和小程序 `next_route`。
+- `PATCH /me/leaderboard-preference`：更新当前用户是否参与匿名排行榜的隐私偏好，不计算排行榜。
 
 当前认证边界：已实现 STUDENT/ADMIN 区分、首个用户成为管理员、微信/OIDC mock provider 可测闭环和 token 守卫；未实现小程序页面、OIDC 管理员组映射、真实微信外网联调、真实学校 OIDC 外网联调。
 
@@ -80,7 +83,24 @@ Seed 中的设备在线状态和心跳时间只是演示初始数据。`API-IOT-
 - `MQTT_ENABLED=false` 时 API 不连接 broker，启动和 HTTP API 不受影响，设备能力进入降级模式。
 - 本地/初赛演示可使用匿名 Mosquitto；正式环境需要设备级凭据、ACL 或 TLS/mTLS，不能复用本地匿名 broker。
 
-本任务不处理 presence 持续时间、SensorReading 持久化、异常事件、动态二维码、小程序页面、设备模拟器或固件逻辑。
+## 预约与扫码签到
+
+`API-RES-01/02/03` 已实现预约创建/取消、当前使用、续约、主动离座、到期推进、动态 QRToken 和扫码签到：
+
+- `POST /reservations`
+- `GET /reservations/current`
+- `GET /reservations/history`
+- `DELETE /reservations/:reservation_id`
+- `POST /reservations/:reservation_id/extend`
+- `GET /current-usage`
+- `POST /current-usage/release`
+- `POST /checkin`
+- `GET /admin/reservations/current`
+- `GET /admin/reservations/seats/:seat_id`
+
+动态二维码默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED=false` 可关闭扫码签到入口。后端通过 MQTT display payload 下发 `seat_id`、`device_id`、`timestamp`、`qr_token`，扫码签到成功后将预约置为 `CHECKED_IN`、座位业务状态置为 `OCCUPIED`，并发布 display/light 同步。
+
+本阶段仍不处理 presence 持续时间、SensorReading 持久化、异常事件、统计计算、排行榜、小程序页面、设备模拟器或固件逻辑。
 
 Prisma Migrate 不维护手写 down migration。本地/演示回滚等价操作是 `pnpm db:reset-demo` 重建；已提交 migration 的修正通过新增 migration 或恢复数据库备份完成。
 
