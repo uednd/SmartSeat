@@ -20,6 +20,8 @@ interface FakeUser {
   externalUserNo: string | null;
   roles: UserRole[];
   anonymousName: string;
+  displayName: string | null;
+  avatarUrl: string | null;
   leaderboardEnabled: boolean;
   noShowCountWeek: number;
   noShowCountMonth: number;
@@ -78,6 +80,8 @@ class FakePrismaService {
         externalUserNo: data.externalUserNo ?? null,
         roles: data.roles ?? [UserRole.STUDENT],
         anonymousName: data.anonymousName ?? `匿名用户 ${this.userSequence}`,
+        displayName: data.displayName ?? null,
+        avatarUrl: data.avatarUrl ?? null,
         leaderboardEnabled: data.leaderboardEnabled ?? true,
         noShowCountWeek: data.noShowCountWeek ?? 0,
         noShowCountMonth: data.noShowCountMonth ?? 0,
@@ -86,6 +90,21 @@ class FakePrismaService {
       };
       this.users.push(user);
       return user;
+    },
+    update: async ({ where, data }: { where: { userId: string }; data: Partial<FakeUser> }) => {
+      const existing = this.users.find((user) => user.userId === where.userId);
+
+      if (existing === undefined) {
+        throw new Error('Missing fake user.');
+      }
+
+      Object.assign(existing, {
+        displayName: this.valueOrExisting(data, 'displayName', existing.displayName),
+        avatarUrl: this.valueOrExisting(data, 'avatarUrl', existing.avatarUrl),
+        updatedAt: new Date('2026-05-02T08:30:00.000Z')
+      });
+
+      return existing;
     }
   };
 
@@ -176,6 +195,8 @@ class FakePrismaService {
       externalUserNo: data.externalUserNo ?? null,
       roles: data.roles ?? [UserRole.STUDENT],
       anonymousName: data.anonymousName ?? '匿名用户 01',
+      displayName: data.displayName ?? null,
+      avatarUrl: data.avatarUrl ?? null,
       leaderboardEnabled: data.leaderboardEnabled ?? true,
       noShowCountWeek: data.noShowCountWeek ?? 0,
       noShowCountMonth: data.noShowCountMonth ?? 0,
@@ -378,5 +399,139 @@ describe('API-AUTH-01 auth and users module', () => {
     expect(malformedResponse.body).toMatchObject({
       code: ApiErrorCode.AUTH_INVALID_TOKEN
     });
+  });
+
+  it('logs in with mock WeChat provider and applies first-admin bootstrap once', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({
+        code: 'mock-code-first',
+        displayName: '微信测试用户',
+        avatarUrl: 'https://avatar.example.test/u.png'
+      })
+      .expect(200);
+    const secondResponse = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({
+        code: 'mock-code-second'
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      token: expect.any(String),
+      token_type: 'Bearer',
+      expires_at: expect.any(String),
+      role: UserRole.ADMIN,
+      roles: [UserRole.ADMIN],
+      next_route: 'admin',
+      user: {
+        auth_provider: AuthProvider.WECHAT,
+        roles: [UserRole.ADMIN],
+        anonymous_name: '系统管理员',
+        display_name: '微信测试用户',
+        avatar_url: 'https://avatar.example.test/u.png'
+      }
+    });
+    expect(secondResponse.body).toMatchObject({
+      role: UserRole.STUDENT,
+      roles: [UserRole.STUDENT],
+      next_route: 'student'
+    });
+    expect(prisma.users).toHaveLength(2);
+    expect(prisma.users[0]).toMatchObject({
+      openid: 'mock_openid_first',
+      unionid: 'mock_unionid_first',
+      anonymousName: '系统管理员',
+      displayName: '微信测试用户',
+      avatarUrl: 'https://avatar.example.test/u.png'
+    });
+    expect(prisma.users[1]).toMatchObject({
+      openid: 'mock_openid_second',
+      roles: [UserRole.STUDENT]
+    });
+    expect(JSON.stringify(response.body)).not.toContain('mock_openid_first');
+    expect(JSON.stringify(response.body)).not.toContain('replace-with-placeholder');
+  });
+
+  it('returns the same user for an existing WeChat openid and updates profile fields', async () => {
+    const first = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({
+        code: 'mock-code-repeat',
+        displayName: '第一次昵称'
+      })
+      .expect(200);
+    const second = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({
+        code: 'mock-code-repeat',
+        displayName: '第二次昵称',
+        avatarUrl: 'https://avatar.example.test/second.png'
+      })
+      .expect(200);
+
+    expect(second.body.user.user_id).toBe(first.body.user.user_id);
+    expect(second.body.user).toMatchObject({
+      display_name: '第二次昵称',
+      avatar_url: 'https://avatar.example.test/second.png',
+      anonymous_name: '系统管理员'
+    });
+    expect(prisma.users).toHaveLength(1);
+  });
+
+  it('rejects missing WeChat code with validation error', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({})
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      code: ApiErrorCode.VALIDATION_FAILED
+    });
+  });
+
+  it('rejects invalid mock WeChat code without leaking identity details', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({ code: 'invalid-code' })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      code: ApiErrorCode.AUTH_PROVIDER_FAILED
+    });
+    expect(JSON.stringify(response.body)).not.toContain('openid');
+    expect(JSON.stringify(response.body)).not.toContain('appid');
+    expect(JSON.stringify(response.body)).not.toContain('secret');
+    expect(JSON.stringify(response.body)).not.toContain('invalid-code');
+  });
+
+  it('maps mock WeChat provider outage to provider failure without raw details', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({ code: 'mock-code-error' })
+      .expect(502);
+
+    expect(response.body).toMatchObject({
+      code: ApiErrorCode.AUTH_PROVIDER_FAILED
+    });
+    expect(JSON.stringify(response.body)).not.toContain('mock-code-error');
+  });
+
+  it('rejects WeChat login when the current auth mode is OIDC', async () => {
+    prisma.authConfigs.push(
+      prisma.createAuthConfig({
+        authMode: AuthMode.OIDC
+      })
+    );
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/wechat/login')
+      .send({ code: 'mock-code-oidc-mode' })
+      .expect(409);
+
+    expect(response.body).toMatchObject({
+      code: ApiErrorCode.AUTH_LOGIN_MODE_MISMATCH
+    });
+    expect(prisma.users).toHaveLength(0);
   });
 });

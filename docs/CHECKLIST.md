@@ -155,15 +155,22 @@
 
 ### CL-API-AUTH-02 微信登录闭环
 
-- [ ] 微信 provider 已封装 code 到 openid 的交换逻辑，且可 mock 测试。
-- [ ] `POST /auth/wechat/login` 已实现，并只在微信登录模式下可用。
-- [ ] 新微信用户可一键注册/登录。
-- [ ] 已存在微信用户可直接登录。
-- [ ] 首个用户成为管理员的规则与 API-AUTH-01 一致。
-- [ ] 微信接口失败、无效 code、登录模式不匹配均返回明确错误码。
-- [ ] 普通日志不记录 openid 明文或敏感凭据。
-- [ ] `.env.example` 已记录微信配置项但不含真实值。
-- [ ] 证据路径已填写：____
+- [x] 微信 provider 已封装 code 到 openid 的交换逻辑，且可 mock 测试。
+- [x] `POST /auth/wechat/login` 已实现，并只在微信登录模式下可用。
+- [x] 新微信用户可一键注册/登录。
+- [x] 已存在微信用户可直接登录。
+- [x] 首个用户成为管理员的规则与 API-AUTH-01 一致。
+- [x] 微信接口失败、无效 code、登录模式不匹配均返回明确错误码。
+- [x] 普通日志不记录 openid 明文或敏感凭据。
+- [x] `.env.example` 已记录微信配置项但不含真实值。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/src/modules/auth/wechat-auth.provider.ts`、`apps/api/src/modules/auth/wechat-auth.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502010000_api_auth_02_wechat_login/migration.sql`、`packages/contracts/src/api.ts`、`.env.example`
+  - 测试路径：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`
+  - 文档路径：`docs/PLAN.md`、`docs/CHECKLIST.md`
+  - 已通过命令：`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`
+  - 阻塞命令：无。本任务未启动真实微信服务，未实现小程序页面。
+  - 结论：通过；API-AUTH-02 状态已更新为 Done。
 
 ### CL-API-AUTH-03 OIDC 登录闭环
 

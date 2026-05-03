@@ -193,7 +193,7 @@ stateDiagram-v2
 | API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Done |
-| API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
+| API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Not Started |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Not Started |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Not Started |
@@ -352,16 +352,20 @@ stateDiagram-v2
 | 前置条件 | API-AUTH-01 完成。 |
 | 输入 | 微信登录配置、PRD 2.4、7.3.2。 |
 | 输出 | 微信 provider、`POST /auth/wechat/login`、用户注册/登录逻辑、错误映射。 |
-| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`packages/contracts` 必要 DTO。 |
-| 接口契约 | `POST /auth/wechat/login`，输入 code，输出 token、user、role、nextRoute。 |
-| 数据变更 | User 增加/更新微信 openid 映射。 |
+| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/config/**`、`apps/api/prisma/**`、`packages/contracts/src/api.ts`、`.env.example`、`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`。 |
+| 接口契约 | `POST /auth/wechat/login`，输入 `code`、可选 `displayName`/`avatarUrl`，输出兼容 `AuthSessionResponse` 的 `token`、`token_type`、`expires_at`、`user`、`role`、`roles`、`next_route`。 |
+| 数据变更 | User 增加/更新微信 openid/unionid 映射；新增可空 `display_name`、`avatar_url` 字段用于保存微信资料展示值；`anonymous_name` 仍用于匿名排行榜。 |
 | 测试要求 | 新用户注册、老用户登录、微信接口失败、登录模式不匹配、首个管理员规则。 |
 | 文档要求 | 说明微信环境变量、错误码、测试 mock 方式。 |
-| 部署/配置要求 | `WECHAT_APP_ID`、`WECHAT_APP_SECRET` 等写入 `.env.example`。 |
+| 部署/配置要求 | `WECHAT_APP_ID`、`WECHAT_APP_SECRET`、`WECHAT_AUTH_PROVIDER_MODE=mock/real` 写入 `.env.example`；测试使用 mock provider，不依赖微信外网。 |
 | 回滚要求 | 可关闭微信登录模式；已创建用户保留。 |
 | 监控与告警 | 记录登录成功/失败计数，不记录 openid 明文到普通日志。 |
 | 验收标准 | 微信模式下支持一键注册/登录；登录后返回角色路由信息；失败场景有明确错误码。 |
 | 可分配给编码智能体的提示 | 使用可替换 provider 封装微信接口；只做后端登录闭环；不要改前端页面；补齐 mock 测试。 |
+| 当前状态 | Done；已实现 mock/real WeChatAuthProvider、`POST /auth/wechat/login`、微信用户创建/复用、资料字段保存、token 签发和模式/错误码校验。 |
+| 证据路径 | 代码：`apps/api/src/modules/auth/wechat-auth.provider.ts`、`apps/api/src/modules/auth/wechat-auth.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502010000_api_auth_02_wechat_login/migration.sql`、`packages/contracts/src/api.ts`、`.env.example`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm --filter @smartseat/api db:generate` 通过；`pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
+| 阻塞核验 | 无；本任务不启动真实微信服务，不实现小程序页面。 |
 
 ### API-AUTH-03 OIDC 登录闭环
 

@@ -109,6 +109,8 @@ model User {
   externalUserNo     String?             @unique @map("external_user_no")
   roles              UserRole[]          @default([STUDENT])
   anonymousName      String              @map("anonymous_name")
+  displayName        String?             @map("display_name")
+  avatarUrl          String?             @map("avatar_url")
   leaderboardEnabled Boolean             @default(true) @map("leaderboard_enabled")
   noShowCountWeek    Int                 @default(0) @map("no_show_count_week")
   noShowCountMonth   Int                 @default(0) @map("no_show_count_month")

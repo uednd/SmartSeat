@@ -20,6 +20,13 @@ export interface InitializeUserFromIdentityInput {
   oidcSub?: string;
   externalUserNo?: string;
   anonymousName?: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface UpdateUserProfileInput {
+  displayName?: string;
+  avatarUrl?: string;
 }
 
 @Injectable()
@@ -57,7 +64,7 @@ export class UsersService {
     return {
       user_id: user.userId,
       role,
-      display_name: user.anonymousName,
+      display_name: user.displayName ?? user.anonymousName,
       anonymous_name: user.anonymousName,
       user: userDto,
       roles,
@@ -104,6 +111,14 @@ export class UsersService {
           data.externalUserNo = input.externalUserNo;
         }
 
+        if (input.displayName !== undefined) {
+          data.displayName = input.displayName;
+        }
+
+        if (input.avatarUrl !== undefined) {
+          data.avatarUrl = input.avatarUrl;
+        }
+
         const user = await tx.user.create({
           data
         });
@@ -126,8 +141,29 @@ export class UsersService {
     );
   }
 
+  async updateUserProfile(userId: string, input: UpdateUserProfileInput): Promise<User> {
+    const data: Prisma.UserUpdateInput = {};
+
+    if (input.displayName !== undefined) {
+      data.displayName = input.displayName;
+    }
+
+    if (input.avatarUrl !== undefined) {
+      data.avatarUrl = input.avatarUrl;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return await this.findByIdOrThrow(userId);
+    }
+
+    return await this.prisma.user.update({
+      where: { userId },
+      data
+    });
+  }
+
   toUserDto(user: User): UserDto {
-    return {
+    const dto: UserDto = {
       user_id: user.userId,
       auth_provider: user.authProvider as ContractAuthProvider,
       roles: user.roles as UserRole[],
@@ -138,6 +174,16 @@ export class UsersService {
       created_at: user.createdAt.toISOString(),
       updated_at: user.updatedAt.toISOString()
     };
+
+    if (user.displayName !== null) {
+      dto.display_name = user.displayName;
+    }
+
+    if (user.avatarUrl !== null) {
+      dto.avatar_url = user.avatarUrl;
+    }
+
+    return dto;
   }
 
   private async findExistingIdentity(input: InitializeUserFromIdentityInput): Promise<User | null> {
@@ -170,7 +216,7 @@ export class UsersService {
     });
   }
 
-  private getPrimaryRole(roles: UserRole[]): UserRole {
+  getPrimaryRole(roles: UserRole[]): UserRole {
     return roles.includes(UserRole.ADMIN) ? UserRole.ADMIN : UserRole.STUDENT;
   }
 

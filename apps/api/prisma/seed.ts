@@ -115,6 +115,8 @@ async function seedUsers(): Promise<void> {
       externalUserNo: 'demo-admin-001',
       roles: [UserRole.ADMIN],
       anonymousName: '演示管理员',
+      displayName: '演示管理员',
+      avatarUrl: null,
       leaderboardEnabled: false
     },
     create: {
@@ -124,6 +126,8 @@ async function seedUsers(): Promise<void> {
       externalUserNo: 'demo-admin-001',
       roles: [UserRole.ADMIN],
       anonymousName: '演示管理员',
+      displayName: '演示管理员',
+      avatarUrl: null,
       leaderboardEnabled: false
     }
   });
@@ -137,6 +141,8 @@ async function seedUsers(): Promise<void> {
         externalUserNo: user.externalUserNo,
         roles: [UserRole.STUDENT],
         anonymousName: user.anonymousName,
+        displayName: null,
+        avatarUrl: null,
         leaderboardEnabled: true
       },
       create: {
@@ -146,6 +152,8 @@ async function seedUsers(): Promise<void> {
         externalUserNo: user.externalUserNo,
         roles: [UserRole.STUDENT],
         anonymousName: user.anonymousName,
+        displayName: null,
+        avatarUrl: null,
         leaderboardEnabled: true
       }
     });

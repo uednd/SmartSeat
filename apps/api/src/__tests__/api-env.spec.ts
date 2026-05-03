@@ -19,6 +19,7 @@ const baseEnv = {
   MQTT_PASSWORD: 'replace-with-local-placeholder',
   WECHAT_APP_ID: 'replace-with-placeholder',
   WECHAT_APP_SECRET: 'replace-with-placeholder',
+  WECHAT_AUTH_PROVIDER_MODE: 'mock',
   OIDC_CLIENT_ID: 'replace-with-placeholder',
   OIDC_CLIENT_SECRET: 'replace-with-placeholder',
   AUTH_TOKEN_SECRET: 'replace-with-local-placeholder',
@@ -34,6 +35,7 @@ describe('validateApiEnv', () => {
       API_PORT: 3000,
       POSTGRES_PORT: 5432,
       MQTT_PORT: 1883,
+      WECHAT_AUTH_PROVIDER_MODE: 'mock',
       AUTH_TOKEN_TTL_SECONDS: 3600,
       DEFAULT_AUTH_MODE: 'WECHAT'
     });
@@ -75,5 +77,27 @@ describe('validateApiEnv', () => {
         DEFAULT_AUTH_MODE: 'PASSWORD'
       })
     ).toThrow('Invalid auth mode in API environment variable: DEFAULT_AUTH_MODE');
+  });
+
+  it('accepts real WeChat provider mode', () => {
+    expect(
+      validateApiEnv({
+        ...baseEnv,
+        WECHAT_AUTH_PROVIDER_MODE: 'real'
+      })
+    ).toMatchObject({
+      WECHAT_AUTH_PROVIDER_MODE: 'real'
+    });
+  });
+
+  it('rejects invalid WeChat provider mode values', () => {
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        WECHAT_AUTH_PROVIDER_MODE: 'fixture'
+      })
+    ).toThrow(
+      'Invalid WeChat auth provider mode in API environment variable: WECHAT_AUTH_PROVIDER_MODE'
+    );
   });
 });

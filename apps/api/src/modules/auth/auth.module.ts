@@ -8,11 +8,26 @@ import { AdminAuthController, AuthController } from './auth.controller.js';
 import { AuthConfigService } from './auth-config.service.js';
 import { MeController } from './me.controller.js';
 import { TokenService } from './token.service.js';
+import {
+  MockWeChatAuthProvider,
+  RealWeChatAuthProvider,
+  WeChatAuthProviderSelector
+} from './wechat-auth.provider.js';
+import { WeChatAuthService } from './wechat-auth.service.js';
 
 @Module({
   imports: [DatabaseModule, UsersModule],
   controllers: [AuthController, AdminAuthController, MeController],
-  providers: [AuthConfigService, TokenService, BearerAuthGuard, AdminGuard],
+  providers: [
+    AuthConfigService,
+    TokenService,
+    WeChatAuthService,
+    MockWeChatAuthProvider,
+    RealWeChatAuthProvider,
+    WeChatAuthProviderSelector,
+    BearerAuthGuard,
+    AdminGuard
+  ],
   exports: [AuthConfigService, TokenService, BearerAuthGuard, AdminGuard]
 })
 export class AuthModule {}

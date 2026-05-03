@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { AuthMode } from '@smartseat/contracts';
 
 export type ApiNodeEnv = 'development' | 'test' | 'production';
+export type WeChatAuthProviderMode = 'mock' | 'real';
 
 export interface ApiEnv {
   NODE_ENV: ApiNodeEnv;
@@ -21,6 +22,7 @@ export interface ApiEnv {
   MQTT_PASSWORD: string;
   WECHAT_APP_ID: string;
   WECHAT_APP_SECRET: string;
+  WECHAT_AUTH_PROVIDER_MODE: WeChatAuthProviderMode;
   OIDC_CLIENT_ID: string;
   OIDC_CLIENT_SECRET: string;
   AUTH_TOKEN_SECRET: string;
@@ -44,6 +46,7 @@ const PRODUCTION_PLACEHOLDER_KEYS = [
 
 const VALID_NODE_ENVS = new Set<ApiNodeEnv>(['development', 'test', 'production']);
 const VALID_AUTH_MODES = new Set<AuthMode>([AuthMode.WECHAT, AuthMode.OIDC]);
+const VALID_WECHAT_AUTH_PROVIDER_MODES = new Set<WeChatAuthProviderMode>(['mock', 'real']);
 
 export const getApiEnvFilePaths = (): string[] => {
   const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -100,6 +103,19 @@ const readAuthMode = (config: Record<string, unknown>, key: 'DEFAULT_AUTH_MODE')
   return value as AuthMode;
 };
 
+const readWeChatAuthProviderMode = (
+  config: Record<string, unknown>,
+  key: 'WECHAT_AUTH_PROVIDER_MODE'
+): WeChatAuthProviderMode => {
+  const value = readRequiredString(config, key);
+
+  if (!VALID_WECHAT_AUTH_PROVIDER_MODES.has(value as WeChatAuthProviderMode)) {
+    throw new Error(`Invalid WeChat auth provider mode in API environment variable: ${key}`);
+  }
+
+  return value as WeChatAuthProviderMode;
+};
+
 const assertNoProductionPlaceholder = (env: ApiNodeEnv, config: Record<string, unknown>): void => {
   if (env !== 'production') {
     return;
@@ -145,6 +161,7 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
     MQTT_PASSWORD: readRequiredString(config, 'MQTT_PASSWORD'),
     WECHAT_APP_ID: readRequiredString(config, 'WECHAT_APP_ID'),
     WECHAT_APP_SECRET: readRequiredString(config, 'WECHAT_APP_SECRET'),
+    WECHAT_AUTH_PROVIDER_MODE: readWeChatAuthProviderMode(config, 'WECHAT_AUTH_PROVIDER_MODE'),
     OIDC_CLIENT_ID: readRequiredString(config, 'OIDC_CLIENT_ID'),
     OIDC_CLIENT_SECRET: readRequiredString(config, 'OIDC_CLIENT_SECRET'),
     AUTH_TOKEN_SECRET: readRequiredString(config, 'AUTH_TOKEN_SECRET'),

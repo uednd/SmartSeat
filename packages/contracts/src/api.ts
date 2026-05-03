@@ -78,6 +78,8 @@ export interface UserDto {
   auth_provider: AuthProvider;
   roles: UserRole[];
   anonymous_name: string;
+  display_name?: string;
+  avatar_url?: string;
   leaderboard_enabled: boolean;
   no_show_count_week: number;
   no_show_count_month: number;
@@ -105,6 +107,8 @@ export interface LoginModeResponse {
 
 export interface WechatLoginRequest {
   code: string;
+  displayName?: string;
+  avatarUrl?: string;
 }
 
 export interface OidcStartRequest {
@@ -126,6 +130,7 @@ export interface AuthSessionResponse {
   token_type: 'Bearer';
   expires_at: IsoDateTimeString;
   user: UserDto;
+  role: UserRole;
   roles: UserRole[];
   next_route: 'student' | 'admin';
 }
