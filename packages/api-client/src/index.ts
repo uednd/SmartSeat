@@ -19,6 +19,7 @@ import {
   type CreateDeviceRequest,
   type CreateReservationRequest,
   type CreateSeatRequest,
+  type CurrentUsageResponse,
   type DeviceDto,
   type DeviceListRequest,
   type ExtendReservationRequest,
@@ -359,6 +360,7 @@ export interface ReservationsApi {
   extend(request: ExtendReservationRequest): Promise<ReservationDto>;
   releaseByUser(request: UserReleaseReservationRequest): Promise<ReservationDto>;
   current(): Promise<ReservationDto | undefined>;
+  currentUsage(): Promise<CurrentUsageResponse | undefined>;
   history(request?: ReservationHistoryRequest): Promise<PageResponse<ReservationDto>>;
 }
 
@@ -505,11 +507,17 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
         }),
       cancel: createCancelReservationMethod(transport),
       extend: (request) =>
-        transport.request({ operation_id: 'reservations.extend', method: 'POST', body: request }),
+        transport.request({
+          operation_id: 'reservations.extend',
+          method: 'POST',
+          path: `/reservations/${encodeURIComponent(request.reservation_id)}/extend`,
+          body: request
+        }),
       releaseByUser: (request) =>
         transport.request({
           operation_id: 'reservations.releaseByUser',
           method: 'POST',
+          path: '/current-usage/release',
           body: request
         }),
       current: () =>
@@ -517,6 +525,12 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           operation_id: 'reservations.current',
           method: 'GET',
           path: '/reservations/current'
+        }),
+      currentUsage: () =>
+        transport.request({
+          operation_id: 'reservations.currentUsage',
+          method: 'GET',
+          path: '/current-usage'
         }),
       history: (request) =>
         transport.request({

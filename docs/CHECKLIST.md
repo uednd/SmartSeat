@@ -219,15 +219,23 @@
 
 ### CL-API-RES-02 续约、主动离座与到期结束
 
-- [ ] 使用中预约可在无冲突时续约。
-- [ ] 续约冲突、非法状态续约、非本人续约均被拒绝。
-- [ ] 学生可主动离座，预约状态结束，座位释放。
-- [ ] 主动离座后可生成 StudyRecord 或触发生成逻辑。
-- [ ] 到期无人时预约正常结束并释放座位。
-- [ ] 到期仍检测有人时进入 `PENDING_RELEASE` 或 PRD 指定状态。
-- [ ] 状态机重复执行保持幂等，不产生重复记录。
-- [ ] 终端状态同步触发点已预留或接入。
-- [ ] 证据路径已填写：____
+- [x] 使用中预约可在无冲突时续约。
+- [x] 续约冲突、非法状态续约、非本人续约均被拒绝。
+- [x] 学生可主动离座，预约状态结束，座位释放。
+- [x] 主动离座后可生成 StudyRecord 或触发生成逻辑。
+- [x] 到期无人时预约正常结束并释放座位。
+- [x] 到期仍检测有人时进入 `PENDING_RELEASE` 或 PRD 指定状态。
+- [x] 状态机重复执行保持幂等，不产生重复记录。
+- [x] 终端状态同步触发点已预留或接入：本任务仅记录 `usage_reservations_advanced` 等后端日志并保持座位状态可查询；真实 MQTT 终端同步仍归 `API-IOT-01`/`API-IOT-03`。
+- [x] 证据路径已填写：
+
+  - 代码路径：`apps/api/src/modules/reservations/reservations.service.ts`、`apps/api/src/modules/reservations/reservations.controller.ts`、`apps/api/src/modules/reservations/reservations.module.ts`、`packages/api-client/src/index.ts`
+  - 测试路径：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`
+  - 文档路径：`docs/PLAN.md`、`docs/CHECKLIST.md`
+  - 已通过命令：`pnpm --filter @smartseat/contracts typecheck`；`pnpm --filter @smartseat/api-client typecheck`；`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api test`；`DATABASE_URL=<deploy-local-postgres-url> pnpm --filter @smartseat/api db:migrate`；`DATABASE_URL=<deploy-local-postgres-url> RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test`；`pnpm lint`；`pnpm typecheck`；`pnpm format`
+  - 测试结果：常规 API 测试 `Test Files 6 passed | 1 skipped (7)`，`Tests 70 passed | 4 skipped (74)`；数据库测试 `Test Files 7 passed (7)`，`Tests 74 passed (74)`。
+  - 范围说明：严格按 PLAN 实现续约、主动离座、到期结束和 `PENDING_RELEASE`；管理员强制释放、管理员操作日志、二维码 token、扫码签到、MQTT、传感器持续时间判断、小程序页面均未纳入本任务。
+  - 结论：通过。
 
 ### CL-API-IOT-01 MQTT 接入、设备在线状态与命令总线
 

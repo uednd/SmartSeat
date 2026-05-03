@@ -22,18 +22,23 @@ import {
   type CreateDeviceRequest,
   type CreateReservationRequest,
   type CreateSeatRequest,
+  type CurrentUsageResponse,
+  type ExtendReservationRequest,
   type MqttCommandPayload,
   type MqttDisplayPayload,
   type MqttHeartbeatPayload,
   type MqttLightPayload,
   type MqttPresencePayload,
   type QRTokenDto,
+  type ReservationDto,
   type ReservationHistoryRequest,
   type SeatDetailDto,
   type SeatDto,
   type SetSeatEnabledRequest,
+  type StudyRecordDto,
   type UpdateDeviceRequest,
-  type UpdateSeatRequest
+  type UpdateSeatRequest,
+  type UserReleaseReservationRequest
 } from '../index.js';
 
 const seat = {
@@ -125,6 +130,47 @@ const createReservation = {
   start_time: '2026-05-02T00:00:00.000Z',
   end_time: '2026-05-02T01:00:00.000Z'
 } satisfies CreateReservationRequest;
+
+const reservation = {
+  reservation_id: 'reservation-1',
+  user_id: 'user-1',
+  seat_id: 'seat-1',
+  start_time: '2026-05-02T00:00:00.000Z',
+  end_time: '2026-05-02T01:00:00.000Z',
+  status: ReservationStatus.CHECKED_IN,
+  checkin_start_time: '2026-05-01T23:55:00.000Z',
+  checkin_deadline: '2026-05-02T00:15:00.000Z',
+  checked_in_at: '2026-05-02T00:01:00.000Z',
+  created_at: '2026-05-01T23:00:00.000Z'
+} satisfies ReservationDto;
+
+const extendReservation = {
+  reservation_id: reservation.reservation_id,
+  end_time: '2026-05-02T01:30:00.000Z'
+} satisfies ExtendReservationRequest;
+
+const userReleaseReservation = {
+  reservation_id: reservation.reservation_id,
+  reason: 'leaving now'
+} satisfies UserReleaseReservationRequest;
+
+const currentUsage = {
+  reservation,
+  seat,
+  remaining_seconds: 1200
+} satisfies CurrentUsageResponse;
+
+const studyRecord = {
+  record_id: 'study-record-1',
+  user_id: reservation.user_id,
+  reservation_id: reservation.reservation_id,
+  seat_id: reservation.seat_id,
+  start_time: reservation.checked_in_at,
+  end_time: '2026-05-02T01:00:00.000Z',
+  duration_minutes: 59,
+  valid_flag: true,
+  created_at: '2026-05-02T01:00:00.000Z'
+} satisfies StudyRecordDto;
 
 const reservationHistory = {
   page: 1,
@@ -226,6 +272,11 @@ void command;
 void token;
 void checkin;
 void createReservation;
+void reservation;
+void extendReservation;
+void userReleaseReservation;
+void currentUsage;
+void studyRecord;
 void reservationHistory;
 void adminReservationList;
 void seatDetail;

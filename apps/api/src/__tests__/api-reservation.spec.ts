@@ -62,12 +62,27 @@ interface FakeReservation {
   updatedAt: Date;
 }
 
+interface FakeStudyRecord {
+  recordId: string;
+  userId: string;
+  reservationId: string;
+  seatId: string;
+  startTime: Date;
+  endTime: Date;
+  durationMinutes: number;
+  validFlag: boolean;
+  invalidReason: string | null;
+  createdAt: Date;
+}
+
 class FakePrismaService {
   users: FakeUser[] = [];
   seats: FakeSeat[] = [];
   reservations: FakeReservation[] = [];
+  studyRecords: FakeStudyRecord[] = [];
 
   private reservationSequence = 0;
+  private studyRecordSequence = 0;
 
   user = {
     findUnique: async ({ where }: { where: { userId: string } }) =>
@@ -180,6 +195,35 @@ class FakePrismaService {
     }
   };
 
+  studyRecord = {
+    upsert: async ({
+      where,
+      create
+    }: {
+      where: { reservationId: string };
+      update: Partial<FakeStudyRecord>;
+      create: Omit<FakeStudyRecord, 'recordId' | 'createdAt'>;
+    }) => {
+      const existing = this.studyRecords.find(
+        (record) => record.reservationId === where.reservationId
+      );
+
+      if (existing !== undefined) {
+        return existing;
+      }
+
+      this.studyRecordSequence += 1;
+      const record: FakeStudyRecord = {
+        recordId: `study_record_${this.studyRecordSequence}`,
+        ...create,
+        createdAt: new Date('2026-05-03T08:20:00.000Z')
+      };
+      this.studyRecords.push(record);
+      return record;
+    },
+    count: async () => this.studyRecords.length
+  };
+
   async $transaction<T>(callback: (tx: this) => Promise<T>): Promise<T> {
     return await callback(this);
   }
@@ -281,6 +325,7 @@ class FakePrismaService {
 }
 
 type ReservationWhere = {
+  reservationId?: string | { not?: string };
   userId?: string;
   seatId?: string;
   status?: ReservationStatus | { in?: readonly ReservationStatus[] };
@@ -546,6 +591,342 @@ describe('API-RES-01 reservation state machine and API', () => {
     expect(prisma.seats.find((seat) => seat.seatId === 'seat_reserved_001')?.businessStatus).toBe(
       SeatStatus.FREE
     );
+    expect(prisma.studyRecords).toHaveLength(0);
+  });
+
+  it('returns the current checked-in usage for a student', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_occupied_usage',
+      seatNo: 'B-001',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_usage',
+      userId: 'user_student',
+      seatId: 'seat_occupied_usage',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:02:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z')
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/current-usage')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      reservation: {
+        reservation_id: 'reservation_usage',
+        status: ReservationStatus.CHECKED_IN
+      },
+      seat: {
+        seat_id: 'seat_occupied_usage',
+        business_status: SeatStatus.OCCUPIED
+      }
+    });
+    expect(response.body.remaining_seconds).toEqual(expect.any(Number));
+  });
+
+  it('extends a checked-in reservation when the following time range has no conflict', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_occupied_extend',
+      seatNo: 'B-002',
+      businessStatus: SeatStatus.ENDING_SOON
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_extend',
+      userId: 'user_student',
+      seatId: 'seat_occupied_extend',
+      startTime: new Date('2026-05-04T09:00:00.000Z'),
+      endTime: new Date('2026-05-04T10:00:00.000Z'),
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-04T09:01:00.000Z')
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/reservations/reservation_extend/extend')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        reservation_id: 'reservation_extend',
+        end_time: '2026-05-04T10:30:00.000Z'
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      reservation_id: 'reservation_extend',
+      end_time: '2026-05-04T10:30:00.000Z',
+      status: ReservationStatus.CHECKED_IN
+    });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_occupied_extend')).toMatchObject({
+      businessStatus: SeatStatus.OCCUPIED
+    });
+  });
+
+  it('rejects invalid, conflicting, or unauthorized extension attempts', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_occupied_extend_reject',
+      seatNo: 'B-003',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_extend_reject',
+      userId: 'user_student',
+      seatId: 'seat_occupied_extend_reject',
+      startTime: new Date('2026-05-04T09:00:00.000Z'),
+      endTime: new Date('2026-05-04T10:00:00.000Z'),
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-04T09:01:00.000Z')
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_following_conflict',
+      userId: 'user_other_student',
+      seatId: 'seat_occupied_extend_reject',
+      startTime: new Date('2026-05-04T10:10:00.000Z'),
+      endTime: new Date('2026-05-04T11:00:00.000Z')
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_waiting_no_extend',
+      userId: 'user_student',
+      seatId: 'seat_other_001'
+    });
+
+    const forbidden = await request(app.getHttpServer())
+      .post('/reservations/reservation_extend_reject/extend')
+      .set('Authorization', `Bearer ${otherStudentToken}`)
+      .send({
+        reservation_id: 'reservation_extend_reject',
+        end_time: '2026-05-04T10:30:00.000Z'
+      })
+      .expect(403);
+    const notActive = await request(app.getHttpServer())
+      .post('/reservations/reservation_waiting_no_extend/extend')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        reservation_id: 'reservation_waiting_no_extend',
+        end_time: '2026-05-04T10:30:00.000Z'
+      })
+      .expect(409);
+    const invalidWindow = await request(app.getHttpServer())
+      .post('/reservations/reservation_extend_reject/extend')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        reservation_id: 'reservation_extend_reject',
+        end_time: '2026-05-04T09:59:00.000Z'
+      })
+      .expect(400);
+    const conflict = await request(app.getHttpServer())
+      .post('/reservations/reservation_extend_reject/extend')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        reservation_id: 'reservation_extend_reject',
+        end_time: '2026-05-04T10:30:00.000Z'
+      })
+      .expect(409);
+
+    expect(forbidden.body).toMatchObject({ code: ApiErrorCode.FORBIDDEN });
+    expect(notActive.body).toMatchObject({ code: ApiErrorCode.RESERVATION_NOT_ACTIVE });
+    expect(invalidWindow.body).toMatchObject({ code: ApiErrorCode.VALIDATION_FAILED });
+    expect(conflict.body).toMatchObject({ code: ApiErrorCode.RESERVATION_CONFLICT });
+  });
+
+  it('releases a checked-in reservation by the owning student and creates one study record', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_user_release',
+      seatNo: 'B-004',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_user_release',
+      userId: 'user_student',
+      seatId: 'seat_user_release',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z')
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/current-usage/release')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        reservation_id: 'reservation_user_release',
+        reason: 'leaving now'
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      reservation_id: 'reservation_user_release',
+      status: ReservationStatus.USER_RELEASED,
+      release_reason: 'leaving now'
+    });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_user_release')).toMatchObject({
+      businessStatus: SeatStatus.FREE
+    });
+    expect(prisma.studyRecords).toHaveLength(1);
+    expect(prisma.studyRecords[0]).toMatchObject({
+      reservationId: 'reservation_user_release',
+      userId: 'user_student',
+      seatId: 'seat_user_release'
+    });
+  });
+
+  it('rejects non-owner and repeated current usage release without duplicate study records', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_user_release_reject',
+      seatNo: 'B-005',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_user_release_reject',
+      userId: 'user_student',
+      seatId: 'seat_user_release_reject',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z')
+    });
+
+    const forbidden = await request(app.getHttpServer())
+      .post('/current-usage/release')
+      .set('Authorization', `Bearer ${otherStudentToken}`)
+      .send({ reservation_id: 'reservation_user_release_reject' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post('/current-usage/release')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ reservation_id: 'reservation_user_release_reject' })
+      .expect(201);
+    const repeated = await request(app.getHttpServer())
+      .post('/current-usage/release')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ reservation_id: 'reservation_user_release_reject' })
+      .expect(409);
+
+    expect(forbidden.body).toMatchObject({ code: ApiErrorCode.FORBIDDEN });
+    expect(repeated.body).toMatchObject({ code: ApiErrorCode.RESERVATION_NOT_ACTIVE });
+    expect(prisma.studyRecords).toHaveLength(1);
+  });
+
+  it('advances ending soon, finished, and pending-release usage states idempotently', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_ending_soon',
+      seatNo: 'B-006',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedSeat({
+      seatId: 'seat_finished',
+      seatNo: 'B-007',
+      businessStatus: SeatStatus.OCCUPIED,
+      presenceStatus: PresenceStatus.ABSENT
+    });
+    prisma.seedSeat({
+      seatId: 'seat_pending_release',
+      seatNo: 'B-008',
+      businessStatus: SeatStatus.OCCUPIED,
+      presenceStatus: PresenceStatus.PRESENT
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_ending_soon',
+      userId: 'user_student',
+      seatId: 'seat_ending_soon',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:05:00.000Z')
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_finished',
+      userId: 'user_student',
+      seatId: 'seat_finished',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:05:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z')
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_pending_release',
+      userId: 'user_other_student',
+      seatId: 'seat_pending_release',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z')
+    });
+
+    const first = await reservationsService.advanceUsageReservations(
+      new Date('2026-05-03T10:00:00.000Z')
+    );
+    const second = await reservationsService.advanceUsageReservations(
+      new Date('2026-05-03T10:00:00.000Z')
+    );
+
+    expect(first).toEqual({ ending_soon: 1, finished: 1, pending_release: 1 });
+    expect(second).toEqual({ ending_soon: 0, finished: 0, pending_release: 0 });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_ending_soon')).toMatchObject({
+      businessStatus: SeatStatus.ENDING_SOON
+    });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_finished')).toMatchObject({
+      businessStatus: SeatStatus.FREE
+    });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_pending_release')).toMatchObject({
+      businessStatus: SeatStatus.PENDING_RELEASE
+    });
+    expect(
+      prisma.reservations.find(
+        (reservation) => reservation.reservationId === 'reservation_finished'
+      )
+    ).toMatchObject({ status: ReservationStatus.FINISHED });
+    expect(
+      prisma.reservations.find(
+        (reservation) => reservation.reservationId === 'reservation_pending_release'
+      )
+    ).toMatchObject({ status: ReservationStatus.CHECKED_IN });
+    expect(prisma.studyRecords).toHaveLength(1);
+    expect(prisma.studyRecords[0]).toMatchObject({
+      reservationId: 'reservation_finished',
+      durationMinutes: 55,
+      validFlag: true
+    });
+  });
+
+  it('keeps occupied seats unavailable for new reservations until released or finished', async () => {
+    prisma.seedSeat({
+      seatId: 'seat_consistency',
+      seatNo: 'B-009',
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    prisma.seedReservation({
+      reservationId: 'reservation_consistency',
+      userId: 'user_student',
+      seatId: 'seat_consistency',
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z')
+    });
+
+    const occupied = await request(app.getHttpServer())
+      .post('/reservations')
+      .set('Authorization', `Bearer ${otherStudentToken}`)
+      .send({
+        seat_id: 'seat_consistency',
+        start_time: '2026-05-03T11:00:00.000Z',
+        end_time: '2026-05-03T12:00:00.000Z'
+      })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .post('/current-usage/release')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ reservation_id: 'reservation_consistency' })
+      .expect(201);
+    const released = await request(app.getHttpServer())
+      .post('/reservations')
+      .set('Authorization', `Bearer ${otherStudentToken}`)
+      .send({
+        seat_id: 'seat_consistency',
+        start_time: '2026-05-03T11:00:00.000Z',
+        end_time: '2026-05-03T12:00:00.000Z'
+      })
+      .expect(201);
+
+    expect(occupied.body).toMatchObject({ code: ApiErrorCode.SEAT_UNAVAILABLE });
+    expect(released.body).toMatchObject({
+      seat_id: 'seat_consistency',
+      status: ReservationStatus.WAITING_CHECKIN
+    });
   });
 
   it('does not create double reservations when two overlapping requests race', async () => {
@@ -630,6 +1011,19 @@ const matchesReservation = (
 ): boolean => {
   if (where === undefined) {
     return true;
+  }
+
+  if (where.reservationId !== undefined) {
+    if (typeof where.reservationId === 'object') {
+      if (
+        where.reservationId.not !== undefined &&
+        reservation.reservationId === where.reservationId.not
+      ) {
+        return false;
+      }
+    } else if (reservation.reservationId !== where.reservationId) {
+      return false;
+    }
   }
 
   if (where.userId !== undefined && reservation.userId !== where.userId) {

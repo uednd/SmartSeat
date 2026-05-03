@@ -15,9 +15,12 @@ import {
   type AdminReservationListRequest,
   type CancelReservationRequest,
   type CreateReservationRequest,
+  type CurrentUsageResponse,
+  type ExtendReservationRequest,
   type PageRequest,
   type PageResponse,
-  type ReservationDto
+  type ReservationDto,
+  type UserReleaseReservationRequest
 } from '@smartseat/contracts';
 
 import { AdminGuard } from '../../common/auth/admin.guard.js';
@@ -68,6 +71,41 @@ export class ReservationsController {
     @Body() request: Partial<CancelReservationRequest>
   ): Promise<ReservationDto> {
     return await this.reservationsService.cancelReservation(user, reservationId, request ?? {});
+  }
+
+  @Post(':reservation_id/extend')
+  @ApiOperation({ summary: 'Extend a checked-in reservation' })
+  async extendReservation(
+    @CurrentUser() user: RequestUser,
+    @Param('reservation_id') reservationId: string,
+    @Body() request: ExtendReservationRequest
+  ): Promise<ReservationDto> {
+    return await this.reservationsService.extendReservation(user, reservationId, request);
+  }
+}
+
+@ApiTags('current-usage')
+@ApiBearerAuth()
+@Controller('current-usage')
+@UseGuards(BearerAuthGuard)
+export class CurrentUsageController {
+  constructor(private readonly reservationsService: ReservationsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get the current checked-in usage for a student' })
+  async getCurrentUsage(
+    @CurrentUser() user: RequestUser
+  ): Promise<CurrentUsageResponse | undefined> {
+    return await this.reservationsService.getCurrentUsage(user);
+  }
+
+  @Post('release')
+  @ApiOperation({ summary: 'Release the current checked-in usage as a student' })
+  async releaseCurrentUsage(
+    @CurrentUser() user: RequestUser,
+    @Body() request: UserReleaseReservationRequest
+  ): Promise<ReservationDto> {
+    return await this.reservationsService.releaseCurrentUsage(user, request);
   }
 }
 

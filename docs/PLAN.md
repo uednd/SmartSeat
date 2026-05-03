@@ -197,7 +197,7 @@ stateDiagram-v2
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Done |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Done |
-| API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Not Started |
+| API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Done |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Not Started |
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Not Started |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Not Started |
@@ -454,6 +454,8 @@ stateDiagram-v2
 | 回滚要求 | 可禁用续约入口；保留主动离座和读接口。 |
 | 监控与告警 | 记录续约成功/失败、主动离座、到期处理数量。 |
 | 验收标准 | 使用中学生可续约或主动离座；离座生成学习记录；到期规则与 PRD 一致。 |
+| 当前状态 | Done；严格按 PLAN 范围实现 `CHECKED_IN` 使用中预约的当前使用查询、续约、学生主动离座、到期无人正常结束、到期有人进入 `PENDING_RELEASE`，并生成幂等 StudyRecord；未实现管理员强制释放、管理员操作日志、二维码 token、扫码签到、MQTT、传感器持续时间判断或小程序页面。 |
+| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`DATABASE_URL=<deploy-local-postgres-url> pnpm --filter @smartseat/api db:migrate`、`DATABASE_URL=<deploy-local-postgres-url> RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm typecheck`、`pnpm format`。 |
 | 可分配给编码智能体的提示 | 只处理续约/离座/到期；不要写异常页面；保证状态机幂等并补齐单测。 |
 
 ### API-IOT-01 MQTT 接入、设备在线状态与命令总线

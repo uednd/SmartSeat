@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   Prisma,
+  PresenceStatus,
   ReservationStatus,
   SeatAvailability,
   SeatStatus,
@@ -13,18 +14,25 @@ import {
   type AdminReservationListRequest,
   type CancelReservationRequest,
   type CreateReservationRequest,
+  type CurrentUsageResponse,
+  type ExtendReservationRequest,
   type PageRequest,
   type PageResponse,
-  type ReservationDto
+  type ReservationDto,
+  type UserReleaseReservationRequest
 } from '@smartseat/contracts';
 
 import type { RequestUser } from '../../common/auth/request-user.js';
 import { PrismaService } from '../../common/database/prisma.service.js';
 import { AppHttpException } from '../../common/errors/app-http.exception.js';
 import { toReservationDto } from './reservation.mapper.js';
+import { toSeatDto } from '../seats/seat-device.mapper.js';
 
 const CHECKIN_START_OFFSET_MS = 5 * 60 * 1000;
 const CHECKIN_DEADLINE_OFFSET_MS = 15 * 60 * 1000;
+const ENDING_SOON_WINDOW_MS = 10 * 60 * 1000;
+const MIN_VALID_STUDY_MINUTES = 15;
+const SHORT_STUDY_INVALID_REASON = 'DURATION_LT_15_MINUTES';
 const ACTIVE_RESERVATION_STATUSES = [
   ReservationStatus.WAITING_CHECKIN,
   ReservationStatus.CHECKED_IN
@@ -130,6 +138,37 @@ export class ReservationsService {
     return reservation === null ? undefined : toReservationDto(reservation);
   }
 
+  async getCurrentUsage(
+    user: RequestUser,
+    now = new Date()
+  ): Promise<CurrentUsageResponse | undefined> {
+    this.requireStudent(user);
+    const reservation = await this.findCheckedInReservationForUser(this.prisma, user.user_id);
+
+    if (reservation === null) {
+      return undefined;
+    }
+
+    const seat = await this.prisma.seat.findUnique({
+      where: {
+        seatId: reservation.seatId
+      }
+    });
+
+    if (seat === null) {
+      throw this.notFound('Seat was not found.', { seat_id: reservation.seatId });
+    }
+
+    return {
+      reservation: toReservationDto(reservation),
+      seat: toSeatDto(seat),
+      remaining_seconds: Math.max(
+        0,
+        Math.floor((reservation.endTime.getTime() - now.getTime()) / 1000)
+      )
+    };
+  }
+
   async listReservationHistory(
     user: RequestUser,
     request: PageRequest
@@ -233,6 +272,182 @@ export class ReservationsService {
     return toReservationDto(reservation);
   }
 
+  async extendReservation(
+    user: RequestUser,
+    reservationId: string,
+    request: ExtendReservationRequest,
+    now = new Date()
+  ): Promise<ReservationDto> {
+    this.requireStudent(user);
+    this.requireNonEmpty(reservationId, 'reservation_id');
+    const requestReservationId = normalizeOptionalString(request.reservation_id);
+
+    if (requestReservationId !== undefined && requestReservationId !== reservationId) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'Path reservation_id must match request reservation_id.',
+        { reservation_id: reservationId, request_reservation_id: requestReservationId }
+      );
+    }
+
+    const newEndTime = this.parseDateTime(request.end_time, 'end_time');
+
+    try {
+      const reservation = await this.prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.reservation.findUnique({
+            where: {
+              reservationId
+            }
+          });
+
+          if (existing === null) {
+            throw this.notFound('Reservation was not found.', { reservation_id: reservationId });
+          }
+
+          this.assertOwnedCheckedInReservation(existing, user.user_id);
+
+          if (existing.endTime.getTime() <= now.getTime()) {
+            throw new AppHttpException(
+              HttpStatus.CONFLICT,
+              ApiErrorCode.RESERVATION_NOT_ACTIVE,
+              'Only unexpired checked-in reservations can be extended.',
+              {
+                reservation_id: reservationId,
+                end_time: existing.endTime.toISOString()
+              }
+            );
+          }
+
+          if (newEndTime.getTime() <= existing.endTime.getTime()) {
+            throw new AppHttpException(
+              HttpStatus.BAD_REQUEST,
+              ApiErrorCode.VALIDATION_FAILED,
+              'Reservation extension end_time must be after the current end_time.',
+              {
+                reservation_id: reservationId,
+                current_end_time: existing.endTime.toISOString(),
+                end_time: request.end_time
+              }
+            );
+          }
+
+          await this.assertNoOverlappingReservation(tx, {
+            userId: existing.userId,
+            seatId: existing.seatId,
+            startTime: existing.endTime,
+            endTime: newEndTime,
+            excludeReservationId: existing.reservationId
+          });
+
+          const updated = await tx.reservation.update({
+            where: {
+              reservationId
+            },
+            data: {
+              endTime: newEndTime
+            }
+          });
+
+          await tx.seat.update({
+            where: {
+              seatId: existing.seatId
+            },
+            data: {
+              businessStatus: SeatStatus.OCCUPIED
+            }
+          });
+
+          return updated;
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        }
+      );
+
+      this.logger.log(
+        JSON.stringify({
+          category: 'reservation_extended',
+          reservation_id: reservation.reservationId,
+          user_id: reservation.userId,
+          seat_id: reservation.seatId,
+          end_time: reservation.endTime.toISOString()
+        })
+      );
+
+      return toReservationDto(reservation);
+    } catch (error) {
+      this.throwMappedReservationError(
+        error,
+        'Reservation extension conflicts with an existing reservation.'
+      );
+      throw error;
+    }
+  }
+
+  async releaseCurrentUsage(
+    user: RequestUser,
+    request: UserReleaseReservationRequest,
+    now = new Date()
+  ): Promise<ReservationDto> {
+    this.requireStudent(user);
+    this.requireNonEmpty(request.reservation_id, 'reservation_id');
+
+    const reservation = await this.prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.reservation.findUnique({
+          where: {
+            reservationId: request.reservation_id
+          }
+        });
+
+        if (existing === null) {
+          throw this.notFound('Reservation was not found.', {
+            reservation_id: request.reservation_id
+          });
+        }
+
+        this.assertOwnedCheckedInReservation(existing, user.user_id);
+
+        const data: Prisma.ReservationUpdateInput = {
+          status: ReservationStatus.USER_RELEASED,
+          releasedAt: now
+        };
+        const releaseReason = normalizeOptionalString(request.reason);
+
+        if (releaseReason !== undefined) {
+          data.releaseReason = releaseReason;
+        }
+
+        const updated = await tx.reservation.update({
+          where: {
+            reservationId: existing.reservationId
+          },
+          data
+        });
+
+        await this.upsertStudyRecord(tx, existing, now);
+        await this.releaseSeatIfNoActiveReservation(tx, existing.seatId);
+        return updated;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
+
+    this.logger.log(
+      JSON.stringify({
+        category: 'reservation_user_released',
+        reservation_id: reservation.reservationId,
+        user_id: reservation.userId,
+        seat_id: reservation.seatId
+      })
+    );
+
+    return toReservationDto(reservation);
+  }
+
   async expireNoShowReservations(now = new Date()): Promise<number> {
     const expired = await this.prisma.$transaction(
       async (tx) => {
@@ -292,6 +507,102 @@ export class ReservationsService {
     return expired;
   }
 
+  async advanceUsageReservations(now = new Date()): Promise<{
+    ending_soon: number;
+    finished: number;
+    pending_release: number;
+  }> {
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const reservations = await tx.reservation.findMany({
+          where: {
+            status: ReservationStatus.CHECKED_IN
+          },
+          orderBy: [{ endTime: 'asc' }]
+        });
+        const counts = {
+          ending_soon: 0,
+          finished: 0,
+          pending_release: 0
+        };
+
+        for (const reservation of reservations) {
+          const seat = await tx.seat.findUnique({
+            where: {
+              seatId: reservation.seatId
+            }
+          });
+
+          if (seat === null) {
+            continue;
+          }
+
+          if (reservation.endTime.getTime() <= now.getTime()) {
+            if (seat.presenceStatus === PresenceStatus.PRESENT) {
+              if (seat.businessStatus !== SeatStatus.PENDING_RELEASE) {
+                await tx.seat.update({
+                  where: {
+                    seatId: seat.seatId
+                  },
+                  data: {
+                    businessStatus: SeatStatus.PENDING_RELEASE
+                  }
+                });
+                counts.pending_release += 1;
+              }
+              continue;
+            }
+
+            await tx.reservation.update({
+              where: {
+                reservationId: reservation.reservationId
+              },
+              data: {
+                status: ReservationStatus.FINISHED,
+                releasedAt: reservation.endTime,
+                releaseReason: 'TIME_FINISHED'
+              }
+            });
+            await this.upsertStudyRecord(tx, reservation, reservation.endTime);
+            await this.releaseSeatIfNoActiveReservation(tx, reservation.seatId);
+            counts.finished += 1;
+            continue;
+          }
+
+          if (reservation.endTime.getTime() - now.getTime() <= ENDING_SOON_WINDOW_MS) {
+            if (seat.businessStatus !== SeatStatus.ENDING_SOON) {
+              await tx.seat.update({
+                where: {
+                  seatId: seat.seatId
+                },
+                data: {
+                  businessStatus: SeatStatus.ENDING_SOON
+                }
+              });
+              counts.ending_soon += 1;
+            }
+          }
+        }
+
+        return counts;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
+
+    if (result.ending_soon > 0 || result.finished > 0 || result.pending_release > 0) {
+      this.logger.log(
+        JSON.stringify({
+          category: 'usage_reservations_advanced',
+          ...result
+        })
+      );
+    }
+
+    return result;
+  }
+
   async listAdminCurrentReservations(
     request: AdminReservationListRequest
   ): Promise<PageResponse<ReservationDto>> {
@@ -337,6 +648,7 @@ export class ReservationsService {
       seatId: string;
       startTime: Date;
       endTime: Date;
+      excludeReservationId?: string;
     }
   ): Promise<void> {
     const overlapWhere = {
@@ -348,7 +660,14 @@ export class ReservationsService {
       },
       endTime: {
         gt: input.startTime
-      }
+      },
+      ...(input.excludeReservationId === undefined
+        ? {}
+        : {
+            reservationId: {
+              not: input.excludeReservationId
+            }
+          })
     } satisfies Prisma.ReservationWhereInput;
 
     const [userConflict, seatConflict] = await Promise.all([
@@ -383,6 +702,59 @@ export class ReservationsService {
         { reservation_id: seatConflict.reservationId }
       );
     }
+  }
+
+  private assertOwnedCheckedInReservation(reservation: Reservation, userId: string): void {
+    if (reservation.userId !== userId) {
+      throw new AppHttpException(
+        HttpStatus.FORBIDDEN,
+        ApiErrorCode.FORBIDDEN,
+        'Reservation does not belong to the current student.',
+        { reservation_id: reservation.reservationId }
+      );
+    }
+
+    if (reservation.status !== ReservationStatus.CHECKED_IN) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.RESERVATION_NOT_ACTIVE,
+        'Only checked-in reservations can be changed as current usage.',
+        {
+          reservation_id: reservation.reservationId,
+          status: reservation.status
+        }
+      );
+    }
+  }
+
+  private async upsertStudyRecord(
+    tx: ReservationClient,
+    reservation: Reservation,
+    endTime: Date
+  ): Promise<void> {
+    const startTime = reservation.checkedInAt ?? reservation.startTime;
+    const durationMinutes = Math.max(
+      0,
+      Math.floor((endTime.getTime() - startTime.getTime()) / 60_000)
+    );
+    const validFlag = durationMinutes >= MIN_VALID_STUDY_MINUTES;
+
+    await tx.studyRecord.upsert({
+      where: {
+        reservationId: reservation.reservationId
+      },
+      update: {},
+      create: {
+        userId: reservation.userId,
+        reservationId: reservation.reservationId,
+        seatId: reservation.seatId,
+        startTime,
+        endTime,
+        durationMinutes,
+        validFlag,
+        invalidReason: validFlag ? null : SHORT_STUDY_INVALID_REASON
+      }
+    });
   }
 
   private async releaseSeatIfNoActiveReservation(
@@ -422,6 +794,21 @@ export class ReservationsService {
         status: {
           in: [...ACTIVE_RESERVATION_STATUSES]
         }
+      },
+      orderBy: {
+        startTime: 'asc'
+      }
+    });
+  }
+
+  private async findCheckedInReservationForUser(
+    client: ReservationClient,
+    userId: string
+  ): Promise<Reservation | null> {
+    return await client.reservation.findFirst({
+      where: {
+        userId,
+        status: ReservationStatus.CHECKED_IN
       },
       orderBy: {
         startTime: 'asc'

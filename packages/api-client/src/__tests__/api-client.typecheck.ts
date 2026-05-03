@@ -51,7 +51,16 @@ const createdReservation = await client.reservations.create({
   end_time: '2026-05-03T10:00:00.000Z'
 });
 const currentReservation = await client.reservations.current();
+const currentUsage = await client.reservations.currentUsage();
 const reservationHistory = await client.reservations.history({ page: 1 });
+const extendedReservation = await client.reservations.extend({
+  reservation_id: 'reservation-1',
+  end_time: '2026-05-03T10:30:00.000Z'
+});
+const userReleasedReservation = await client.reservations.releaseByUser({
+  reservation_id: 'reservation-1',
+  reason: 'leaving now'
+});
 const cancelledReservation = await client.reservations.cancel('reservation-1', {
   reason: 'plan changed'
 });
@@ -114,7 +123,10 @@ void boundDevice;
 void unboundDevice;
 void createdReservation;
 void currentReservation;
+void currentUsage;
 void reservationHistory;
+void extendedReservation;
+void userReleasedReservation;
 void cancelledReservation;
 void legacyCancelledReservation;
 void adminReservations;

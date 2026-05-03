@@ -9,8 +9,28 @@ import { SeedBaselineService } from '../modules/database-baseline/seed-baseline.
 
 const describeDatabase = process.env.RUN_DATABASE_TESTS === '1' ? describe : describe.skip;
 
-const expectPrismaErrorCode = async (promise: Promise<unknown>, code: string): Promise<void> => {
-  await expect(promise).rejects.toMatchObject({ code });
+const expectPrismaErrorCode = async (
+  promise: Promise<unknown>,
+  code: string,
+  originalCode?: string
+): Promise<void> => {
+  try {
+    await promise;
+  } catch (error) {
+    const candidate = error as {
+      code?: string;
+      cause?: {
+        originalCode?: string;
+      };
+    };
+
+    expect([code, originalCode].filter(Boolean)).toContain(
+      candidate.code ?? candidate.cause?.originalCode
+    );
+    return;
+  }
+
+  throw new Error(`Expected Prisma error ${code}.`);
 };
 
 describeDatabase('API-DB-01 database baseline', () => {
@@ -27,9 +47,11 @@ describeDatabase('API-DB-01 database baseline', () => {
     seedBaseline = moduleRef.get(SeedBaselineService);
 
     await prisma.checkConnection();
+    await cleanupOverlapTestData(prisma);
   });
 
   afterAll(async () => {
+    await cleanupOverlapTestData(prisma);
     await moduleRef.close();
   });
 
@@ -155,27 +177,7 @@ describeDatabase('API-DB-01 database baseline', () => {
   });
 
   it('enforces effective reservation overlap constraints while allowing released history', async () => {
-    await prisma.reservation.deleteMany({
-      where: {
-        reservationId: {
-          startsWith: 'reservation_overlap_test_'
-        }
-      }
-    });
-    await prisma.user.deleteMany({
-      where: {
-        userId: {
-          startsWith: 'user_overlap_test_'
-        }
-      }
-    });
-    await prisma.seat.deleteMany({
-      where: {
-        seatId: {
-          startsWith: 'seat_overlap_test_'
-        }
-      }
-    });
+    await cleanupOverlapTestData(prisma);
 
     await prisma.user.createMany({
       data: [
@@ -235,7 +237,8 @@ describeDatabase('API-DB-01 database baseline', () => {
           ...baseReservation
         }
       }),
-      'P2004'
+      'P2004',
+      '23P01'
     );
 
     await expectPrismaErrorCode(
@@ -247,7 +250,8 @@ describeDatabase('API-DB-01 database baseline', () => {
           ...baseReservation
         }
       }),
-      'P2004'
+      'P2004',
+      '23P01'
     );
 
     await prisma.reservation.create({
@@ -268,5 +272,30 @@ describeDatabase('API-DB-01 database baseline', () => {
         ...baseReservation
       }
     });
+    await cleanupOverlapTestData(prisma);
   });
 });
+
+const cleanupOverlapTestData = async (prisma: PrismaService): Promise<void> => {
+  await prisma.reservation.deleteMany({
+    where: {
+      reservationId: {
+        startsWith: 'reservation_overlap_test_'
+      }
+    }
+  });
+  await prisma.user.deleteMany({
+    where: {
+      userId: {
+        startsWith: 'user_overlap_test_'
+      }
+    }
+  });
+  await prisma.seat.deleteMany({
+    where: {
+      seatId: {
+        startsWith: 'seat_overlap_test_'
+      }
+    }
+  });
+};
