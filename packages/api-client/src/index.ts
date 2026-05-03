@@ -542,7 +542,12 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
     },
     checkin: {
       submit: (request) =>
-        transport.request({ operation_id: 'checkin.submit', method: 'POST', body: request })
+        transport.request({
+          operation_id: 'checkin.submit',
+          method: 'POST',
+          path: '/checkin',
+          body: request
+        })
     },
     anomalies: {
       list: (request) =>

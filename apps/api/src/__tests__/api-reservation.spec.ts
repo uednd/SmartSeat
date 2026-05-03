@@ -1,14 +1,25 @@
 import { type INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, type TestingModule } from '@nestjs/testing';
 import {
   AuthProvider,
+  DeviceOnlineStatus,
   PresenceStatus,
+  QRTokenStatus,
   ReservationStatus,
   SeatAvailability,
   SeatStatus,
-  SeatUnavailableReason
+  SeatUnavailableReason,
+  SensorHealthStatus
 } from '@prisma/client';
-import { ApiErrorCode, UserRole } from '@smartseat/contracts';
+import {
+  ApiErrorCode,
+  DisplayLayout,
+  LightStatus,
+  SeatStatus as ContractSeatStatus,
+  UserRole
+} from '@smartseat/contracts';
+import type { MqttDisplayPayload, MqttLightPayload } from '@smartseat/contracts';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -16,6 +27,7 @@ import { AppModule } from '../app.module.js';
 import { setupApiPlatform } from '../app.setup.js';
 import { PrismaService } from '../common/database/prisma.service.js';
 import { TokenService } from '../modules/auth/token.service.js';
+import { MqttCommandBusService } from '../modules/mqtt/mqtt-command-bus.service.js';
 import { ReservationsService } from '../modules/reservations/reservations.service.js';
 
 interface FakeUser {
@@ -42,6 +54,21 @@ interface FakeSeat {
   deviceId: string | null;
   presenceStatus: PresenceStatus;
   maintenance: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface FakeDevice {
+  deviceId: string;
+  seatId: string | null;
+  mqttClientId: string;
+  onlineStatus: DeviceOnlineStatus;
+  lastHeartbeatAt: Date | null;
+  sensorStatus: SensorHealthStatus;
+  sensorModel: string | null;
+  firmwareVersion: string | null;
+  hardwareVersion: string | null;
+  networkStatus: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -75,14 +102,59 @@ interface FakeStudyRecord {
   createdAt: Date;
 }
 
+interface FakeQRToken {
+  tokenId: string;
+  token: string;
+  reservationId: string | null;
+  seatId: string;
+  deviceId: string;
+  generatedAt: Date;
+  expiredAt: Date;
+  usedAt: Date | null;
+  status: QRTokenStatus;
+}
+
+interface FakeCheckInRecord {
+  checkInId: string;
+  reservationId: string;
+  userId: string;
+  seatId: string;
+  deviceId: string;
+  qrTokenId: string | null;
+  checkedInAt: Date;
+  presenceStatus: PresenceStatus | null;
+  source: string;
+  createdAt: Date;
+}
+
+class FakeMqttCommandBusService {
+  displayPayloads: MqttDisplayPayload[] = [];
+  lightPayloads: MqttLightPayload[] = [];
+
+  async publishDisplay(payload: MqttDisplayPayload): Promise<boolean> {
+    this.displayPayloads.push(payload);
+    return true;
+  }
+
+  async publishLight(payload: MqttLightPayload): Promise<boolean> {
+    this.lightPayloads.push(payload);
+    return true;
+  }
+}
+
 class FakePrismaService {
   users: FakeUser[] = [];
   seats: FakeSeat[] = [];
+  devices: FakeDevice[] = [];
   reservations: FakeReservation[] = [];
   studyRecords: FakeStudyRecord[] = [];
+  qrTokens: FakeQRToken[] = [];
+  checkInRecords: FakeCheckInRecord[] = [];
 
   private reservationSequence = 0;
   private studyRecordSequence = 0;
+  private qrTokenSequence = 0;
+  private checkInRecordSequence = 0;
 
   user = {
     findUnique: async ({ where }: { where: { userId: string } }) =>
@@ -123,6 +195,11 @@ class FakePrismaService {
       Object.assign(seat, data, { updatedAt: new Date('2026-05-03T08:20:00.000Z') });
       return seat;
     }
+  };
+
+  device = {
+    findUnique: async ({ where }: { where: { deviceId: string } }) =>
+      this.devices.find((device) => device.deviceId === where.deviceId) ?? null
   };
 
   reservation = {
@@ -224,6 +301,76 @@ class FakePrismaService {
     count: async () => this.studyRecords.length
   };
 
+  qRToken = {
+    findUnique: async ({ where }: { where: { token?: string; tokenId?: string } }) =>
+      this.qrTokens.find(
+        (token) =>
+          (where.token !== undefined && token.token === where.token) ||
+          (where.tokenId !== undefined && token.tokenId === where.tokenId)
+      ) ?? null,
+    create: async ({ data }: { data: Partial<FakeQRToken> }) => {
+      this.qrTokenSequence += 1;
+      const token: FakeQRToken = {
+        tokenId: data.tokenId ?? `qr_token_${this.qrTokenSequence}`,
+        token: requiredString(data.token),
+        reservationId: data.reservationId ?? null,
+        seatId: requiredString(data.seatId),
+        deviceId: requiredString(data.deviceId),
+        generatedAt: requiredDate(data.generatedAt),
+        expiredAt: requiredDate(data.expiredAt),
+        usedAt: data.usedAt ?? null,
+        status: data.status ?? QRTokenStatus.UNUSED
+      };
+
+      if (this.qrTokens.some((candidate) => candidate.token === token.token)) {
+        throw Object.assign(new Error('Fake QR token conflict.'), { code: 'P2002' });
+      }
+
+      this.qrTokens.push(token);
+      return token;
+    },
+    update: async ({ where, data }: { where: { tokenId: string }; data: Partial<FakeQRToken> }) => {
+      const token = this.qrTokens.find((candidate) => candidate.tokenId === where.tokenId);
+
+      if (token === undefined) {
+        throw new Error('Missing fake QR token.');
+      }
+
+      Object.assign(token, data);
+      return token;
+    },
+    updateMany: async ({ where, data }: { where?: QRTokenWhere; data: Partial<FakeQRToken> }) => {
+      const tokens = this.qrTokens.filter((token) => matchesQRToken(token, where));
+
+      for (const token of tokens) {
+        Object.assign(token, data);
+      }
+
+      return { count: tokens.length };
+    }
+  };
+
+  checkInRecord = {
+    create: async ({ data }: { data: Omit<FakeCheckInRecord, 'checkInId' | 'createdAt'> }) => {
+      this.checkInRecordSequence += 1;
+      const record: FakeCheckInRecord = {
+        checkInId: `checkin_${this.checkInRecordSequence}`,
+        ...data,
+        createdAt: new Date('2026-05-03T09:00:00.000Z')
+      };
+
+      if (
+        record.qrTokenId !== null &&
+        this.checkInRecords.some((candidate) => candidate.qrTokenId === record.qrTokenId)
+      ) {
+        throw Object.assign(new Error('Fake checkin QR token conflict.'), { code: 'P2002' });
+      }
+
+      this.checkInRecords.push(record);
+      return record;
+    }
+  };
+
   async $transaction<T>(callback: (tx: this) => Promise<T>): Promise<T> {
     return await callback(this);
   }
@@ -274,6 +421,27 @@ class FakePrismaService {
     return seat;
   }
 
+  seedDevice(data: Partial<FakeDevice>): FakeDevice {
+    const now = new Date('2026-05-03T08:00:00.000Z');
+    const device: FakeDevice = {
+      deviceId: requiredString(data.deviceId),
+      seatId: data.seatId ?? null,
+      mqttClientId: data.mqttClientId ?? requiredString(data.deviceId),
+      onlineStatus: data.onlineStatus ?? DeviceOnlineStatus.ONLINE,
+      lastHeartbeatAt: data.lastHeartbeatAt ?? now,
+      sensorStatus: data.sensorStatus ?? SensorHealthStatus.OK,
+      sensorModel: data.sensorModel ?? null,
+      firmwareVersion: data.firmwareVersion ?? null,
+      hardwareVersion: data.hardwareVersion ?? null,
+      networkStatus: data.networkStatus ?? null,
+      createdAt: data.createdAt ?? now,
+      updatedAt: data.updatedAt ?? now
+    };
+
+    this.devices.push(device);
+    return device;
+  }
+
   seedReservation(data: Partial<FakeReservation>): FakeReservation {
     const startTime = data.startTime ?? new Date('2026-05-03T09:00:00.000Z');
     const reservation: FakeReservation = {
@@ -294,6 +462,24 @@ class FakePrismaService {
 
     this.reservations.push(reservation);
     return reservation;
+  }
+
+  seedQrToken(data: Partial<FakeQRToken>): FakeQRToken {
+    const now = new Date('2026-05-03T09:00:00.000Z');
+    const token: FakeQRToken = {
+      tokenId: requiredString(data.tokenId),
+      token: requiredString(data.token),
+      reservationId: data.reservationId ?? null,
+      seatId: requiredString(data.seatId),
+      deviceId: requiredString(data.deviceId),
+      generatedAt: data.generatedAt ?? now,
+      expiredAt: data.expiredAt ?? new Date(now.getTime() + 30_000),
+      usedAt: data.usedAt ?? null,
+      status: data.status ?? QRTokenStatus.UNUSED
+    };
+
+    this.qrTokens.push(token);
+    return token;
   }
 
   private sortReservations(reservations: FakeReservation[]): FakeReservation[] {
@@ -331,13 +517,22 @@ type ReservationWhere = {
   status?: ReservationStatus | { in?: readonly ReservationStatus[] };
   startTime?: { lt?: Date };
   endTime?: { gt?: Date };
-  checkinDeadline?: { lt?: Date };
+  checkinStartTime?: { lte?: Date };
+  checkinDeadline?: { lt?: Date; gte?: Date };
+};
+
+type QRTokenWhere = {
+  reservationId?: string;
+  status?: QRTokenStatus;
+  tokenId?: { not?: string };
+  expiredAt?: { lte?: Date };
 };
 
 describe('API-RES-01 reservation state machine and API', () => {
   let app: INestApplication;
   let moduleRef: TestingModule;
   let prisma: FakePrismaService;
+  let commandBus: FakeMqttCommandBusService;
   let tokenService: TokenService;
   let reservationsService: ReservationsService;
   let studentToken: string;
@@ -346,6 +541,7 @@ describe('API-RES-01 reservation state machine and API', () => {
 
   beforeEach(async () => {
     prisma = new FakePrismaService();
+    commandBus = new FakeMqttCommandBusService();
     seedDemoData(prisma);
 
     moduleRef = await Test.createTestingModule({
@@ -353,6 +549,8 @@ describe('API-RES-01 reservation state machine and API', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(MqttCommandBusService)
+      .useValue(commandBus)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -572,6 +770,13 @@ describe('API-RES-01 reservation state machine and API', () => {
       checkinStartTime: new Date('2026-05-03T06:55:00.000Z'),
       checkinDeadline: new Date('2026-05-03T07:15:00.000Z')
     });
+    prisma.seedQrToken({
+      tokenId: 'qr_no_show',
+      token: 'qr-no-show',
+      reservationId: 'reservation_expired',
+      seatId: 'seat_reserved_001',
+      deviceId: 'device_no_show'
+    });
 
     const count = await reservationsService.expireNoShowReservations(
       new Date('2026-05-03T07:16:00.000Z')
@@ -591,7 +796,299 @@ describe('API-RES-01 reservation state machine and API', () => {
     expect(prisma.seats.find((seat) => seat.seatId === 'seat_reserved_001')?.businessStatus).toBe(
       SeatStatus.FREE
     );
+    expect(prisma.qrTokens.find((token) => token.tokenId === 'qr_no_show')?.status).toBe(
+      QRTokenStatus.INVALIDATED
+    );
     expect(prisma.studyRecords).toHaveLength(0);
+  });
+
+  it('generates refreshed QR tokens and publishes reserved display payloads', async () => {
+    seedCheckinFixture(prisma);
+    prisma.seedQrToken({
+      tokenId: 'qr_expired_refresh',
+      token: 'qr-expired-refresh',
+      reservationId: 'reservation_checkin',
+      seatId: 'seat_checkin_001',
+      deviceId: 'device_checkin_001',
+      expiredAt: new Date('2026-05-03T08:59:59.000Z')
+    });
+
+    const result = await reservationsService.refreshActiveQrTokens(
+      new Date('2026-05-03T09:00:00.000Z')
+    );
+    const generated = prisma.qrTokens.find((token) => token.tokenId !== 'qr_expired_refresh');
+
+    expect(result).toEqual({ expired: 1, generated: 1, skipped_offline: 0 });
+    expect(generated).toMatchObject({
+      reservationId: 'reservation_checkin',
+      seatId: 'seat_checkin_001',
+      deviceId: 'device_checkin_001',
+      status: QRTokenStatus.UNUSED,
+      expiredAt: new Date('2026-05-03T09:00:30.000Z')
+    });
+    expect(generated?.token).toHaveLength(43);
+    expect(prisma.qrTokens.find((token) => token.tokenId === 'qr_expired_refresh')?.status).toBe(
+      QRTokenStatus.EXPIRED
+    );
+    expect(commandBus.displayPayloads).toHaveLength(1);
+    expect(commandBus.displayPayloads[0]).toMatchObject({
+      device_id: 'device_checkin_001',
+      seat_id: 'seat_checkin_001',
+      seat_status: ContractSeatStatus.RESERVED,
+      layout: DisplayLayout.RESERVED,
+      checkin_deadline: '2026-05-03T09:15:00.000Z',
+      qr_token: generated?.token
+    });
+  });
+
+  it('skips QR generation for offline or unbound devices', async () => {
+    seedCheckinFixture(prisma, { deviceOnlineStatus: DeviceOnlineStatus.OFFLINE });
+
+    const result = await reservationsService.refreshActiveQrTokens(
+      new Date('2026-05-03T09:00:00.000Z')
+    );
+
+    expect(result).toEqual({ expired: 0, generated: 0, skipped_offline: 1 });
+    expect(prisma.qrTokens).toHaveLength(0);
+    expect(commandBus.displayPayloads).toHaveLength(0);
+  });
+
+  it('checks in with a valid QR token and synchronizes terminal state', async () => {
+    const { token } = seedCheckinFixture(prisma, { ...liveCheckinWindow(), seedToken: true });
+
+    const response = await request(app.getHttpServer())
+      .post('/checkin')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        seat_id: token.seatId,
+        device_id: token.deviceId,
+        token: token.token,
+        timestamp: new Date().toISOString()
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      reservation: {
+        reservation_id: 'reservation_checkin',
+        status: ReservationStatus.CHECKED_IN,
+        checked_in_at: expect.any(String)
+      },
+      seat: {
+        seat_id: 'seat_checkin_001',
+        business_status: SeatStatus.OCCUPIED
+      },
+      checked_in_at: expect.any(String)
+    });
+    expect(
+      prisma.reservations.find((reservation) => reservation.reservationId === 'reservation_checkin')
+    ).toMatchObject({
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: expect.any(Date)
+    });
+    expect(prisma.seats.find((seat) => seat.seatId === 'seat_checkin_001')).toMatchObject({
+      businessStatus: SeatStatus.OCCUPIED
+    });
+    expect(prisma.qrTokens.find((candidate) => candidate.tokenId === token.tokenId)).toMatchObject({
+      status: QRTokenStatus.USED,
+      usedAt: expect.any(Date)
+    });
+    expect(prisma.checkInRecords).toHaveLength(1);
+    expect(prisma.checkInRecords[0]).toMatchObject({
+      reservationId: 'reservation_checkin',
+      userId: 'user_student',
+      seatId: 'seat_checkin_001',
+      deviceId: 'device_checkin_001',
+      qrTokenId: token.tokenId
+    });
+    expect(commandBus.displayPayloads).toEqual([
+      expect.objectContaining({
+        device_id: 'device_checkin_001',
+        seat_id: 'seat_checkin_001',
+        seat_status: ContractSeatStatus.OCCUPIED,
+        layout: DisplayLayout.OCCUPIED
+      })
+    ]);
+    expect(commandBus.displayPayloads[0]?.qr_token).toBeUndefined();
+    expect(commandBus.lightPayloads).toEqual([
+      expect.objectContaining({
+        device_id: 'device_checkin_001',
+        seat_id: 'seat_checkin_001',
+        light_status: LightStatus.OCCUPIED
+      })
+    ]);
+  });
+
+  it('rejects used, duplicated, invalidated, and expired QR token check-in attempts', async () => {
+    const used = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_used_token',
+      seatId: 'seat_used_token',
+      deviceId: 'device_used_token',
+      tokenId: 'qr_used_token',
+      tokenValue: 'used-token',
+      seedToken: true,
+      tokenStatus: QRTokenStatus.USED,
+      usedAt: new Date('2026-05-03T09:00:00.000Z')
+    }).token;
+    const duplicated = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_duplicated',
+      seatId: 'seat_duplicated',
+      deviceId: 'device_duplicated',
+      tokenId: 'qr_duplicated',
+      tokenValue: 'duplicated-token',
+      reservationStatus: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      seedToken: true
+    }).token;
+    const invalidated = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_invalidated',
+      seatId: 'seat_invalidated',
+      deviceId: 'device_invalidated',
+      tokenId: 'qr_invalidated',
+      tokenValue: 'invalidated-token',
+      seedToken: true,
+      tokenStatus: QRTokenStatus.INVALIDATED
+    }).token;
+    const expired = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_expired_token',
+      seatId: 'seat_expired_token',
+      deviceId: 'device_expired_token',
+      tokenId: 'qr_expired_token',
+      tokenValue: 'expired-token',
+      seedToken: true,
+      expiredAt: new Date('2026-05-03T08:59:59.000Z')
+    }).token;
+
+    const cases = [
+      [used, ApiErrorCode.QR_TOKEN_USED],
+      [duplicated, ApiErrorCode.CHECKIN_DUPLICATED],
+      [invalidated, ApiErrorCode.QR_TOKEN_INVALIDATED],
+      [expired, ApiErrorCode.QR_TOKEN_EXPIRED]
+    ] as const;
+
+    for (const [token, code] of cases) {
+      const response = await request(app.getHttpServer())
+        .post('/checkin')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          seat_id: token.seatId,
+          device_id: token.deviceId,
+          token: token.token,
+          timestamp: new Date().toISOString()
+        })
+        .expect(409);
+
+      expect(response.body).toMatchObject({ code });
+    }
+    expect(prisma.qrTokens.find((token) => token.tokenId === 'qr_expired_token')?.status).toBe(
+      QRTokenStatus.EXPIRED
+    );
+    expect(prisma.checkInRecords).toHaveLength(0);
+  });
+
+  it('rejects non-owner, out-of-window, cancelled, mismatched, and offline check-ins', async () => {
+    const otherOwner = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_other_owner_checkin',
+      seatId: 'seat_other_owner_checkin',
+      deviceId: 'device_other_owner_checkin',
+      tokenId: 'qr_other_owner_checkin',
+      tokenValue: 'other-owner-token',
+      userId: 'user_other_student',
+      seedToken: true
+    }).token;
+    const outOfWindow = seedCheckinFixture(prisma, {
+      reservationId: 'reservation_out_of_window',
+      seatId: 'seat_out_of_window',
+      deviceId: 'device_out_of_window',
+      tokenId: 'qr_out_of_window',
+      tokenValue: 'out-of-window-token',
+      checkinStartTime: new Date('2026-05-03T08:00:00.000Z'),
+      checkinDeadline: new Date('2026-05-03T08:15:00.000Z'),
+      expiredAt: new Date(Date.now() + 30_000),
+      seedToken: true
+    }).token;
+    const cancelled = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_cancelled_checkin',
+      seatId: 'seat_cancelled_checkin',
+      deviceId: 'device_cancelled_checkin',
+      tokenId: 'qr_cancelled_checkin',
+      tokenValue: 'cancelled-token',
+      reservationStatus: ReservationStatus.CANCELLED,
+      seedToken: true
+    }).token;
+    const mismatch = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_mismatch',
+      seatId: 'seat_mismatch',
+      deviceId: 'device_mismatch',
+      tokenId: 'qr_mismatch',
+      tokenValue: 'mismatch-token',
+      seedToken: true
+    }).token;
+    const offline = seedCheckinFixture(prisma, {
+      ...liveCheckinWindow(),
+      reservationId: 'reservation_offline_checkin',
+      seatId: 'seat_offline_checkin',
+      deviceId: 'device_offline_checkin',
+      tokenId: 'qr_offline_checkin',
+      tokenValue: 'offline-token',
+      deviceOnlineStatus: DeviceOnlineStatus.OFFLINE,
+      seedToken: true
+    }).token;
+
+    const cases = [
+      [otherOwner, otherOwner.seatId, otherOwner.deviceId, ApiErrorCode.FORBIDDEN],
+      [outOfWindow, outOfWindow.seatId, outOfWindow.deviceId, ApiErrorCode.CHECKIN_WINDOW_CLOSED],
+      [cancelled, cancelled.seatId, cancelled.deviceId, ApiErrorCode.RESERVATION_CANCELLED],
+      [mismatch, 'seat_wrong', mismatch.deviceId, ApiErrorCode.CHECKIN_CONTEXT_MISMATCH],
+      [offline, offline.seatId, offline.deviceId, ApiErrorCode.DEVICE_OFFLINE]
+    ] as const;
+
+    for (const [token, seatId, deviceId, code] of cases) {
+      const response = await request(app.getHttpServer())
+        .post('/checkin')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          seat_id: seatId,
+          device_id: deviceId,
+          token: token.token,
+          timestamp: new Date().toISOString()
+        })
+        .expect(code === ApiErrorCode.FORBIDDEN ? 403 : 409);
+
+      expect(response.body).toMatchObject({ code });
+    }
+    expect(prisma.checkInRecords).toHaveLength(0);
+  });
+
+  it('can disable check-in without breaking reservation reads', async () => {
+    const config = moduleRef.get(ConfigService);
+    const { token } = seedCheckinFixture(prisma, { ...liveCheckinWindow(), seedToken: true });
+
+    config.set('CHECKIN_ENABLED', false);
+
+    const rejected = await request(app.getHttpServer())
+      .post('/checkin')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({
+        seat_id: token.seatId,
+        device_id: token.deviceId,
+        token: token.token,
+        timestamp: new Date().toISOString()
+      })
+      .expect(503);
+    const current = await request(app.getHttpServer())
+      .get('/reservations/current')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(rejected.body).toMatchObject({ code: ApiErrorCode.CHECKIN_DISABLED });
+    expect(current.body).toMatchObject({ reservation_id: 'reservation_checkin' });
   });
 
   it('returns the current checked-in usage for a student', async () => {
@@ -993,6 +1490,188 @@ const seedDemoData = (prisma: FakePrismaService): void => {
   });
 };
 
+const seedCheckinFixture = (
+  prisma: FakePrismaService,
+  input: {
+    userId?: string;
+    reservationId?: string;
+    seatId?: string;
+    deviceId?: string;
+    tokenId?: string;
+    tokenValue?: string;
+    reservationStatus?: ReservationStatus;
+    tokenStatus?: QRTokenStatus;
+    deviceOnlineStatus?: DeviceOnlineStatus;
+    checkinStartTime?: Date;
+    checkinDeadline?: Date;
+    checkedInAt?: Date | null;
+    usedAt?: Date | null;
+    expiredAt?: Date;
+    seedToken?: boolean;
+  } = {}
+): { reservation: FakeReservation; seat: FakeSeat; device: FakeDevice; token: FakeQRToken } => {
+  const seatId = input.seatId ?? 'seat_checkin_001';
+  const deviceId = input.deviceId ?? 'device_checkin_001';
+  const reservationId = input.reservationId ?? 'reservation_checkin';
+  const tokenId = input.tokenId ?? 'qr_checkin';
+  const tokenValue = input.tokenValue ?? 'checkin-token';
+  const startTime = new Date('2026-05-03T09:00:00.000Z');
+  const seat = prisma.seedSeat({
+    seatId,
+    seatNo: seatId,
+    businessStatus:
+      input.reservationStatus === ReservationStatus.CHECKED_IN
+        ? SeatStatus.OCCUPIED
+        : SeatStatus.RESERVED,
+    availabilityStatus:
+      input.deviceOnlineStatus === DeviceOnlineStatus.OFFLINE
+        ? SeatAvailability.UNAVAILABLE
+        : SeatAvailability.AVAILABLE,
+    unavailableReason:
+      input.deviceOnlineStatus === DeviceOnlineStatus.OFFLINE
+        ? SeatUnavailableReason.DEVICE_OFFLINE
+        : null,
+    deviceId,
+    presenceStatus: PresenceStatus.PRESENT
+  });
+  const device = prisma.seedDevice({
+    deviceId,
+    seatId,
+    onlineStatus: input.deviceOnlineStatus ?? DeviceOnlineStatus.ONLINE
+  });
+  const reservationInput: Partial<FakeReservation> = {
+    reservationId,
+    userId: input.userId ?? 'user_student',
+    seatId,
+    startTime,
+    endTime: new Date('2026-05-03T10:00:00.000Z'),
+    checkinStartTime: input.checkinStartTime ?? new Date('2026-05-03T08:55:00.000Z'),
+    checkinDeadline: input.checkinDeadline ?? new Date('2026-05-03T09:15:00.000Z'),
+    status: input.reservationStatus ?? ReservationStatus.WAITING_CHECKIN
+  };
+
+  if (input.checkedInAt !== undefined) {
+    reservationInput.checkedInAt = input.checkedInAt;
+  }
+
+  const reservation = prisma.seedReservation(reservationInput);
+  const token =
+    input.seedToken === true
+      ? prisma.seedQrToken(
+          buildQrTokenInput(
+            withOptionalQrTokenFields(
+              {
+                tokenId,
+                tokenValue,
+                reservationId,
+                seatId,
+                deviceId
+              },
+              input
+            )
+          )
+        )
+      : {
+          tokenId,
+          token: tokenValue,
+          reservationId,
+          seatId,
+          deviceId,
+          generatedAt: new Date('2026-05-03T09:00:00.000Z'),
+          expiredAt: input.expiredAt ?? new Date('2026-05-03T09:00:30.000Z'),
+          usedAt: input.usedAt ?? null,
+          status: input.tokenStatus ?? QRTokenStatus.UNUSED
+        };
+
+  return { reservation, seat, device, token };
+};
+
+const liveCheckinWindow = (): {
+  checkinStartTime: Date;
+  checkinDeadline: Date;
+  expiredAt: Date;
+} => ({
+  checkinStartTime: new Date(Date.now() - 60_000),
+  checkinDeadline: new Date(Date.now() + 60_000),
+  expiredAt: new Date(Date.now() + 30_000)
+});
+
+const withOptionalQrTokenFields = (
+  base: {
+    tokenId: string;
+    tokenValue: string;
+    reservationId: string;
+    seatId: string;
+    deviceId: string;
+  },
+  input: {
+    tokenStatus?: QRTokenStatus;
+    usedAt?: Date | null;
+    expiredAt?: Date;
+  }
+): {
+  tokenId: string;
+  tokenValue: string;
+  reservationId: string;
+  seatId: string;
+  deviceId: string;
+  tokenStatus?: QRTokenStatus;
+  usedAt?: Date | null;
+  expiredAt?: Date;
+} => {
+  const output: {
+    tokenId: string;
+    tokenValue: string;
+    reservationId: string;
+    seatId: string;
+    deviceId: string;
+    tokenStatus?: QRTokenStatus;
+    usedAt?: Date | null;
+    expiredAt?: Date;
+  } = { ...base };
+
+  if (input.tokenStatus !== undefined) {
+    output.tokenStatus = input.tokenStatus;
+  }
+
+  if (input.usedAt !== undefined) {
+    output.usedAt = input.usedAt;
+  }
+
+  if (input.expiredAt !== undefined) {
+    output.expiredAt = input.expiredAt;
+  }
+
+  return output;
+};
+
+const buildQrTokenInput = (input: {
+  tokenId: string;
+  tokenValue: string;
+  reservationId: string;
+  seatId: string;
+  deviceId: string;
+  tokenStatus?: QRTokenStatus;
+  usedAt?: Date | null;
+  expiredAt?: Date;
+}): Partial<FakeQRToken> => {
+  const tokenInput: Partial<FakeQRToken> = {
+    tokenId: input.tokenId,
+    token: input.tokenValue,
+    reservationId: input.reservationId,
+    seatId: input.seatId,
+    deviceId: input.deviceId,
+    status: input.tokenStatus ?? QRTokenStatus.UNUSED,
+    expiredAt: input.expiredAt ?? new Date('2026-05-03T09:00:30.000Z')
+  };
+
+  if (input.usedAt !== undefined) {
+    tokenInput.usedAt = input.usedAt;
+  }
+
+  return tokenInput;
+};
+
 const signToken = async (
   tokenService: TokenService,
   userId: string,
@@ -1053,9 +1732,47 @@ const matchesReservation = (
   }
 
   if (
+    where.checkinStartTime?.lte !== undefined &&
+    !(reservation.checkinStartTime <= where.checkinStartTime.lte)
+  ) {
+    return false;
+  }
+
+  if (
     where.checkinDeadline?.lt !== undefined &&
     !(reservation.checkinDeadline < where.checkinDeadline.lt)
   ) {
+    return false;
+  }
+
+  if (
+    where.checkinDeadline?.gte !== undefined &&
+    !(reservation.checkinDeadline >= where.checkinDeadline.gte)
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const matchesQRToken = (token: FakeQRToken, where: QRTokenWhere | undefined): boolean => {
+  if (where === undefined) {
+    return true;
+  }
+
+  if (where.reservationId !== undefined && token.reservationId !== where.reservationId) {
+    return false;
+  }
+
+  if (where.status !== undefined && token.status !== where.status) {
+    return false;
+  }
+
+  if (where.tokenId?.not !== undefined && token.tokenId === where.tokenId.not) {
+    return false;
+  }
+
+  if (where.expiredAt?.lte !== undefined && !(token.expiredAt <= where.expiredAt.lte)) {
     return false;
   }
 

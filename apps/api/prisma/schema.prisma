@@ -73,6 +73,7 @@ enum QRTokenStatus {
   UNUSED
   USED
   EXPIRED
+  INVALIDATED
 }
 
 enum AnomalyType {

@@ -251,15 +251,15 @@
 
 ### CL-API-RES-03 动态二维码与扫码签到
 
-- [ ] QRToken 数据模型支持生成、过期、已使用、失效状态。
-- [ ] 终端 display payload 中可下发当前有效二维码 token 或二维码内容。
-- [ ] token 刷新周期与有效期满足 PRD 约束，例如 15 秒刷新、30 秒有效，或配置等价规则。
-- [ ] `POST /checkin` 校验用户、预约、座位、签到窗口、token 状态。
-- [ ] token 一次性使用，重复签到失败。
-- [ ] 过期 token、非本人签到、已取消预约、超出签到窗口均失败并返回明确错误码。
-- [ ] 签到成功后预约进入 `OCCUPIED`，并触发终端状态同步。
-- [ ] OpenAPI 与错误码文档已更新。
-- [ ] 证据路径已填写：____
+- [x] QRToken 数据模型支持生成、过期、已使用、失效状态。
+- [x] 终端 display payload 中可下发当前有效二维码 token 或二维码内容。
+- [x] token 刷新周期与有效期满足 PRD 约束，例如 15 秒刷新、30 秒有效，或配置等价规则。
+- [x] `POST /checkin` 校验用户、预约、座位、签到窗口、token 状态。
+- [x] token 一次性使用，重复签到失败。
+- [x] 过期 token、非本人签到、已取消预约、超出签到窗口均失败并返回明确错误码。
+- [x] 签到成功后预约进入 `OCCUPIED`，并触发终端状态同步。
+- [x] OpenAPI 与错误码文档已更新。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档 `packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。
 
 ### CL-API-IOT-02 传感器接入与持续时间判断
 

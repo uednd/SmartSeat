@@ -64,7 +64,8 @@ export enum SensorHealthStatus {
 export enum QRTokenStatus {
   UNUSED = 'UNUSED',
   USED = 'USED',
-  EXPIRED = 'EXPIRED'
+  EXPIRED = 'EXPIRED',
+  INVALIDATED = 'INVALIDATED'
 }
 
 export enum AnomalyType {

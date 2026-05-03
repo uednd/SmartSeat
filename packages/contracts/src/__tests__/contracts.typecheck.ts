@@ -88,6 +88,13 @@ const display = {
   layout: DisplayLayout.RESERVED
 } satisfies MqttDisplayPayload;
 
+const qrContent = {
+  device_id: display.device_id,
+  seat_id: display.seat_id,
+  token: display.qr_token,
+  timestamp: display.timestamp
+} satisfies CheckinRequest;
+
 const light = {
   device_id: 'device-1',
   seat_id: 'seat-1',
@@ -116,6 +123,13 @@ const token = {
   generated_at: '2026-05-02T00:00:00.000Z',
   expired_at: '2026-05-02T00:00:30.000Z',
   status: QRTokenStatus.UNUSED
+} satisfies QRTokenDto;
+
+const invalidatedToken = {
+  ...token,
+  token_id: 'token-invalidated',
+  token: 'invalidated-token',
+  status: QRTokenStatus.INVALIDATED
 } satisfies QRTokenDto;
 
 const checkin = {
@@ -270,7 +284,9 @@ void display;
 void light;
 void command;
 void token;
+void invalidatedToken;
 void checkin;
+void qrContent;
 void createReservation;
 void reservation;
 void extendReservation;

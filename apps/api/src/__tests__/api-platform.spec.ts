@@ -135,5 +135,7 @@ describe('API platform', () => {
 
     expect(response.body.openapi).toEqual(expect.any(String));
     expect(response.body.paths).toHaveProperty('/health');
+    expect(response.body.paths).toHaveProperty('/checkin');
+    expect(response.body.paths['/checkin']).toHaveProperty('post');
   });
 });

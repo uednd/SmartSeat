@@ -25,6 +25,9 @@ export interface ApiEnv {
   MQTT_BROKER_URL: string;
   MQTT_CLIENT_ID: string;
   MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: number;
+  QR_TOKEN_REFRESH_SECONDS: number;
+  QR_TOKEN_TTL_SECONDS: number;
+  CHECKIN_ENABLED: boolean;
   WECHAT_APP_ID: string;
   WECHAT_APP_SECRET: string;
   WECHAT_AUTH_PROVIDER_MODE: WeChatAuthProviderMode;
@@ -106,7 +109,11 @@ const readPort = (
 
 const readPositiveInteger = (
   config: Record<string, unknown>,
-  key: 'AUTH_TOKEN_TTL_SECONDS' | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+  key:
+    | 'AUTH_TOKEN_TTL_SECONDS'
+    | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+    | 'QR_TOKEN_REFRESH_SECONDS'
+    | 'QR_TOKEN_TTL_SECONDS'
 ): number => {
   const rawValue = readRequiredString(config, key);
   const parsed = Number.parseInt(rawValue, 10);
@@ -120,7 +127,10 @@ const readPositiveInteger = (
 
 const readOptionalPositiveInteger = (
   config: Record<string, unknown>,
-  key: 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS',
+  key:
+    | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+    | 'QR_TOKEN_REFRESH_SECONDS'
+    | 'QR_TOKEN_TTL_SECONDS',
   fallback: number
 ): number => {
   const value = config[key];
@@ -134,7 +144,7 @@ const readOptionalPositiveInteger = (
 
 const readOptionalBoolean = (
   config: Record<string, unknown>,
-  key: 'MQTT_ENABLED',
+  key: 'MQTT_ENABLED' | 'CHECKIN_ENABLED',
   fallback: boolean
 ): boolean => {
   const value = config[key];
@@ -249,6 +259,9 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
       'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS',
       75
     ),
+    QR_TOKEN_REFRESH_SECONDS: readOptionalPositiveInteger(config, 'QR_TOKEN_REFRESH_SECONDS', 15),
+    QR_TOKEN_TTL_SECONDS: readOptionalPositiveInteger(config, 'QR_TOKEN_TTL_SECONDS', 30),
+    CHECKIN_ENABLED: readOptionalBoolean(config, 'CHECKIN_ENABLED', true),
     WECHAT_APP_ID: readRequiredString(config, 'WECHAT_APP_ID'),
     WECHAT_APP_SECRET: readRequiredString(config, 'WECHAT_APP_SECRET'),
     WECHAT_AUTH_PROVIDER_MODE: readWeChatAuthProviderMode(config, 'WECHAT_AUTH_PROVIDER_MODE'),

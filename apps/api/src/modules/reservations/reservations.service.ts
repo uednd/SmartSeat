@@ -1,21 +1,43 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+
 import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  DeviceOnlineStatus,
   Prisma,
   PresenceStatus,
+  QRTokenStatus,
   ReservationStatus,
   SeatAvailability,
   SeatStatus,
+  type Device,
+  type QRToken,
   type Reservation,
   type Seat
 } from '@prisma/client';
 import {
   ApiErrorCode,
+  DisplayLayout,
+  LightMode,
+  LightStatus,
+  SeatStatus as ContractSeatStatus,
   UserRole,
   type AdminReservationListRequest,
   type CancelReservationRequest,
+  type CheckinRequest,
+  type CheckinResponse,
   type CreateReservationRequest,
   type CurrentUsageResponse,
   type ExtendReservationRequest,
+  type MqttDisplayPayload,
+  type MqttLightPayload,
   type PageRequest,
   type PageResponse,
   type ReservationDto,
@@ -23,9 +45,11 @@ import {
 } from '@smartseat/contracts';
 
 import type { RequestUser } from '../../common/auth/request-user.js';
+import { getConfigBoolean, getConfigNumber } from '../../common/config/config-reader.js';
 import { PrismaService } from '../../common/database/prisma.service.js';
 import { AppHttpException } from '../../common/errors/app-http.exception.js';
 import { toReservationDto } from './reservation.mapper.js';
+import { MqttCommandBusService } from '../mqtt/mqtt-command-bus.service.js';
 import { toSeatDto } from '../seats/seat-device.mapper.js';
 
 const CHECKIN_START_OFFSET_MS = 5 * 60 * 1000;
@@ -39,12 +63,40 @@ const ACTIVE_RESERVATION_STATUSES = [
 ] as const;
 
 type ReservationClient = PrismaService | Prisma.TransactionClient;
+type CheckinTransactionResult = {
+  reservation: Reservation;
+  seat: Seat;
+  device: Device;
+  checkedInAt: Date;
+};
 
 @Injectable()
-export class ReservationsService {
+export class ReservationsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ReservationsService.name);
+  private qrRefreshTimer: ReturnType<typeof setInterval> | undefined;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService
+  ) {}
+
+  onModuleInit(): void {
+    const refreshMs = getConfigNumber(this.configService, 'QR_TOKEN_REFRESH_SECONDS') * 1000;
+    this.qrRefreshTimer = setInterval(() => {
+      void this.refreshActiveQrTokens().catch((error) => {
+        this.logger.error(
+          `QR token refresh failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+    }, refreshMs);
+  }
+
+  onModuleDestroy(): void {
+    if (this.qrRefreshTimer !== undefined) {
+      clearInterval(this.qrRefreshTimer);
+    }
+  }
 
   async createReservation(
     user: RequestUser,
@@ -169,6 +221,113 @@ export class ReservationsService {
     };
   }
 
+  async refreshActiveQrTokens(now = new Date()): Promise<{
+    expired: number;
+    generated: number;
+    skipped_offline: number;
+  }> {
+    const expired = await this.prisma.qRToken.updateMany({
+      where: {
+        status: QRTokenStatus.UNUSED,
+        expiredAt: {
+          lte: now
+        }
+      },
+      data: {
+        status: QRTokenStatus.EXPIRED
+      }
+    });
+    const reservations = await this.prisma.reservation.findMany({
+      where: {
+        status: ReservationStatus.WAITING_CHECKIN,
+        checkinStartTime: {
+          lte: now
+        },
+        checkinDeadline: {
+          gte: now
+        }
+      },
+      orderBy: [{ checkinDeadline: 'asc' }]
+    });
+    let generated = 0;
+    let skippedOffline = 0;
+
+    for (const reservation of reservations) {
+      const result = await this.createQrTokenForReservation(reservation, now);
+
+      if (result === 'OFFLINE_OR_UNBOUND') {
+        skippedOffline += 1;
+        continue;
+      }
+
+      generated += 1;
+      await this.publishReservedDisplay(reservation, result, now);
+    }
+
+    if (expired.count > 0 || generated > 0 || skippedOffline > 0) {
+      this.logger.log(
+        JSON.stringify({
+          category: 'qr_tokens_refreshed',
+          expired: expired.count,
+          generated,
+          skipped_offline: skippedOffline
+        })
+      );
+    }
+
+    return {
+      expired: expired.count,
+      generated,
+      skipped_offline: skippedOffline
+    };
+  }
+
+  async checkin(
+    user: RequestUser,
+    request: CheckinRequest,
+    now = new Date()
+  ): Promise<CheckinResponse> {
+    this.requireStudent(user);
+
+    if (!getConfigBoolean(this.configService, 'CHECKIN_ENABLED')) {
+      throw new AppHttpException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        ApiErrorCode.CHECKIN_DISABLED,
+        'QR check-in is currently disabled.'
+      );
+    }
+
+    this.requireNonEmpty(request.seat_id, 'seat_id');
+    this.requireNonEmpty(request.device_id, 'device_id');
+    this.requireNonEmpty(request.token, 'token');
+    this.parseDateTime(request.timestamp, 'timestamp');
+
+    const result = await this.prisma.$transaction(
+      async (tx) => await this.applyQrCheckin(tx, user, request, now),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
+
+    await this.publishCheckedInDeviceState(result, now);
+
+    this.logger.log(
+      JSON.stringify({
+        category: 'reservation_checked_in',
+        reservation_id: result.reservation.reservationId,
+        user_id: result.reservation.userId,
+        seat_id: result.seat.seatId,
+        device_id: result.device.deviceId
+      })
+    );
+
+    return {
+      reservation: toReservationDto(result.reservation),
+      seat: toSeatDto(result.seat),
+      checked_in_at: result.checkedInAt.toISOString()
+    };
+  }
+
   async listReservationHistory(
     user: RequestUser,
     request: PageRequest
@@ -252,6 +411,7 @@ export class ReservationsService {
           data
         });
 
+        await this.invalidateUnusedQrTokensForReservation(tx, existing.reservationId);
         await this.releaseSeatIfNoActiveReservation(tx, existing.seatId);
         return updated;
       },
@@ -472,6 +632,7 @@ export class ReservationsService {
               releaseReason: 'NO_SHOW'
             }
           });
+          await this.invalidateUnusedQrTokensForReservation(tx, reservation.reservationId);
           await tx.user.update({
             where: {
               userId: reservation.userId
@@ -641,6 +802,366 @@ export class ReservationsService {
     return reservation === null ? undefined : toReservationDto(reservation);
   }
 
+  private async createQrTokenForReservation(
+    reservation: Reservation,
+    now: Date
+  ): Promise<QRToken | 'OFFLINE_OR_UNBOUND'> {
+    const seat = await this.prisma.seat.findUnique({
+      where: {
+        seatId: reservation.seatId
+      }
+    });
+
+    if (seat?.deviceId === null || seat?.deviceId === undefined) {
+      return 'OFFLINE_OR_UNBOUND';
+    }
+
+    const device = await this.prisma.device.findUnique({
+      where: {
+        deviceId: seat.deviceId
+      }
+    });
+
+    if (
+      device === null ||
+      device.seatId !== seat.seatId ||
+      device.onlineStatus !== DeviceOnlineStatus.ONLINE
+    ) {
+      return 'OFFLINE_OR_UNBOUND';
+    }
+
+    return await this.prisma.qRToken.create({
+      data: {
+        token: randomBytes(32).toString('base64url'),
+        reservationId: reservation.reservationId,
+        seatId: reservation.seatId,
+        deviceId: device.deviceId,
+        generatedAt: now,
+        expiredAt: new Date(
+          now.getTime() + getConfigNumber(this.configService, 'QR_TOKEN_TTL_SECONDS') * 1000
+        ),
+        status: QRTokenStatus.UNUSED
+      }
+    });
+  }
+
+  private async publishReservedDisplay(
+    reservation: Reservation,
+    token: QRToken,
+    now: Date
+  ): Promise<void> {
+    const payload: MqttDisplayPayload = {
+      device_id: token.deviceId,
+      seat_id: token.seatId,
+      timestamp: now.toISOString(),
+      current_time: now.toISOString(),
+      seat_status: ContractSeatStatus.RESERVED,
+      layout: DisplayLayout.RESERVED,
+      checkin_deadline: reservation.checkinDeadline.toISOString(),
+      remaining_seconds: Math.max(
+        0,
+        Math.floor((reservation.checkinDeadline.getTime() - now.getTime()) / 1000)
+      ),
+      qr_token: token.token,
+      prompt: 'Scan QR code to check in'
+    };
+
+    await this.commandBus.publishDisplay(payload);
+  }
+
+  private async applyQrCheckin(
+    tx: ReservationClient,
+    user: RequestUser,
+    request: CheckinRequest,
+    now: Date
+  ): Promise<CheckinTransactionResult> {
+    const token = await tx.qRToken.findUnique({
+      where: {
+        token: request.token
+      }
+    });
+
+    if (token === null) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.QR_TOKEN_INVALIDATED,
+        'QR token is invalid or has been invalidated.'
+      );
+    }
+
+    if (token.status === QRTokenStatus.UNUSED && token.expiredAt.getTime() <= now.getTime()) {
+      await tx.qRToken.update({
+        where: {
+          tokenId: token.tokenId
+        },
+        data: {
+          status: QRTokenStatus.EXPIRED
+        }
+      });
+    }
+
+    this.assertQrTokenCanBeUsed(token, request, now);
+
+    const reservation =
+      token.reservationId === null
+        ? null
+        : await tx.reservation.findUnique({
+            where: {
+              reservationId: token.reservationId
+            }
+          });
+
+    if (reservation === null) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.QR_TOKEN_INVALIDATED,
+        'QR token is no longer linked to an active reservation.',
+        { token_id: token.tokenId }
+      );
+    }
+
+    this.assertReservationCanCheckIn(reservation, user.user_id, now);
+
+    const [seat, device] = await Promise.all([
+      tx.seat.findUnique({
+        where: {
+          seatId: token.seatId
+        }
+      }),
+      tx.device.findUnique({
+        where: {
+          deviceId: token.deviceId
+        }
+      })
+    ]);
+
+    if (seat === null) {
+      throw this.notFound('Seat was not found.', { seat_id: token.seatId });
+    }
+
+    if (device === null) {
+      throw this.notFound('Device was not found.', { device_id: token.deviceId });
+    }
+
+    this.assertCheckinContextMatches(reservation, seat, device, token);
+
+    if (device.onlineStatus !== DeviceOnlineStatus.ONLINE) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.DEVICE_OFFLINE,
+        'Bound check-in device is offline.',
+        { device_id: device.deviceId, seat_id: seat.seatId }
+      );
+    }
+
+    const updatedReservation = await tx.reservation.update({
+      where: {
+        reservationId: reservation.reservationId
+      },
+      data: {
+        status: ReservationStatus.CHECKED_IN,
+        checkedInAt: now
+      }
+    });
+    const updatedSeat = await tx.seat.update({
+      where: {
+        seatId: seat.seatId
+      },
+      data: {
+        businessStatus: SeatStatus.OCCUPIED
+      }
+    });
+
+    await tx.qRToken.update({
+      where: {
+        tokenId: token.tokenId
+      },
+      data: {
+        status: QRTokenStatus.USED,
+        usedAt: now
+      }
+    });
+    await tx.qRToken.updateMany({
+      where: {
+        reservationId: reservation.reservationId,
+        status: QRTokenStatus.UNUSED,
+        tokenId: {
+          not: token.tokenId
+        }
+      },
+      data: {
+        status: QRTokenStatus.INVALIDATED
+      }
+    });
+    await tx.checkInRecord.create({
+      data: {
+        reservationId: reservation.reservationId,
+        userId: user.user_id,
+        seatId: seat.seatId,
+        deviceId: device.deviceId,
+        qrTokenId: token.tokenId,
+        checkedInAt: now,
+        presenceStatus: seat.presenceStatus,
+        source: 'qr_token'
+      }
+    });
+
+    return {
+      reservation: updatedReservation,
+      seat: updatedSeat,
+      device,
+      checkedInAt: now
+    };
+  }
+
+  private assertQrTokenCanBeUsed(token: QRToken, request: CheckinRequest, now: Date): void {
+    if (token.seatId !== request.seat_id || token.deviceId !== request.device_id) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.CHECKIN_CONTEXT_MISMATCH,
+        'QR token does not match the submitted seat or device.',
+        { seat_id: request.seat_id, device_id: request.device_id }
+      );
+    }
+
+    if (token.status === QRTokenStatus.USED) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.QR_TOKEN_USED,
+        'QR token has already been used.',
+        { token_id: token.tokenId }
+      );
+    }
+
+    if (token.status === QRTokenStatus.INVALIDATED) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.QR_TOKEN_INVALIDATED,
+        'QR token has been invalidated.',
+        { token_id: token.tokenId }
+      );
+    }
+
+    if (token.status === QRTokenStatus.EXPIRED || token.expiredAt.getTime() <= now.getTime()) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.QR_TOKEN_EXPIRED,
+        'QR token has expired.',
+        { token_id: token.tokenId, expired_at: token.expiredAt.toISOString() }
+      );
+    }
+  }
+
+  private assertReservationCanCheckIn(reservation: Reservation, userId: string, now: Date): void {
+    if (reservation.userId !== userId) {
+      throw new AppHttpException(
+        HttpStatus.FORBIDDEN,
+        ApiErrorCode.FORBIDDEN,
+        'Reservation does not belong to the current student.',
+        { reservation_id: reservation.reservationId }
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CHECKED_IN) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.CHECKIN_DUPLICATED,
+        'Reservation has already been checked in.',
+        { reservation_id: reservation.reservationId }
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CANCELLED) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.RESERVATION_CANCELLED,
+        'Reservation has been cancelled.',
+        { reservation_id: reservation.reservationId }
+      );
+    }
+
+    if (reservation.status !== ReservationStatus.WAITING_CHECKIN) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.RESERVATION_NOT_ACTIVE,
+        'Only waiting check-in reservations can be checked in.',
+        { reservation_id: reservation.reservationId, status: reservation.status }
+      );
+    }
+
+    if (
+      reservation.checkinStartTime.getTime() > now.getTime() ||
+      reservation.checkinDeadline.getTime() < now.getTime()
+    ) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.CHECKIN_WINDOW_CLOSED,
+        'Reservation is outside the check-in window.',
+        {
+          reservation_id: reservation.reservationId,
+          checkin_start_time: reservation.checkinStartTime.toISOString(),
+          checkin_deadline: reservation.checkinDeadline.toISOString()
+        }
+      );
+    }
+  }
+
+  private assertCheckinContextMatches(
+    reservation: Reservation,
+    seat: Seat,
+    device: Device,
+    token: QRToken
+  ): void {
+    if (
+      reservation.seatId !== token.seatId ||
+      seat.seatId !== token.seatId ||
+      seat.deviceId !== token.deviceId ||
+      device.deviceId !== token.deviceId ||
+      device.seatId !== token.seatId
+    ) {
+      throw new AppHttpException(
+        HttpStatus.CONFLICT,
+        ApiErrorCode.CHECKIN_CONTEXT_MISMATCH,
+        'QR token, reservation, seat, and device context do not match.',
+        {
+          reservation_id: reservation.reservationId,
+          seat_id: token.seatId,
+          device_id: token.deviceId
+        }
+      );
+    }
+  }
+
+  private async publishCheckedInDeviceState(
+    result: CheckinTransactionResult,
+    now: Date
+  ): Promise<void> {
+    const display: MqttDisplayPayload = {
+      device_id: result.device.deviceId,
+      seat_id: result.seat.seatId,
+      timestamp: now.toISOString(),
+      current_time: now.toISOString(),
+      seat_status: ContractSeatStatus.OCCUPIED,
+      layout: DisplayLayout.OCCUPIED,
+      remaining_seconds: Math.max(
+        0,
+        Math.floor((result.reservation.endTime.getTime() - now.getTime()) / 1000)
+      ),
+      prompt: 'Checked in'
+    };
+    const light: MqttLightPayload = {
+      device_id: result.device.deviceId,
+      seat_id: result.seat.seatId,
+      timestamp: now.toISOString(),
+      light_status: LightStatus.OCCUPIED,
+      color: 'red',
+      mode: LightMode.SOLID
+    };
+
+    await this.commandBus.publishDisplay(display);
+    await this.commandBus.publishLight(light);
+  }
+
   private async assertNoOverlappingReservation(
     tx: ReservationClient,
     input: {
@@ -780,6 +1301,21 @@ export class ReservationsService {
       },
       data: {
         businessStatus: SeatStatus.FREE
+      }
+    });
+  }
+
+  private async invalidateUnusedQrTokensForReservation(
+    tx: ReservationClient,
+    reservationId: string
+  ): Promise<void> {
+    await tx.qRToken.updateMany({
+      where: {
+        reservationId,
+        status: QRTokenStatus.UNUSED
+      },
+      data: {
+        status: QRTokenStatus.INVALIDATED
       }
     });
   }

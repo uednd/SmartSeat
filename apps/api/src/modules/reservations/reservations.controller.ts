@@ -14,6 +14,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AdminReservationListRequest,
   type CancelReservationRequest,
+  type CheckinRequest,
+  type CheckinResponse,
   type CreateReservationRequest,
   type CurrentUsageResponse,
   type ExtendReservationRequest,
@@ -106,6 +108,23 @@ export class CurrentUsageController {
     @Body() request: UserReleaseReservationRequest
   ): Promise<ReservationDto> {
     return await this.reservationsService.releaseCurrentUsage(user, request);
+  }
+}
+
+@ApiTags('checkin')
+@ApiBearerAuth()
+@Controller('checkin')
+@UseGuards(BearerAuthGuard)
+export class CheckinController {
+  constructor(private readonly reservationsService: ReservationsService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Check in to a reservation with a dynamic QR token' })
+  async checkin(
+    @CurrentUser() user: RequestUser,
+    @Body() request: CheckinRequest
+  ): Promise<CheckinResponse> {
+    return await this.reservationsService.checkin(user, request);
   }
 }
 

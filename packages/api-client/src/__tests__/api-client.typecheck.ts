@@ -68,6 +68,12 @@ const legacyCancelledReservation = await client.reservations.cancel({
   reservation_id: 'reservation-1',
   reason: 'plan changed'
 });
+const checkedInReservation = await client.checkin.submit({
+  seat_id: 'seat-1',
+  device_id: 'device-1',
+  token: 'qr-token',
+  timestamp: '2026-05-03T09:00:00.000Z'
+});
 const adminReservations = await client.admin.listCurrentReservations({ page: 1 });
 const adminSeatReservation = await client.admin.getSeatReservation('seat-1');
 
@@ -129,6 +135,7 @@ void extendedReservation;
 void userReleasedReservation;
 void cancelledReservation;
 void legacyCancelledReservation;
+void checkedInReservation;
 void adminReservations;
 void adminSeatReservation;
 void httpTransport;

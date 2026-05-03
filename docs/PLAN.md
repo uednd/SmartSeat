@@ -199,7 +199,7 @@ stateDiagram-v2
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Done |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Done |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Done |
-| API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Not Started |
+| API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Not Started |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Not Started |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Not Started |
@@ -501,6 +501,8 @@ stateDiagram-v2
 | 回滚要求 | 可关闭签到入口；QRToken 表可回滚；读状态不受影响。 |
 | 监控与告警 | token 生成数、签到成功/失败率、重复签到异常数。 |
 | 验收标准 | 终端显示动态二维码；学生扫码后后端校验成功并切换为 `OCCUPIED`；失败场景返回明确错误。 |
+| 当前状态 | Done；已实现不可预测短时 QRToken 生成、过期、失效、一次性使用、`POST /checkin`、设备在线校验、签到窗口校验、本人预约校验、成功后 Reservation=`CHECKED_IN` 与 Seat=`OCCUPIED`，并通过 MQTT display/light 同步终端状态。token 默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED` 可关闭签到入口；扫码流程为终端 display payload 下发 `seat_id`/`device_id`/`timestamp`/`qr_token`，小程序提交 `POST /checkin`，后端校验持久化 QRToken、预约、座位、设备与服务端时间后提交状态流转。未实现排行榜、管理员页面、传感器持续时间判断或异常事件引擎。 |
+| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。 |
 | 可分配给编码智能体的提示 | 在 reservations 模块内实现 token 生成/校验/签到；不要实现排行榜或管理员页面；同步 contracts 与 OpenAPI。 |
 
 ### API-IOT-02 传感器接入与持续时间判断

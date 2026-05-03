@@ -21,6 +21,9 @@ const baseEnv = {
   MQTT_BROKER_URL: 'mqtt://localhost:1883',
   MQTT_CLIENT_ID: 'smartseat-api-test',
   MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: '75',
+  QR_TOKEN_REFRESH_SECONDS: '15',
+  QR_TOKEN_TTL_SECONDS: '30',
+  CHECKIN_ENABLED: 'true',
   WECHAT_APP_ID: 'replace-with-placeholder',
   WECHAT_APP_SECRET: 'replace-with-placeholder',
   WECHAT_AUTH_PROVIDER_MODE: 'mock',
@@ -46,6 +49,9 @@ describe('validateApiEnv', () => {
       MQTT_BROKER_URL: 'mqtt://localhost:1883',
       MQTT_CLIENT_ID: 'smartseat-api-test',
       MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75,
+      QR_TOKEN_REFRESH_SECONDS: 15,
+      QR_TOKEN_TTL_SECONDS: 30,
+      CHECKIN_ENABLED: true,
       WECHAT_AUTH_PROVIDER_MODE: 'mock',
       OIDC_AUTH_PROVIDER_MODE: 'mock',
       AUTH_TOKEN_TTL_SECONDS: 3600,
@@ -99,12 +105,18 @@ describe('validateApiEnv', () => {
     delete legacyMqttEnv.MQTT_CLIENT_ID;
     delete legacyMqttEnv.MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS;
     delete legacyMqttEnv.MQTT_ENABLED;
+    delete legacyMqttEnv.QR_TOKEN_REFRESH_SECONDS;
+    delete legacyMqttEnv.QR_TOKEN_TTL_SECONDS;
+    delete legacyMqttEnv.CHECKIN_ENABLED;
 
     expect(validateApiEnv(legacyMqttEnv)).toMatchObject({
       MQTT_ENABLED: true,
       MQTT_BROKER_URL: 'mqtt://localhost:1883',
       MQTT_CLIENT_ID: 'smartseat-api',
-      MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75
+      MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75,
+      QR_TOKEN_REFRESH_SECONDS: 15,
+      QR_TOKEN_TTL_SECONDS: 30,
+      CHECKIN_ENABLED: true
     });
   });
 
@@ -128,6 +140,31 @@ describe('validateApiEnv', () => {
     ).toThrow(
       'Invalid positive integer in API environment variable: MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
     );
+  });
+
+  it('accepts disabled checkin mode and rejects invalid QR timing values', () => {
+    expect(
+      validateApiEnv({
+        ...baseEnv,
+        CHECKIN_ENABLED: 'false'
+      })
+    ).toMatchObject({
+      CHECKIN_ENABLED: false
+    });
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        QR_TOKEN_REFRESH_SECONDS: '0'
+      })
+    ).toThrow('Invalid positive integer in API environment variable: QR_TOKEN_REFRESH_SECONDS');
+
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        QR_TOKEN_TTL_SECONDS: '0'
+      })
+    ).toThrow('Invalid positive integer in API environment variable: QR_TOKEN_TTL_SECONDS');
   });
 
   it('accepts real WeChat provider mode', () => {
