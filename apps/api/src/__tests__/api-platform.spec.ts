@@ -7,6 +7,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { setupApiPlatform } from '../app.setup.js';
 import { AppHttpException } from '../common/errors/app-http.exception.js';
+import {
+  MQTT_CONNECT_FACTORY,
+  type MqttClientHandle
+} from '../modules/mqtt/mqtt-broker.service.js';
 
 @Controller('platform-test')
 class PlatformTestController {
@@ -23,6 +27,35 @@ class PlatformTestController {
   }
 }
 
+class FakeMqttClient implements MqttClientHandle {
+  connected = true;
+
+  on(): this {
+    return this;
+  }
+
+  subscribe(
+    _topic: string,
+    _options: { qos: 0 | 1 | 2 },
+    callback: (error: Error | null) => void
+  ): void {
+    callback(null);
+  }
+
+  publish(
+    _topic: string,
+    _payload: string | Buffer,
+    _options: Record<string, unknown>,
+    callback: (error?: Error | null) => void
+  ): void {
+    callback(null);
+  }
+
+  end(_force: boolean, callback: () => void): void {
+    callback();
+  }
+}
+
 describe('API platform', () => {
   let app: INestApplication;
 
@@ -30,7 +63,10 @@ describe('API platform', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [PlatformTestController]
-    }).compile();
+    })
+      .overrideProvider(MQTT_CONNECT_FACTORY)
+      .useValue(() => new FakeMqttClient())
+      .compile();
 
     app = moduleRef.createNestApplication();
     setupApiPlatform(app);
@@ -53,7 +89,7 @@ describe('API platform', () => {
           checked: true
         },
         mqtt: {
-          status: 'configured',
+          status: 'not_configured',
           checked: false
         }
       }

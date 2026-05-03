@@ -17,6 +17,10 @@ const baseEnv = {
   MQTT_PORT: '1883',
   MQTT_USERNAME: 'placeholder',
   MQTT_PASSWORD: 'replace-with-local-placeholder',
+  MQTT_ENABLED: 'true',
+  MQTT_BROKER_URL: 'mqtt://localhost:1883',
+  MQTT_CLIENT_ID: 'smartseat-api-test',
+  MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: '75',
   WECHAT_APP_ID: 'replace-with-placeholder',
   WECHAT_APP_SECRET: 'replace-with-placeholder',
   WECHAT_AUTH_PROVIDER_MODE: 'mock',
@@ -38,6 +42,10 @@ describe('validateApiEnv', () => {
       API_PORT: 3000,
       POSTGRES_PORT: 5432,
       MQTT_PORT: 1883,
+      MQTT_ENABLED: true,
+      MQTT_BROKER_URL: 'mqtt://localhost:1883',
+      MQTT_CLIENT_ID: 'smartseat-api-test',
+      MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75,
       WECHAT_AUTH_PROVIDER_MODE: 'mock',
       OIDC_AUTH_PROVIDER_MODE: 'mock',
       AUTH_TOKEN_TTL_SECONDS: 3600,
@@ -83,6 +91,43 @@ describe('validateApiEnv', () => {
         DEFAULT_AUTH_MODE: 'PASSWORD'
       })
     ).toThrow('Invalid auth mode in API environment variable: DEFAULT_AUTH_MODE');
+  });
+
+  it('derives MQTT broker URL and client id defaults from legacy host and port values', () => {
+    const legacyMqttEnv: Record<string, string> = { ...baseEnv };
+    delete legacyMqttEnv.MQTT_BROKER_URL;
+    delete legacyMqttEnv.MQTT_CLIENT_ID;
+    delete legacyMqttEnv.MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS;
+    delete legacyMqttEnv.MQTT_ENABLED;
+
+    expect(validateApiEnv(legacyMqttEnv)).toMatchObject({
+      MQTT_ENABLED: true,
+      MQTT_BROKER_URL: 'mqtt://localhost:1883',
+      MQTT_CLIENT_ID: 'smartseat-api',
+      MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: 75
+    });
+  });
+
+  it('accepts MQTT disabled mode', () => {
+    expect(
+      validateApiEnv({
+        ...baseEnv,
+        MQTT_ENABLED: 'false'
+      })
+    ).toMatchObject({
+      MQTT_ENABLED: false
+    });
+  });
+
+  it('rejects invalid MQTT heartbeat threshold values', () => {
+    expect(() =>
+      validateApiEnv({
+        ...baseEnv,
+        MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: '0'
+      })
+    ).toThrow(
+      'Invalid positive integer in API environment variable: MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
+    );
   });
 
   it('accepts real WeChat provider mode', () => {

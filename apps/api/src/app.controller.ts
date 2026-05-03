@@ -5,13 +5,15 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { getConfigString } from './common/config/config-reader.js';
 import { PrismaService } from './common/database/prisma.service.js';
 import { HealthResponseDto, type DependencyHealthDto } from './health.dto.js';
+import { MqttBrokerService } from './modules/mqtt/mqtt-broker.service.js';
 
 @ApiTags('platform')
 @Controller()
 export class AppController {
   constructor(
     @Inject(ConfigService) private readonly configService: ConfigService,
-    @Inject(PrismaService) private readonly prisma: PrismaService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(MqttBrokerService) private readonly mqttBroker: MqttBrokerService
   ) {}
 
   @Get('health')
@@ -26,11 +28,7 @@ export class AppController {
       timestamp: new Date().toISOString(),
       dependencies: {
         database: await this.getDatabaseHealth(),
-        mqtt: this.getConfiguredDependencyHealth(
-          this.hasMqttConfig(),
-          'Configuration is present; live MQTT connection is not checked in API-DB-01.',
-          'Configuration is missing; live MQTT connection is not checked in API-DB-01.'
-        )
+        mqtt: this.getMqttHealth()
       }
     };
   }
@@ -39,13 +37,6 @@ export class AppController {
     return (
       getConfigString(this.configService, 'DATABASE_URL').length > 0 &&
       getConfigString(this.configService, 'POSTGRES_HOST').length > 0
-    );
-  }
-
-  private hasMqttConfig(): boolean {
-    return (
-      getConfigString(this.configService, 'MQTT_HOST').length > 0 &&
-      getConfigString(this.configService, 'MQTT_USERNAME').length > 0
     );
   }
 
@@ -75,15 +66,23 @@ export class AppController {
     }
   }
 
-  private getConfiguredDependencyHealth(
-    configured: boolean,
-    configuredMessage: string,
-    missingMessage: string
-  ): DependencyHealthDto {
+  private getMqttHealth(): DependencyHealthDto {
+    const health = this.mqttBroker.getHealth();
+
+    if (!health.enabled) {
+      return {
+        status: 'not_configured',
+        checked: false,
+        message: 'MQTT is disabled; API is running in device simulation/degraded mode.'
+      };
+    }
+
     return {
-      status: configured ? 'configured' : 'not_configured',
-      checked: false,
-      message: configured ? configuredMessage : missingMessage
+      status: health.connected ? 'available' : 'unavailable',
+      checked: true,
+      message: health.connected
+        ? `MQTT broker connection is available: ${health.brokerUrl}`
+        : `MQTT is enabled, but broker connection is not available: ${health.brokerUrl}`
     };
   }
 }

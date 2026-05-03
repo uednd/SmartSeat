@@ -239,15 +239,15 @@
 
 ### CL-API-IOT-01 MQTT 接入、设备在线状态与命令总线
 
-- [ ] 后端可连接本地 Mosquitto 或配置指定 broker。
-- [ ] 已订阅 heartbeat topic，并校验 payload。
-- [ ] 心跳可更新 Device 最后在线时间和在线状态。
-- [ ] 超过 75 秒或配置阈值未收到心跳时可判定离线。
-- [ ] 设备恢复在线后可重新同步最新座位显示/灯光状态。
-- [ ] 后端可发布 display、light、command payload。
-- [ ] 非法 device_id、非法 payload、broker 断连均有日志和错误处理。
-- [ ] MQTT 配置项已写入 `.env.example`。
-- [ ] 证据路径已填写：____
+- [x] 后端可连接本地 Mosquitto 或配置指定 broker。
+- [x] 已订阅 heartbeat topic，并校验 payload。
+- [x] 心跳可更新 Device 最后在线时间和在线状态。
+- [x] 超过 75 秒或配置阈值未收到心跳时可判定离线。
+- [x] 设备恢复在线后可重新同步最新座位显示/灯光状态。
+- [x] 后端可发布 display、light、command payload。
+- [x] 非法 device_id、非法 payload、broker 断连均有日志和错误处理。
+- [x] MQTT 配置项已写入 `.env.example`。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试 `apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；已通过 `pnpm install --frozen-lockfile`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm typecheck`、`pnpm format`、`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config`、本地 `mqtt://localhost:1883` smoke 连接与 heartbeat 订阅。
 
 ### CL-API-RES-03 动态二维码与扫码签到
 

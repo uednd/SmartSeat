@@ -198,7 +198,7 @@ stateDiagram-v2
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Done |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Done |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Done |
-| API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Not Started |
+| API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Done |
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Not Started |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Not Started |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Not Started |
@@ -476,6 +476,11 @@ stateDiagram-v2
 | 回滚要求 | 可关闭 MQTT 连接，系统降级为模拟状态。 |
 | 监控与告警 | 心跳延迟、离线设备数、payload 校验失败、MQTT 重连日志。 |
 | 验收标准 | 后端可接收心跳、判定离线、向设备下发最新显示/灯光命令；恢复在线后重放状态。 |
+| 当前状态 | Done；已实现可开关 MQTT broker 连接、`seat/+/heartbeat` 订阅与 payload 校验、Device 在线/离线状态维护、display/light/command 命令总线、恢复在线后的基础显示/灯光同步，以及 `/health` MQTT 连接状态；未实现 presence 持续时间判断、SensorReading 持久化、异常事件、动态二维码、小程序页面、模拟器或固件逻辑。 |
+| Topic 与 QoS/retain | heartbeat 订阅 `seat/+/heartbeat`，QoS 1；display/light/command 发布到 `seat/{device_id}/display`、`seat/{device_id}/light`、`seat/{device_id}/command`，QoS 1，retain false；payload 复用 `packages/contracts/src/mqtt.ts`。 |
+| 设备认证暂定方案 | 本地/初赛演示可使用匿名 Mosquitto；API 支持 broker URL、client id、用户名、密码，并通过注册 Device 与座位绑定校验保留设备鉴权扩展点，正式环境仍需 ACL、设备级凭据或 TLS/mTLS。 |
+| 已执行核验 | `pnpm install --frozen-lockfile` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm --filter @smartseat/api test` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过；`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config` 通过；本地 `mqtt://localhost:1883` smoke 连接并订阅 `seat/+/heartbeat` 通过。 |
+| 证据路径 | 代码：`apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试：`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
 | 可分配给编码智能体的提示 | 只做 MQTT 接入、设备状态与命令总线；不要实现异常引擎；保留设备鉴权扩展点。 |
 
 ### API-RES-03 动态二维码与扫码签到

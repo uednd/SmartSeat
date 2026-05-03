@@ -19,3 +19,13 @@ export const getConfigNumber = (config: ConfigService, key: string): number => {
 
   return value;
 };
+
+export const getConfigBoolean = (config: ConfigService, key: string): boolean => {
+  const value = config.get<boolean>(key);
+
+  if (typeof value !== 'boolean') {
+    throw new Error(`Missing API boolean configuration value: ${key}`);
+  }
+
+  return value;
+};

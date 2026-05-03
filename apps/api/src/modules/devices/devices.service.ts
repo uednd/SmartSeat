@@ -4,6 +4,7 @@ import {
   Prisma,
   SeatAvailability as PrismaSeatAvailability,
   SeatUnavailableReason as PrismaSeatUnavailableReason,
+  type Seat,
   type Device
 } from '@prisma/client';
 import {
@@ -13,6 +14,7 @@ import {
   type CreateDeviceRequest,
   type DeviceDto,
   type DeviceListRequest,
+  type MqttHeartbeatPayload,
   type PageResponse,
   type UnbindDeviceSeatRequest,
   type UpdateDeviceRequest
@@ -21,6 +23,19 @@ import {
 import { PrismaService } from '../../common/database/prisma.service.js';
 import { AppHttpException } from '../../common/errors/app-http.exception.js';
 import { toAdminDeviceDto, toDeviceDto } from '../seats/seat-device.mapper.js';
+
+export interface DeviceHeartbeatUpdateResult {
+  accepted: boolean;
+  reason?: 'UNKNOWN_DEVICE' | 'SEAT_MISMATCH';
+  device?: Device;
+  seat?: Seat | null;
+  wasOffline?: boolean;
+}
+
+export interface DeviceMqttState {
+  device: Device;
+  seat: Seat | null;
+}
 
 @Injectable()
 export class DevicesService {
@@ -338,6 +353,121 @@ export class DevicesService {
     return device;
   }
 
+  async applyHeartbeat(
+    payload: MqttHeartbeatPayload,
+    observedAt: Date = new Date()
+  ): Promise<DeviceHeartbeatUpdateResult> {
+    return await this.prisma.$transaction(async (tx) => {
+      const device = await tx.device.findUnique({
+        where: { deviceId: payload.device_id }
+      });
+
+      if (device === null) {
+        return {
+          accepted: false,
+          reason: 'UNKNOWN_DEVICE'
+        };
+      }
+
+      if (device.seatId !== payload.seat_id) {
+        return {
+          accepted: false,
+          reason: 'SEAT_MISMATCH',
+          device
+        };
+      }
+
+      const wasOffline = device.onlineStatus === DeviceOnlineStatus.OFFLINE;
+      const updatedDevice = await tx.device.update({
+        where: { deviceId: payload.device_id },
+        data: {
+          onlineStatus: DeviceOnlineStatus.ONLINE,
+          lastHeartbeatAt: observedAt,
+          firmwareVersion: payload.firmware_version,
+          networkStatus: payload.network_status,
+          sensorStatus: payload.sensor_status
+        }
+      });
+
+      const seat =
+        updatedDevice.seatId === null
+          ? null
+          : await this.updateBoundSeatAfterDeviceOnline(tx, updatedDevice.seatId);
+
+      return {
+        accepted: true,
+        device: updatedDevice,
+        seat,
+        wasOffline
+      };
+    });
+  }
+
+  async markHeartbeatTimedOutDevices(now: Date, thresholdSeconds: number): Promise<number> {
+    const cutoff = new Date(now.getTime() - thresholdSeconds * 1000);
+    const devices = await this.prisma.device.findMany({
+      where: {
+        onlineStatus: DeviceOnlineStatus.ONLINE,
+        OR: [{ lastHeartbeatAt: null }, { lastHeartbeatAt: { lt: cutoff } }]
+      },
+      orderBy: [{ deviceId: 'asc' }]
+    });
+    let offlineCount = 0;
+
+    for (const device of devices) {
+      if (await this.markDeviceOffline(device.deviceId)) {
+        offlineCount += 1;
+      }
+    }
+
+    return offlineCount;
+  }
+
+  async getDeviceMqttState(deviceId: string): Promise<DeviceMqttState | null> {
+    const device = await this.prisma.device.findUnique({
+      where: { deviceId }
+    });
+
+    if (device === null) {
+      return null;
+    }
+
+    const seat =
+      device.seatId === null
+        ? null
+        : await this.prisma.seat.findUnique({ where: { seatId: device.seatId } });
+
+    return {
+      device,
+      seat
+    };
+  }
+
+  private async markDeviceOffline(deviceId: string): Promise<boolean> {
+    return await this.prisma.$transaction(async (tx) => {
+      const device = await tx.device.findUnique({
+        where: { deviceId }
+      });
+
+      if (device === null || device.onlineStatus === DeviceOnlineStatus.OFFLINE) {
+        return false;
+      }
+
+      await tx.device.update({
+        where: { deviceId },
+        data: {
+          onlineStatus: DeviceOnlineStatus.OFFLINE
+        }
+      });
+
+      if (device.seatId !== null) {
+        await this.updateBoundSeatAfterDeviceOffline(tx, device.seatId);
+      }
+
+      return true;
+    });
+  }
+
   private async toAdminDevice(device: Device): Promise<AdminDeviceDto> {
     const seat =
       device.seatId === null
@@ -360,6 +490,64 @@ export class DevicesService {
     }
 
     return null;
+  }
+
+  private async updateBoundSeatAfterDeviceOnline(
+    tx: Prisma.TransactionClient,
+    seatId: string
+  ): Promise<Seat | null> {
+    const seat = await tx.seat.findUnique({
+      where: { seatId }
+    });
+
+    if (seat === null) {
+      return null;
+    }
+
+    if (seat.maintenance) {
+      return await tx.seat.update({
+        where: { seatId },
+        data: {
+          availabilityStatus: PrismaSeatAvailability.UNAVAILABLE,
+          unavailableReason: PrismaSeatUnavailableReason.ADMIN_MAINTENANCE
+        }
+      });
+    }
+
+    if (seat.unavailableReason === PrismaSeatUnavailableReason.SENSOR_ERROR) {
+      return seat;
+    }
+
+    return await tx.seat.update({
+      where: { seatId },
+      data: {
+        availabilityStatus: PrismaSeatAvailability.AVAILABLE,
+        unavailableReason: null
+      }
+    });
+  }
+
+  private async updateBoundSeatAfterDeviceOffline(
+    tx: Prisma.TransactionClient,
+    seatId: string
+  ): Promise<Seat | null> {
+    const seat = await tx.seat.findUnique({
+      where: { seatId }
+    });
+
+    if (seat === null) {
+      return null;
+    }
+
+    return await tx.seat.update({
+      where: { seatId },
+      data: {
+        availabilityStatus: PrismaSeatAvailability.UNAVAILABLE,
+        unavailableReason: seat.maintenance
+          ? PrismaSeatUnavailableReason.ADMIN_MAINTENANCE
+          : PrismaSeatUnavailableReason.DEVICE_OFFLINE
+      }
+    });
   }
 
   private requireNonEmpty(value: string | undefined, field: string): void {

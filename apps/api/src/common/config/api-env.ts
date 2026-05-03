@@ -21,6 +21,10 @@ export interface ApiEnv {
   MQTT_PORT: number;
   MQTT_USERNAME: string;
   MQTT_PASSWORD: string;
+  MQTT_ENABLED: boolean;
+  MQTT_BROKER_URL: string;
+  MQTT_CLIENT_ID: string;
+  MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: number;
   WECHAT_APP_ID: string;
   WECHAT_APP_SECRET: string;
   WECHAT_AUTH_PROVIDER_MODE: WeChatAuthProviderMode;
@@ -72,6 +76,20 @@ const readRequiredString = (config: Record<string, unknown>, key: ApiEnvKey): st
   return value.trim();
 };
 
+const readOptionalString = (
+  config: Record<string, unknown>,
+  key: ApiEnvKey,
+  fallback: string
+): string => {
+  const value = config[key];
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return fallback;
+  }
+
+  return value.trim();
+};
+
 const readPort = (
   config: Record<string, unknown>,
   key: 'API_PORT' | 'POSTGRES_PORT' | 'MQTT_PORT'
@@ -88,7 +106,7 @@ const readPort = (
 
 const readPositiveInteger = (
   config: Record<string, unknown>,
-  key: 'AUTH_TOKEN_TTL_SECONDS'
+  key: 'AUTH_TOKEN_TTL_SECONDS' | 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS'
 ): number => {
   const rawValue = readRequiredString(config, key);
   const parsed = Number.parseInt(rawValue, 10);
@@ -98,6 +116,44 @@ const readPositiveInteger = (
   }
 
   return parsed;
+};
+
+const readOptionalPositiveInteger = (
+  config: Record<string, unknown>,
+  key: 'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS',
+  fallback: number
+): number => {
+  const value = config[key];
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return fallback;
+  }
+
+  return readPositiveInteger(config, key);
+};
+
+const readOptionalBoolean = (
+  config: Record<string, unknown>,
+  key: 'MQTT_ENABLED',
+  fallback: boolean
+): boolean => {
+  const value = config[key];
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  throw new Error(`Invalid boolean in API environment variable: ${key}`);
 };
 
 const readAuthMode = (config: Record<string, unknown>, key: 'DEFAULT_AUTH_MODE'): AuthMode => {
@@ -164,6 +220,8 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
 
   const env = nodeEnv as ApiNodeEnv;
   assertNoProductionPlaceholder(env, config);
+  const mqttHost = readRequiredString(config, 'MQTT_HOST');
+  const mqttPort = readPort(config, 'MQTT_PORT');
 
   return {
     NODE_ENV: env,
@@ -175,10 +233,22 @@ export const validateApiEnv = (config: Record<string, unknown>): ApiEnv => {
     POSTGRES_USER: readRequiredString(config, 'POSTGRES_USER'),
     POSTGRES_PASSWORD: readRequiredString(config, 'POSTGRES_PASSWORD'),
     DATABASE_URL: readRequiredString(config, 'DATABASE_URL'),
-    MQTT_HOST: readRequiredString(config, 'MQTT_HOST'),
-    MQTT_PORT: readPort(config, 'MQTT_PORT'),
+    MQTT_HOST: mqttHost,
+    MQTT_PORT: mqttPort,
     MQTT_USERNAME: readRequiredString(config, 'MQTT_USERNAME'),
     MQTT_PASSWORD: readRequiredString(config, 'MQTT_PASSWORD'),
+    MQTT_ENABLED: readOptionalBoolean(config, 'MQTT_ENABLED', true),
+    MQTT_BROKER_URL: readOptionalString(
+      config,
+      'MQTT_BROKER_URL',
+      `mqtt://${mqttHost}:${mqttPort}`
+    ),
+    MQTT_CLIENT_ID: readOptionalString(config, 'MQTT_CLIENT_ID', 'smartseat-api'),
+    MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS: readOptionalPositiveInteger(
+      config,
+      'MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS',
+      75
+    ),
     WECHAT_APP_ID: readRequiredString(config, 'WECHAT_APP_ID'),
     WECHAT_APP_SECRET: readRequiredString(config, 'WECHAT_APP_SECRET'),
     WECHAT_AUTH_PROVIDER_MODE: readWeChatAuthProviderMode(config, 'WECHAT_AUTH_PROVIDER_MODE'),
