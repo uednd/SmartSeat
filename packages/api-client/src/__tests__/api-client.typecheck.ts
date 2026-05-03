@@ -28,6 +28,23 @@ const transport: ApiTransport = {
 
 const client = createSmartSeatApiClient(transport) satisfies SmartSeatApiClient;
 const loginMode = await client.auth.getLoginMode();
+const seats = await client.seats.list({ page: 1, page_size: 20 });
+const seat = await client.seats.get('seat-1');
+const devices = await client.devices.list({ page: 1 });
+const device = await client.devices.get('device-1');
+const adminSeats = await client.admin.listSeats({ page: 1 });
+const adminSeat = await client.admin.getSeat('seat-1');
+const createdSeat = await client.admin.createSeat({ seat_no: 'A-001', area: 'demo' });
+const updatedSeat = await client.admin.updateSeat('seat-1', { area: 'updated' });
+const enabledSeat = await client.admin.setSeatEnabled('seat-1', { enabled: true });
+const adminDevices = await client.admin.listDevices({ page: 1 });
+const adminDevice = await client.admin.getDevice('device-1');
+const createdDevice = await client.admin.createDevice({ mqtt_client_id: 'smartseat-device-1' });
+const updatedDevice = await client.admin.updateDevice('device-1', { firmware_version: '0.0.2' });
+const boundDevice = await client.admin.bindDeviceSeat('device-1', { seat_id: 'seat-1' });
+const unboundDevice = await client.admin.unbindDeviceSeat('device-1', {
+  reason: 'replace terminal'
+});
 
 const httpTransport = createHttpTransport({
   baseUrl: 'http://localhost:3000',
@@ -64,6 +81,21 @@ const clientError = new ApiClientError({
 const isErrorResponse = isApiErrorResponse(clientError.response);
 
 void loginMode;
+void seats;
+void seat;
+void devices;
+void device;
+void adminSeats;
+void adminSeat;
+void createdSeat;
+void updatedSeat;
+void enabledSeat;
+void adminDevices;
+void adminDevice;
+void createdDevice;
+void updatedDevice;
+void boundDevice;
+void unboundDevice;
 void httpTransport;
 void clientError;
 void isErrorResponse;

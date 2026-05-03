@@ -195,7 +195,7 @@ stateDiagram-v2
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Done |
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
-| API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Not Started |
+| API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Done |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Not Started |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Not Started |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Not Started |
@@ -399,16 +399,19 @@ stateDiagram-v2
 | 非目标 | 不创建预约；不处理签到；不处理传感器事件。 |
 | 前置条件 | API-DB-01、SHR-01 完成。 |
 | 输入 | Seat、Device、Reservation 状态；PRD 4.1。 |
-| 输出 | `/seats`、`/seats/:id`、`/admin/seats` 查询接口。 |
-| 涉及文件/目录 | `apps/api/src/modules/seats/**`、`apps/api/src/modules/devices/**`。 |
-| 接口契约 | 学生视图隐藏管理字段；管理员视图包含设备、异常、维护状态字段。 |
-| 数据变更 | 无，或仅更新派生缓存字段。 |
-| 测试要求 | 空闲、已预约、使用中、维护、离线、不可预约原因组合测试。 |
+| 输出 | `/seats`、`/seats/:seat_id`、`/devices`、`/devices/:device_id`、`/admin/seats`、`/admin/seats/:seat_id`、`/admin/devices`、`/admin/devices/:device_id` 及管理员座位新增/编辑/启停、设备新增/编辑/绑定/解绑接口。 |
+| 涉及文件/目录 | `apps/api/src/modules/seats/**`、`apps/api/src/modules/devices/**`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`。 |
+| 接口契约 | 座位公开读隐藏管理字段；设备读需要登录；管理员视图包含设备、异常、维护状态、当前预约摘要和设备基础维护字段。 |
+| 数据变更 | 管理接口可写 Seat、Device、DeviceSeatBinding 基础维护字段；不创建预约、不推进预约状态、不消费 MQTT 或传感器消息。 |
+| 测试要求 | 座位列表/详情、设备列表/详情、管理员维护权限、学生禁止修改、设备绑定唯一性、不存在资源统一错误响应。 |
 | 文档要求 | 说明派生状态计算规则和字段含义。 |
 | 部署/配置要求 | 无。 |
 | 回滚要求 | 聚合视图可退回基础字段返回，不影响数据。 |
 | 监控与告警 | 查询错误日志包含 seat_id、user_id、role。 |
 | 验收标准 | 学生能看到可预约状态；管理员能看到座位与设备聚合信息；派生状态与 PRD 一致。 |
+| 当前状态 | Done；已实现匿名座位读取、登录设备读取、管理员座位/设备维护、设备绑定唯一性校验、typed api-client 方法和 API-SEAT-01 测试覆盖。 |
+| 证据路径 | 代码：`apps/api/src/modules/seats/**`、`apps/api/src/modules/devices/**`、`apps/api/src/app.module.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-seat.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm --filter @smartseat/contracts typecheck` 通过；`pnpm --filter @smartseat/api-client typecheck` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm --filter @smartseat/api test` 通过。 |
 | 可分配给编码智能体的提示 | 只做查询聚合和展示态计算；不要实现预约创建；为学生/管理员分别输出最小必要字段。 |
 
 ### API-RES-01 预约创建、冲突校验与取消

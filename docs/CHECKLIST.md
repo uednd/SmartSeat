@@ -193,14 +193,17 @@
 
 ### CL-API-SEAT-01 座位/设备查询聚合
 
-- [ ] `GET /seats` 返回学生可用座位列表，并隐藏管理字段。
-- [ ] `GET /seats/:id` 返回座位详情、可预约性、不可用原因。
-- [ ] 管理员座位查询包含设备状态、维护状态、异常摘要、当前预约摘要。
-- [ ] 派生状态包含 `business_status + availability_status + unavailable_reason + online_status`。
-- [ ] 离线、维护、已预约、使用中、待释放等组合状态计算正确。
-- [ ] 不可预约原因与 PRD 一致。
-- [ ] 查询接口具备权限测试和字段脱敏测试。
-- [ ] 证据路径已填写：____
+- [x] `GET /seats` 返回学生可用座位列表，并隐藏 `mqtt_client_id`、硬件版本、网络状态等管理字段。
+- [x] `GET /seats/:id` 返回座位详情、可预约性、不可用原因、当前设备摘要和当前占用摘要。
+- [x] 管理员座位查询包含设备状态、维护状态、异常摘要、当前预约摘要。
+- [x] 派生状态包含 `business_status + availability_status + unavailable_reason + online_status`。
+- [x] 离线、维护、已预约、使用中、待释放等组合状态计算正确：禁用座位写入 `ADMIN_MAINTENANCE`，绑定离线设备写入 `DEVICE_OFFLINE`，查询保留业务状态不推进预约状态机。
+- [x] 不可预约原因与 PRD 一致，复用 contracts 中 `DEVICE_OFFLINE`、`SENSOR_ERROR`、`ADMIN_MAINTENANCE`。
+- [x] 查询接口具备权限测试和字段脱敏测试：座位匿名可读，设备读取需登录，管理员维护需 ADMIN，普通 STUDENT 禁止修改。
+- [x] 管理员可新增、编辑、启用/禁用座位，可新增、编辑设备，可绑定/解绑设备与座位。
+- [x] 设备绑定唯一性已测试，同一设备/座位重复活跃绑定返回 `STATE_CONFLICT`，相同绑定幂等返回成功。
+- [x] 不存在的座位/设备统一返回 `RESOURCE_NOT_FOUND`。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/seats/**`、`apps/api/src/modules/devices/**`、`apps/api/src/app.module.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-seat.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`。
 
 ### CL-API-RES-01 预约创建、冲突校验与取消
 

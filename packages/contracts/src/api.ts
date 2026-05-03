@@ -161,8 +161,14 @@ export interface SeatDto {
 }
 
 export interface SeatDetailDto extends SeatDto {
-  current_reservation?: ReservationSummaryDto;
+  current_occupancy?: SeatOccupancySummaryDto;
   device?: DeviceDto;
+}
+
+export interface AdminSeatDetailDto extends SeatDto {
+  maintenance: boolean;
+  current_reservation?: ReservationSummaryDto;
+  device?: AdminDeviceDto;
   active_anomaly_count: number;
 }
 
@@ -172,20 +178,33 @@ export interface SeatListRequest extends PageRequest {
 
 export interface DeviceDto {
   device_id: EntityId;
-  seat_id: EntityId;
-  mqtt_client_id: string;
+  seat_id?: EntityId;
   online_status: DeviceOnlineStatus;
   last_heartbeat_at?: IsoDateTimeString;
-  sensor_status: SensorHealthStatus;
-  sensor_model?: string;
   firmware_version?: string;
-  network_status?: string;
   created_at: IsoDateTimeString;
   updated_at: IsoDateTimeString;
 }
 
+export interface AdminDeviceDto extends DeviceDto {
+  mqtt_client_id: string;
+  sensor_status: SensorHealthStatus;
+  sensor_model?: string;
+  hardware_version?: string;
+  network_status?: string;
+  seat?: SeatDto;
+}
+
 export interface DeviceListRequest extends PageRequest {
   online_status?: DeviceOnlineStatus;
+}
+
+export interface SeatOccupancySummaryDto {
+  reservation_id: EntityId;
+  seat_id: EntityId;
+  start_time: IsoDateTimeString;
+  end_time: IsoDateTimeString;
+  status: ReservationStatus;
 }
 
 export interface ReservationSummaryDto {
@@ -354,8 +373,50 @@ export interface AdminDashboardDto {
   no_show_count_today: number;
 }
 
-export interface AdminSeatOverviewDto extends SeatDetailDto {
+export interface AdminSeatOverviewDto extends AdminSeatDetailDto {
   remaining_seconds?: number;
+}
+
+export interface CreateSeatRequest {
+  seat_id?: EntityId;
+  seat_no: string;
+  area: string;
+}
+
+export interface UpdateSeatRequest {
+  seat_no?: string;
+  area?: string;
+}
+
+export interface SetSeatEnabledRequest {
+  enabled: boolean;
+  reason?: string;
+}
+
+export interface CreateDeviceRequest {
+  device_id?: EntityId;
+  mqtt_client_id: string;
+  firmware_version?: string;
+  hardware_version?: string;
+  sensor_model?: string;
+  network_status?: string;
+}
+
+export interface UpdateDeviceRequest {
+  mqtt_client_id?: string;
+  firmware_version?: string;
+  hardware_version?: string;
+  sensor_model?: string;
+  network_status?: string;
+}
+
+export interface BindDeviceSeatRequest {
+  seat_id: EntityId;
+  reason?: string;
+}
+
+export interface UnbindDeviceSeatRequest {
+  reason?: string;
 }
 
 export interface AdminReleaseSeatRequest {

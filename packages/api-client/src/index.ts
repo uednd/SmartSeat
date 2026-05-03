@@ -1,18 +1,23 @@
 import {
   ApiErrorCode,
   type AdminActionLogDto,
+  type AdminDeviceDto,
   type AdminDashboardDto,
   type AdminReleaseSeatRequest,
+  type AdminSeatDetailDto,
   type AdminSeatOverviewDto,
   type AnomalyEventDto,
   type AnomalyListRequest,
   type ApiErrorResponse,
   type AuthConfigPublicDto,
   type AuthSessionResponse,
+  type BindDeviceSeatRequest,
   type CancelReservationRequest,
   type CheckinRequest,
   type CheckinResponse,
+  type CreateDeviceRequest,
   type CreateReservationRequest,
+  type CreateSeatRequest,
   type DeviceDto,
   type DeviceListRequest,
   type ExtendReservationRequest,
@@ -30,9 +35,13 @@ import {
   type SeatDetailDto,
   type SeatDto,
   type SeatListRequest,
+  type SetSeatEnabledRequest,
   type StudyStatsDto,
+  type UnbindDeviceSeatRequest,
   type UpdateAuthConfigRequest,
+  type UpdateDeviceRequest,
   type UpdateLeaderboardPreferenceRequest,
+  type UpdateSeatRequest,
   type UpdateSeatMaintenanceRequest,
   type UserReleaseReservationRequest,
   type WechatLoginRequest
@@ -365,6 +374,17 @@ export interface LeaderboardApi {
 
 export interface AdminApi {
   dashboard(): Promise<AdminDashboardDto>;
+  listSeats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
+  getSeat(seat_id: string): Promise<AdminSeatDetailDto>;
+  createSeat(request: CreateSeatRequest): Promise<AdminSeatDetailDto>;
+  updateSeat(seat_id: string, request: UpdateSeatRequest): Promise<AdminSeatDetailDto>;
+  setSeatEnabled(seat_id: string, request: SetSeatEnabledRequest): Promise<AdminSeatDetailDto>;
+  listDevices(request?: DeviceListRequest): Promise<PageResponse<AdminDeviceDto>>;
+  getDevice(device_id: string): Promise<AdminDeviceDto>;
+  createDevice(request: CreateDeviceRequest): Promise<AdminDeviceDto>;
+  updateDevice(device_id: string, request: UpdateDeviceRequest): Promise<AdminDeviceDto>;
+  bindDeviceSeat(device_id: string, request: BindDeviceSeatRequest): Promise<AdminDeviceDto>;
+  unbindDeviceSeat(device_id: string, request?: UnbindDeviceSeatRequest): Promise<AdminDeviceDto>;
   seats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
   releaseSeat(request: AdminReleaseSeatRequest): Promise<SeatDetailDto>;
   setSeatMaintenance(request: UpdateSeatMaintenanceRequest): Promise<SeatDetailDto>;
@@ -413,15 +433,33 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
     },
     seats: {
       list: (request) =>
-        transport.request({ operation_id: 'seats.list', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'seats.list',
+          method: 'GET',
+          path: '/seats',
+          query: request
+        }),
       get: (seat_id) =>
-        transport.request({ operation_id: 'seats.get', method: 'GET', query: { seat_id } })
+        transport.request({
+          operation_id: 'seats.get',
+          method: 'GET',
+          path: `/seats/${encodeURIComponent(seat_id)}`
+        })
     },
     devices: {
       list: (request) =>
-        transport.request({ operation_id: 'devices.list', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'devices.list',
+          method: 'GET',
+          path: '/devices',
+          query: request
+        }),
       get: (device_id) =>
-        transport.request({ operation_id: 'devices.get', method: 'GET', query: { device_id } })
+        transport.request({
+          operation_id: 'devices.get',
+          method: 'GET',
+          path: `/devices/${encodeURIComponent(device_id)}`
+        })
     },
     reservations: {
       create: (request) =>
@@ -457,8 +495,88 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
     },
     admin: {
       dashboard: () => transport.request({ operation_id: 'admin.dashboard', method: 'GET' }),
+      listSeats: (request) =>
+        transport.request({
+          operation_id: 'admin.listSeats',
+          method: 'GET',
+          path: '/admin/seats',
+          query: request
+        }),
+      getSeat: (seat_id) =>
+        transport.request({
+          operation_id: 'admin.getSeat',
+          method: 'GET',
+          path: `/admin/seats/${encodeURIComponent(seat_id)}`
+        }),
+      createSeat: (request) =>
+        transport.request({
+          operation_id: 'admin.createSeat',
+          method: 'POST',
+          path: '/admin/seats',
+          body: request
+        }),
+      updateSeat: (seat_id, request) =>
+        transport.request({
+          operation_id: 'admin.updateSeat',
+          method: 'PATCH',
+          path: `/admin/seats/${encodeURIComponent(seat_id)}`,
+          body: request
+        }),
+      setSeatEnabled: (seat_id, request) =>
+        transport.request({
+          operation_id: 'admin.setSeatEnabled',
+          method: 'PATCH',
+          path: `/admin/seats/${encodeURIComponent(seat_id)}/enabled`,
+          body: request
+        }),
+      listDevices: (request) =>
+        transport.request({
+          operation_id: 'admin.listDevices',
+          method: 'GET',
+          path: '/admin/devices',
+          query: request
+        }),
+      getDevice: (device_id) =>
+        transport.request({
+          operation_id: 'admin.getDevice',
+          method: 'GET',
+          path: `/admin/devices/${encodeURIComponent(device_id)}`
+        }),
+      createDevice: (request) =>
+        transport.request({
+          operation_id: 'admin.createDevice',
+          method: 'POST',
+          path: '/admin/devices',
+          body: request
+        }),
+      updateDevice: (device_id, request) =>
+        transport.request({
+          operation_id: 'admin.updateDevice',
+          method: 'PATCH',
+          path: `/admin/devices/${encodeURIComponent(device_id)}`,
+          body: request
+        }),
+      bindDeviceSeat: (device_id, request) =>
+        transport.request({
+          operation_id: 'admin.bindDeviceSeat',
+          method: 'PUT',
+          path: `/admin/devices/${encodeURIComponent(device_id)}/binding`,
+          body: request
+        }),
+      unbindDeviceSeat: (device_id, request) =>
+        transport.request({
+          operation_id: 'admin.unbindDeviceSeat',
+          method: 'POST',
+          path: `/admin/devices/${encodeURIComponent(device_id)}/unbind`,
+          body: request
+        }),
       seats: (request) =>
-        transport.request({ operation_id: 'admin.seats', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'admin.listSeats',
+          method: 'GET',
+          path: '/admin/seats',
+          query: request
+        }),
       releaseSeat: (request) =>
         transport.request({ operation_id: 'admin.releaseSeat', method: 'POST', body: request }),
       setSeatMaintenance: (request) =>

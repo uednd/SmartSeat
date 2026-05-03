@@ -7,6 +7,8 @@ import { DatabaseModule } from './common/database/database.module.js';
 import { RequestLoggingMiddleware } from './common/request/request-logging.middleware.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { DatabaseBaselineModule } from './modules/database-baseline/database-baseline.module.js';
+import { DevicesModule } from './modules/devices/devices.module.js';
+import { SeatsModule } from './modules/seats/seats.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -16,6 +18,8 @@ import { UsersModule } from './modules/users/users.module.js';
     DatabaseBaselineModule,
     UsersModule,
     AuthModule,
+    SeatsModule,
+    DevicesModule,
     ScheduleModule.forRoot()
   ],
   controllers: [AppController]

@@ -1,6 +1,7 @@
 import {
   ApiErrorCode,
   DeviceCommandType,
+  DeviceOnlineStatus,
   DisplayLayout,
   LightMode,
   LightStatus,
@@ -12,15 +13,24 @@ import {
   SeatStatus,
   SensorHealthStatus,
   buildMqttTopic,
+  type AdminDeviceDto,
+  type AdminSeatDetailDto,
   type ApiErrorResponse,
+  type BindDeviceSeatRequest,
   type CheckinRequest,
+  type CreateDeviceRequest,
+  type CreateSeatRequest,
   type MqttCommandPayload,
   type MqttDisplayPayload,
   type MqttHeartbeatPayload,
   type MqttLightPayload,
   type MqttPresencePayload,
   type QRTokenDto,
-  type SeatDto
+  type SeatDetailDto,
+  type SeatDto,
+  type SetSeatEnabledRequest,
+  type UpdateDeviceRequest,
+  type UpdateSeatRequest
 } from '../index.js';
 
 const seat = {
@@ -107,6 +117,82 @@ const checkin = {
   timestamp: token.timestamp
 } satisfies CheckinRequest;
 
+const seatDetail = {
+  ...seat,
+  current_occupancy: {
+    reservation_id: 'reservation-1',
+    seat_id: 'seat-1',
+    start_time: '2026-05-02T00:00:00.000Z',
+    end_time: '2026-05-02T01:00:00.000Z',
+    status: ReservationStatus.WAITING_CHECKIN
+  },
+  device: {
+    device_id: 'device-1',
+    seat_id: 'seat-1',
+    online_status: DeviceOnlineStatus.ONLINE,
+    last_heartbeat_at: '2026-05-02T00:00:00.000Z',
+    firmware_version: '0.0.1',
+    created_at: '2026-05-02T00:00:00.000Z',
+    updated_at: '2026-05-02T00:00:00.000Z'
+  }
+} satisfies SeatDetailDto;
+
+const adminSeatDetail = {
+  ...seat,
+  maintenance: false,
+  active_anomaly_count: 0,
+  current_reservation: {
+    reservation_id: 'reservation-1',
+    user_id: 'user-1',
+    seat_id: 'seat-1',
+    start_time: '2026-05-02T00:00:00.000Z',
+    end_time: '2026-05-02T01:00:00.000Z',
+    status: ReservationStatus.WAITING_CHECKIN
+  }
+} satisfies AdminSeatDetailDto;
+
+const adminDevice = {
+  device_id: 'device-1',
+  seat_id: 'seat-1',
+  mqtt_client_id: 'smartseat-device-1',
+  online_status: DeviceOnlineStatus.ONLINE,
+  sensor_status: SensorHealthStatus.OK,
+  firmware_version: '0.0.1',
+  hardware_version: 'esp32-p4',
+  network_status: 'wifi:ok',
+  created_at: '2026-05-02T00:00:00.000Z',
+  updated_at: '2026-05-02T00:00:00.000Z',
+  seat
+} satisfies AdminDeviceDto;
+
+const createSeat = {
+  seat_no: 'A-002',
+  area: 'demo'
+} satisfies CreateSeatRequest;
+
+const updateSeat = {
+  area: 'demo-updated'
+} satisfies UpdateSeatRequest;
+
+const setSeatEnabled = {
+  enabled: false,
+  reason: 'maintenance'
+} satisfies SetSeatEnabledRequest;
+
+const createDevice = {
+  mqtt_client_id: 'smartseat-device-2',
+  firmware_version: '0.0.1'
+} satisfies CreateDeviceRequest;
+
+const updateDevice = {
+  firmware_version: '0.0.2'
+} satisfies UpdateDeviceRequest;
+
+const bindDeviceSeat = {
+  seat_id: 'seat-1',
+  reason: 'demo binding'
+} satisfies BindDeviceSeatRequest;
+
 const topic = buildMqttTopic('device-1', 'heartbeat');
 
 const eventType = MqttDeviceEventType.COMMAND_ACK;
@@ -120,6 +206,15 @@ void light;
 void command;
 void token;
 void checkin;
+void seatDetail;
+void adminSeatDetail;
+void adminDevice;
+void createSeat;
+void updateSeat;
+void setSeatEnabled;
+void createDevice;
+void updateDevice;
+void bindDeviceSeat;
 void topic;
 void eventType;
 
