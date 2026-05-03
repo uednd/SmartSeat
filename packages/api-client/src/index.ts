@@ -4,6 +4,7 @@ import {
   type AdminDeviceDto,
   type AdminDashboardDto,
   type AdminReleaseSeatRequest,
+  type AdminReservationListRequest,
   type AdminSeatDetailDto,
   type AdminSeatOverviewDto,
   type AnomalyEventDto,
@@ -32,6 +33,7 @@ import {
   type PageRequest,
   type PageResponse,
   type ReservationDto,
+  type ReservationHistoryRequest,
   type SeatDetailDto,
   type SeatDto,
   type SeatListRequest,
@@ -349,10 +351,15 @@ export interface DevicesApi {
 
 export interface ReservationsApi {
   create(request: CreateReservationRequest): Promise<ReservationDto>;
+  cancel(
+    reservation_id: string,
+    request?: Omit<CancelReservationRequest, 'reservation_id'>
+  ): Promise<ReservationDto>;
   cancel(request: CancelReservationRequest): Promise<ReservationDto>;
   extend(request: ExtendReservationRequest): Promise<ReservationDto>;
   releaseByUser(request: UserReleaseReservationRequest): Promise<ReservationDto>;
   current(): Promise<ReservationDto | undefined>;
+  history(request?: ReservationHistoryRequest): Promise<PageResponse<ReservationDto>>;
 }
 
 export interface CheckinApi {
@@ -385,6 +392,10 @@ export interface AdminApi {
   updateDevice(device_id: string, request: UpdateDeviceRequest): Promise<AdminDeviceDto>;
   bindDeviceSeat(device_id: string, request: BindDeviceSeatRequest): Promise<AdminDeviceDto>;
   unbindDeviceSeat(device_id: string, request?: UnbindDeviceSeatRequest): Promise<AdminDeviceDto>;
+  listCurrentReservations(
+    request?: AdminReservationListRequest
+  ): Promise<PageResponse<ReservationDto>>;
+  getSeatReservation(seat_id: string): Promise<ReservationDto | undefined>;
   seats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
   releaseSeat(request: AdminReleaseSeatRequest): Promise<SeatDetailDto>;
   setSeatMaintenance(request: UpdateSeatMaintenanceRequest): Promise<SeatDetailDto>;
@@ -407,6 +418,29 @@ export interface SmartSeatApiClient {
   stats: StatsApi;
   leaderboard: LeaderboardApi;
   admin: AdminApi;
+}
+
+function createCancelReservationMethod(transport: ApiTransport): ReservationsApi['cancel'] {
+  const cancel = (
+    reservationOrRequest: string | CancelReservationRequest,
+    request?: Omit<CancelReservationRequest, 'reservation_id'>
+  ): Promise<ReservationDto> => {
+    const reservationId =
+      typeof reservationOrRequest === 'string'
+        ? reservationOrRequest
+        : reservationOrRequest.reservation_id;
+    const body =
+      typeof reservationOrRequest === 'string' ? request : { reason: reservationOrRequest.reason };
+
+    return transport.request({
+      operation_id: 'reservations.cancel',
+      method: 'DELETE',
+      path: `/reservations/${encodeURIComponent(reservationId)}`,
+      body
+    });
+  };
+
+  return cancel as ReservationsApi['cancel'];
 }
 
 export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiClient {
@@ -463,9 +497,13 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
     },
     reservations: {
       create: (request) =>
-        transport.request({ operation_id: 'reservations.create', method: 'POST', body: request }),
-      cancel: (request) =>
-        transport.request({ operation_id: 'reservations.cancel', method: 'POST', body: request }),
+        transport.request({
+          operation_id: 'reservations.create',
+          method: 'POST',
+          path: '/reservations',
+          body: request
+        }),
+      cancel: createCancelReservationMethod(transport),
       extend: (request) =>
         transport.request({ operation_id: 'reservations.extend', method: 'POST', body: request }),
       releaseByUser: (request) =>
@@ -474,7 +512,19 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           method: 'POST',
           body: request
         }),
-      current: () => transport.request({ operation_id: 'reservations.current', method: 'GET' })
+      current: () =>
+        transport.request({
+          operation_id: 'reservations.current',
+          method: 'GET',
+          path: '/reservations/current'
+        }),
+      history: (request) =>
+        transport.request({
+          operation_id: 'reservations.history',
+          method: 'GET',
+          path: '/reservations/history',
+          query: request
+        })
     },
     checkin: {
       submit: (request) =>
@@ -569,6 +619,19 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           method: 'POST',
           path: `/admin/devices/${encodeURIComponent(device_id)}/unbind`,
           body: request
+        }),
+      listCurrentReservations: (request) =>
+        transport.request({
+          operation_id: 'admin.listCurrentReservations',
+          method: 'GET',
+          path: '/admin/reservations/current',
+          query: request
+        }),
+      getSeatReservation: (seat_id) =>
+        transport.request({
+          operation_id: 'admin.getSeatReservation',
+          method: 'GET',
+          path: `/admin/reservations/seats/${encodeURIComponent(seat_id)}`
         }),
       seats: (request) =>
         transport.request({

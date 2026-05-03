@@ -236,6 +236,12 @@ export interface CancelReservationRequest {
   reason?: string;
 }
 
+export interface ReservationHistoryRequest extends PageRequest {}
+
+export interface AdminReservationListRequest extends PageRequest {
+  seat_id?: EntityId;
+}
+
 export interface ExtendReservationRequest {
   reservation_id: EntityId;
   end_time: IsoDateTimeString;

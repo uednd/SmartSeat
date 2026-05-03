@@ -14,11 +14,13 @@ import {
   SensorHealthStatus,
   buildMqttTopic,
   type AdminDeviceDto,
+  type AdminReservationListRequest,
   type AdminSeatDetailDto,
   type ApiErrorResponse,
   type BindDeviceSeatRequest,
   type CheckinRequest,
   type CreateDeviceRequest,
+  type CreateReservationRequest,
   type CreateSeatRequest,
   type MqttCommandPayload,
   type MqttDisplayPayload,
@@ -26,6 +28,7 @@ import {
   type MqttLightPayload,
   type MqttPresencePayload,
   type QRTokenDto,
+  type ReservationHistoryRequest,
   type SeatDetailDto,
   type SeatDto,
   type SetSeatEnabledRequest,
@@ -117,6 +120,22 @@ const checkin = {
   timestamp: token.timestamp
 } satisfies CheckinRequest;
 
+const createReservation = {
+  seat_id: 'seat-1',
+  start_time: '2026-05-02T00:00:00.000Z',
+  end_time: '2026-05-02T01:00:00.000Z'
+} satisfies CreateReservationRequest;
+
+const reservationHistory = {
+  page: 1,
+  page_size: 20
+} satisfies ReservationHistoryRequest;
+
+const adminReservationList = {
+  seat_id: 'seat-1',
+  page: 1
+} satisfies AdminReservationListRequest;
+
 const seatDetail = {
   ...seat,
   current_occupancy: {
@@ -206,6 +225,9 @@ void light;
 void command;
 void token;
 void checkin;
+void createReservation;
+void reservationHistory;
+void adminReservationList;
 void seatDetail;
 void adminSeatDetail;
 void adminDevice;

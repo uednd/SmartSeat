@@ -45,6 +45,22 @@ const boundDevice = await client.admin.bindDeviceSeat('device-1', { seat_id: 'se
 const unboundDevice = await client.admin.unbindDeviceSeat('device-1', {
   reason: 'replace terminal'
 });
+const createdReservation = await client.reservations.create({
+  seat_id: 'seat-1',
+  start_time: '2026-05-03T09:00:00.000Z',
+  end_time: '2026-05-03T10:00:00.000Z'
+});
+const currentReservation = await client.reservations.current();
+const reservationHistory = await client.reservations.history({ page: 1 });
+const cancelledReservation = await client.reservations.cancel('reservation-1', {
+  reason: 'plan changed'
+});
+const legacyCancelledReservation = await client.reservations.cancel({
+  reservation_id: 'reservation-1',
+  reason: 'plan changed'
+});
+const adminReservations = await client.admin.listCurrentReservations({ page: 1 });
+const adminSeatReservation = await client.admin.getSeatReservation('seat-1');
 
 const httpTransport = createHttpTransport({
   baseUrl: 'http://localhost:3000',
@@ -96,6 +112,13 @@ void createdDevice;
 void updatedDevice;
 void boundDevice;
 void unboundDevice;
+void createdReservation;
+void currentReservation;
+void reservationHistory;
+void cancelledReservation;
+void legacyCancelledReservation;
+void adminReservations;
+void adminSeatReservation;
 void httpTransport;
 void clientError;
 void isErrorResponse;

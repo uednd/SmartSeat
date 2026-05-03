@@ -196,7 +196,7 @@ stateDiagram-v2
 | API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Done |
-| API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Not Started |
+| API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Done |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Not Started |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Not Started |
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Not Started |
@@ -432,6 +432,8 @@ stateDiagram-v2
 | 回滚要求 | 新接口可禁用；预约数据可保留。 |
 | 监控与告警 | 记录预约创建成功数、冲突拒绝数、取消数。 |
 | 验收标准 | 学生可预约空闲座位；冲突被拒绝；取消后状态一致回退。 |
+| 当前状态 | Done；已实现学生预约创建、当前预约、历史查询、取消，管理员当前预约列表与指定座位预约状态查询，预约状态机基础服务和 no-show 过期推进方法；未实现二维码签到、MQTT、传感器占用、管理员强制释放。 |
+| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`apps/api/src/app.module.ts`、`apps/api/prisma/migrations/20260503000000_api_res_01_reservation_conflicts/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm format`。本地 Docker daemon 未运行，`pnpm infra:up` 与实库 migration/`RUN_DATABASE_TESTS=1` 需在 PostgreSQL 可用后补跑。 |
 | 可分配给编码智能体的提示 | 只实现创建/取消；不要实现扫码签到；补齐冲突、重复预约、取消边界测试。 |
 
 ### API-RES-02 续约、主动离座与到期结束

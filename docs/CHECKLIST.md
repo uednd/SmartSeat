@@ -207,15 +207,15 @@
 
 ### CL-API-RES-01 预约创建、冲突校验与取消
 
-- [ ] 学生可对空闲且可用座位创建预约。
-- [ ] 同一座位同一时间窗口冲突会被拒绝。
-- [ ] 同一学生同一时间只能存在一个有效预约或符合 PRD 的限制规则。
-- [ ] 不可用、维护、离线策略下的座位不能被预约。
-- [ ] 签到窗口开始/结束时间计算正确。
-- [ ] 签到前可取消预约，取消后座位状态一致回退。
-- [ ] 无权限取消、重复取消、已签到后取消等边界场景已测试。
-- [ ] 预约创建/取消有可诊断日志。
-- [ ] 证据路径已填写：____
+- [x] 学生可对空闲且可用座位创建预约。
+- [x] 同一座位同一时间窗口冲突会被拒绝。
+- [x] 同一学生同一时间只能存在一个有效预约或符合 PRD 的限制规则。
+- [x] 不可用、维护、离线策略下的座位不能被预约。
+- [x] 签到窗口开始/结束时间计算正确。
+- [x] 签到前可取消预约，取消后座位状态一致回退。
+- [x] 无权限取消、重复取消、已签到后取消等边界场景已测试。
+- [x] 预约创建/取消有可诊断日志。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/app.module.ts`、`apps/api/prisma/migrations/20260503000000_api_res_01_reservation_conflicts/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm format`；本地 Docker daemon 未运行，实库 migration/`RUN_DATABASE_TESTS=1` 需在 PostgreSQL 可用后补跑。
 
 ### CL-API-RES-02 续约、主动离座与到期结束
 

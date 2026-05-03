@@ -1,5 +1,5 @@
 import { type TestingModule, Test } from '@nestjs/testing';
-import { SeatAvailability, SeatStatus, UserRole } from '@prisma/client';
+import { ReservationStatus, SeatAvailability, SeatStatus, UserRole } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ApiConfigModule } from '../common/config/api-config.module.js';
@@ -152,5 +152,121 @@ describeDatabase('API-DB-01 database baseline', () => {
       }),
       'P2003'
     );
+  });
+
+  it('enforces effective reservation overlap constraints while allowing released history', async () => {
+    await prisma.reservation.deleteMany({
+      where: {
+        reservationId: {
+          startsWith: 'reservation_overlap_test_'
+        }
+      }
+    });
+    await prisma.user.deleteMany({
+      where: {
+        userId: {
+          startsWith: 'user_overlap_test_'
+        }
+      }
+    });
+    await prisma.seat.deleteMany({
+      where: {
+        seatId: {
+          startsWith: 'seat_overlap_test_'
+        }
+      }
+    });
+
+    await prisma.user.createMany({
+      data: [
+        {
+          userId: 'user_overlap_test_001',
+          authProvider: 'WECHAT',
+          openid: 'placeholder-openid-overlap-001',
+          roles: [UserRole.STUDENT],
+          anonymousName: '匿名重叠测试 1'
+        },
+        {
+          userId: 'user_overlap_test_002',
+          authProvider: 'WECHAT',
+          openid: 'placeholder-openid-overlap-002',
+          roles: [UserRole.STUDENT],
+          anonymousName: '匿名重叠测试 2'
+        }
+      ]
+    });
+    await prisma.seat.createMany({
+      data: [
+        {
+          seatId: 'seat_overlap_test_001',
+          seatNo: 'OVERLAP-001',
+          area: 'constraint-test'
+        },
+        {
+          seatId: 'seat_overlap_test_002',
+          seatNo: 'OVERLAP-002',
+          area: 'constraint-test'
+        }
+      ]
+    });
+
+    const baseReservation = {
+      startTime: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z'),
+      checkinStartTime: new Date('2026-05-03T08:55:00.000Z'),
+      checkinDeadline: new Date('2026-05-03T09:15:00.000Z')
+    };
+
+    await prisma.reservation.create({
+      data: {
+        reservationId: 'reservation_overlap_test_active',
+        userId: 'user_overlap_test_001',
+        seatId: 'seat_overlap_test_001',
+        ...baseReservation
+      }
+    });
+
+    await expectPrismaErrorCode(
+      prisma.reservation.create({
+        data: {
+          reservationId: 'reservation_overlap_test_same_seat',
+          userId: 'user_overlap_test_002',
+          seatId: 'seat_overlap_test_001',
+          ...baseReservation
+        }
+      }),
+      'P2004'
+    );
+
+    await expectPrismaErrorCode(
+      prisma.reservation.create({
+        data: {
+          reservationId: 'reservation_overlap_test_same_user',
+          userId: 'user_overlap_test_001',
+          seatId: 'seat_overlap_test_002',
+          ...baseReservation
+        }
+      }),
+      'P2004'
+    );
+
+    await prisma.reservation.create({
+      data: {
+        reservationId: 'reservation_overlap_test_cancelled',
+        userId: 'user_overlap_test_001',
+        seatId: 'seat_overlap_test_001',
+        status: ReservationStatus.CANCELLED,
+        ...baseReservation
+      }
+    });
+    await prisma.reservation.create({
+      data: {
+        reservationId: 'reservation_overlap_test_no_show',
+        userId: 'user_overlap_test_001',
+        seatId: 'seat_overlap_test_001',
+        status: ReservationStatus.NO_SHOW,
+        ...baseReservation
+      }
+    });
   });
 });

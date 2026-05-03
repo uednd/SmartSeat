@@ -8,6 +8,7 @@ import { RequestLoggingMiddleware } from './common/request/request-logging.middl
 import { AuthModule } from './modules/auth/auth.module.js';
 import { DatabaseBaselineModule } from './modules/database-baseline/database-baseline.module.js';
 import { DevicesModule } from './modules/devices/devices.module.js';
+import { ReservationsModule } from './modules/reservations/reservations.module.js';
 import { SeatsModule } from './modules/seats/seats.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -19,6 +20,7 @@ import { UsersModule } from './modules/users/users.module.js';
     UsersModule,
     AuthModule,
     SeatsModule,
+    ReservationsModule,
     DevicesModule,
     ScheduleModule.forRoot()
   ],
