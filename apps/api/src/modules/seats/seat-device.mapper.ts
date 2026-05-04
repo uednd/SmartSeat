@@ -65,7 +65,8 @@ export const toAdminDeviceDto = (device: Device, seat?: Seat | null): AdminDevic
   const dto: AdminDeviceDto = {
     ...toDeviceDto(device),
     mqtt_client_id: device.mqttClientId,
-    sensor_status: device.sensorStatus as SensorHealthStatus
+    sensor_status: device.sensorStatus as SensorHealthStatus,
+    maintenance: seat?.maintenance ?? false
   };
 
   if (device.sensorModel !== null) {

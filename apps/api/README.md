@@ -1,6 +1,6 @@
 # @smartseat/api
 
-SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力、`API-SEAT-01` 座位/设备查询、`API-RES-01/02/03` 预约与扫码签到链路，以及 `API-IOT-01` MQTT 心跳、设备在线状态和 display/light/command 命令总线。presence 持续时间判断、异常检测、统计计算、排行榜和小程序页面仍未实现。
+SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力、`API-SEAT-01` 座位/设备查询、`API-RES-01/02/03` 预约与扫码签到链路、`API-IOT-01/02/03` MQTT 与传感器/异常自动规则，以及 `API-ADM-01` 管理员 dashboard、手动释放、维护、配置脱敏读取和审计接口。统计计算、排行榜和小程序页面仍未实现。
 
 ## 启动配置
 
@@ -100,7 +100,24 @@ Seed 中的设备在线状态和心跳时间只是演示初始数据。`API-IOT-
 
 动态二维码默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED=false` 可关闭扫码签到入口。后端通过 MQTT display payload 下发 `seat_id`、`device_id`、`timestamp`、`qr_token`，扫码签到成功后将预约置为 `CHECKED_IN`、座位业务状态置为 `OCCUPIED`，并发布 display/light 同步。
 
-本阶段仍不处理 presence 持续时间、SensorReading 持久化、异常事件、统计计算、排行榜、小程序页面、设备模拟器或固件逻辑。
+## 管理员接口
+
+`API-ADM-01` 已实现小程序管理员页所需后端接口，所有接口均要求 Bearer token 且具备 ADMIN 角色：
+
+- `GET /admin/dashboard`
+- `GET /admin/no-shows`
+- `GET /admin/anomalies`
+- `GET /admin/anomalies/:event_id`
+- `POST /admin/anomalies/handle`
+- `POST /admin/seats/release`
+- `POST /admin/seats/maintenance`
+- `POST /admin/devices/maintenance`
+- `GET /admin/config`
+- `GET /admin/action-logs`
+
+手动释放和维护/恢复会写入 `AdminActionLog`，并尝试通过 MQTT 同步终端 display/light 或维护命令；MQTT 禁用或断连时不回滚业务状态，会在审计 detail 中记录降级结果。配置读取接口只返回登录模式、MQTT 状态和阈值等脱敏字段，不返回 secret、client secret、password 或 token。设备维护不新增独立 `Device.maintenance` 字段，按绑定座位维护状态派生。
+
+本阶段仍不处理统计计算、排行榜、小程序页面、设备模拟器或固件逻辑。
 
 Prisma Migrate 不维护手写 down migration。本地/演示回滚等价操作是 `pnpm db:reset-demo` 重建；已提交 migration 的修正通过新增 migration 或恢复数据库备份完成。
 

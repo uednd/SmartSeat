@@ -204,10 +204,20 @@ export const deviceSchema: SchemaObject = {
 
 export const adminDeviceSchema: SchemaObject = {
   type: 'object',
+  required: [
+    'device_id',
+    'online_status',
+    'created_at',
+    'updated_at',
+    'mqtt_client_id',
+    'sensor_status',
+    'maintenance'
+  ],
   properties: {
     ...deviceSchema.properties,
     mqtt_client_id: text(),
     sensor_status: text(),
+    maintenance: bool(),
     sensor_model: text(),
     hardware_version: text(),
     network_status: text(),
@@ -414,5 +424,189 @@ export const checkinResponseSchema: SchemaObject = {
     reservation: reservationSchema,
     seat: seatSchema,
     checked_in_at: dateTime()
+  }
+};
+
+export const adminDashboardSchema: SchemaObject = {
+  type: 'object',
+  required: [
+    'seat_count',
+    'online_device_count',
+    'offline_device_count',
+    'pending_anomaly_count',
+    'reservation_count_today',
+    'no_show_count_today'
+  ],
+  properties: {
+    seat_count: integer(),
+    online_device_count: integer(),
+    offline_device_count: integer(),
+    pending_anomaly_count: integer(),
+    reservation_count_today: integer(),
+    no_show_count_today: integer()
+  }
+};
+
+export const noShowRecordSchema: SchemaObject = {
+  type: 'object',
+  required: ['reservation_id', 'user_id', 'seat_id', 'seat_no', 'start_time', 'released_at'],
+  properties: {
+    reservation_id: id(),
+    user_id: id(),
+    seat_id: id(),
+    seat_no: text(),
+    start_time: dateTime(),
+    released_at: dateTime()
+  }
+};
+
+export const anomalyEventSchema: SchemaObject = {
+  type: 'object',
+  required: ['event_id', 'event_type', 'seat_id', 'description', 'source', 'status', 'created_at'],
+  properties: {
+    event_id: id(),
+    event_type: text(),
+    seat_id: id(),
+    user_id: id(),
+    device_id: id(),
+    reservation_id: id(),
+    description: text(),
+    source: text(),
+    status: text(),
+    reason: text(),
+    created_at: dateTime(),
+    resolved_at: dateTime(),
+    handled_by: id(),
+    handled_at: dateTime(),
+    handle_note: text()
+  }
+};
+
+export const handleAnomalyRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['event_id', 'status', 'handle_note'],
+  properties: {
+    event_id: id(),
+    status: text(),
+    handle_note: text()
+  }
+};
+
+export const adminReleaseSeatRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['seat_id', 'reason', 'restore_availability'],
+  properties: {
+    seat_id: id(),
+    reservation_id: id(),
+    reason: text(),
+    restore_availability: bool()
+  }
+};
+
+export const updateSeatMaintenanceRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['seat_id', 'maintenance', 'reason'],
+  properties: {
+    seat_id: id(),
+    maintenance: bool(),
+    reason: text()
+  }
+};
+
+export const updateDeviceMaintenanceRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['device_id', 'maintenance', 'reason'],
+  properties: {
+    device_id: id(),
+    maintenance: bool(),
+    reason: text()
+  }
+};
+
+export const adminSystemConfigSchema: SchemaObject = {
+  type: 'object',
+  required: ['auth', 'mqtt', 'presence', 'auto_rules', 'checkin'],
+  properties: {
+    auth: authConfigPublicSchema,
+    mqtt: {
+      type: 'object',
+      required: ['enabled', 'connected', 'heartbeat_offline_threshold_seconds'],
+      properties: {
+        enabled: bool(),
+        connected: bool(),
+        heartbeat_offline_threshold_seconds: integer()
+      }
+    },
+    presence: {
+      type: 'object',
+      required: [
+        'evaluation_enabled',
+        'present_stable_seconds',
+        'absent_stable_seconds',
+        'untrusted_stable_seconds'
+      ],
+      properties: {
+        evaluation_enabled: bool(),
+        present_stable_seconds: integer(),
+        absent_stable_seconds: integer(),
+        untrusted_stable_seconds: integer()
+      }
+    },
+    auto_rules: {
+      type: 'object',
+      required: [
+        'enabled',
+        'no_show_enabled',
+        'usage_enabled',
+        'occupancy_anomalies_enabled',
+        'device_reconcile_enabled',
+        'sensor_error_enabled',
+        'no_show_interval_seconds',
+        'usage_interval_seconds',
+        'occupancy_anomaly_interval_seconds',
+        'device_reconcile_interval_seconds',
+        'ending_soon_window_seconds'
+      ],
+      properties: {
+        enabled: bool(),
+        no_show_enabled: bool(),
+        usage_enabled: bool(),
+        occupancy_anomalies_enabled: bool(),
+        device_reconcile_enabled: bool(),
+        sensor_error_enabled: bool(),
+        no_show_interval_seconds: integer(),
+        usage_interval_seconds: integer(),
+        occupancy_anomaly_interval_seconds: integer(),
+        device_reconcile_interval_seconds: integer(),
+        ending_soon_window_seconds: integer()
+      }
+    },
+    checkin: {
+      type: 'object',
+      required: ['enabled', 'qr_token_refresh_seconds', 'qr_token_ttl_seconds'],
+      properties: {
+        enabled: bool(),
+        qr_token_refresh_seconds: integer(),
+        qr_token_ttl_seconds: integer()
+      }
+    }
+  }
+};
+
+export const adminActionLogSchema: SchemaObject = {
+  type: 'object',
+  required: ['log_id', 'admin_id', 'action_type', 'target_type', 'target_id', 'created_at'],
+  properties: {
+    log_id: id(),
+    admin_id: id(),
+    action_type: text(),
+    target_type: text(),
+    target_id: id(),
+    reason: text(),
+    detail: {
+      type: 'object',
+      additionalProperties: true
+    },
+    created_at: dateTime()
   }
 };

@@ -8,10 +8,14 @@ import {
   type ApiTransportRequest,
   type SmartSeatApiClient
 } from '../index.js';
-import { AuthMode } from '@smartseat/contracts';
+import { AnomalyStatus, AuthMode } from '@smartseat/contracts';
 
 const transport: ApiTransport = {
   async request<TResponse>(request: ApiTransportRequest) {
+    if (request.method === undefined || request.path === undefined) {
+      throw new Error(`Missing HTTP binding for ${request.operation_id}.`);
+    }
+
     if (request.operation_id === 'auth.getLoginMode') {
       return {
         auth_mode: 'WECHAT',
@@ -82,12 +86,44 @@ const checkedInReservation = await client.checkin.submit({
   token: 'qr-token',
   timestamp: '2026-05-03T09:00:00.000Z'
 });
+const anomalyList = await client.anomalies.list({ page: 1 });
+const handledAnomaly = await client.anomalies.handle({
+  event_id: 'anomaly-1',
+  status: AnomalyStatus.ACKNOWLEDGED,
+  handle_note: 'acknowledged'
+});
 const adminReservations = await client.admin.listCurrentReservations({ page: 1 });
 const adminSeatReservation = await client.admin.getSeatReservation('seat-1');
+const adminDashboard = await client.admin.dashboard();
+const adminReleasedSeat = await client.admin.releaseSeat({
+  seat_id: 'seat-1',
+  reason: 'administrator release',
+  restore_availability: true
+});
+const adminMaintainedSeat = await client.admin.setSeatMaintenance({
+  seat_id: 'seat-1',
+  maintenance: true,
+  reason: 'terminal inspection'
+});
+const adminMaintainedDevice = await client.admin.setDeviceMaintenance({
+  device_id: 'device-1',
+  maintenance: false,
+  reason: 'terminal restored'
+});
+const adminNoShows = await client.admin.noShows({ page: 1 });
+const adminAnomalies = await client.admin.anomalies({ status: AnomalyStatus.PENDING });
+const adminAnomaly = await client.admin.getAnomaly('anomaly-1');
+const handledAdminAnomaly = await client.admin.handleAnomaly({
+  event_id: 'anomaly-1',
+  status: AnomalyStatus.CLOSED,
+  handle_note: 'closed by administrator'
+});
+const adminSystemConfig = await client.admin.getSystemConfig();
 const adminAuthConfig = await client.admin.getAuthConfig();
 const updatedAdminAuthConfig = await client.admin.updateAuthConfig({
   auth_mode: AuthMode.WECHAT
 });
+const adminActionLogs = await client.admin.actionLogs({ page: 1 });
 
 const httpTransport = createHttpTransport({
   baseUrl: 'http://localhost:3000',
@@ -153,10 +189,22 @@ void userReleasedReservation;
 void cancelledReservation;
 void legacyCancelledReservation;
 void checkedInReservation;
+void anomalyList;
+void handledAnomaly;
 void adminReservations;
 void adminSeatReservation;
+void adminDashboard;
+void adminReleasedSeat;
+void adminMaintainedSeat;
+void adminMaintainedDevice;
+void adminNoShows;
+void adminAnomalies;
+void adminAnomaly;
+void handledAdminAnomaly;
+void adminSystemConfig;
 void adminAuthConfig;
 void updatedAdminAuthConfig;
+void adminActionLogs;
 void httpTransport;
 void clientError;
 void isErrorResponse;

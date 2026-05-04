@@ -1,8 +1,10 @@
 import {
   ApiErrorCode,
+  AdminActionType,
   AnomalySource,
   AnomalyStatus,
   AnomalyType,
+  AuthMode,
   DeviceCommandType,
   DeviceOnlineStatus,
   DisplayLayout,
@@ -16,9 +18,12 @@ import {
   SeatStatus,
   SensorHealthStatus,
   buildMqttTopic,
+  type AdminActionLogDto,
   type AdminDeviceDto,
+  type AdminReleaseSeatRequest,
   type AdminReservationListRequest,
   type AdminSeatDetailDto,
+  type AdminSystemConfigDto,
   type AnomalyEventDto,
   type ApiErrorResponse,
   type BindDeviceSeatRequest,
@@ -28,6 +33,7 @@ import {
   type CreateSeatRequest,
   type CurrentUsageResponse,
   type ExtendReservationRequest,
+  type HandleAnomalyRequest,
   type MqttCommandPayload,
   type MqttDisplayPayload,
   type MqttHeartbeatPayload,
@@ -40,7 +46,9 @@ import {
   type SeatDto,
   type SetSeatEnabledRequest,
   type StudyRecordDto,
+  type UpdateDeviceMaintenanceRequest,
   type UpdateDeviceRequest,
+  type UpdateSeatMaintenanceRequest,
   type UpdateSeatRequest,
   type UserReleaseReservationRequest
 } from '../index.js';
@@ -212,6 +220,21 @@ const anomalyEvent = {
   created_at: '2026-05-02T00:00:00.000Z'
 } satisfies AnomalyEventDto;
 
+const acknowledgedAnomalyEvent = {
+  ...anomalyEvent,
+  event_id: 'anomaly-acknowledged',
+  status: AnomalyStatus.ACKNOWLEDGED,
+  handled_by: 'admin-1',
+  handled_at: '2026-05-02T00:05:00.000Z',
+  handle_note: 'confirmed by administrator'
+} satisfies AnomalyEventDto;
+
+const handleAnomaly = {
+  event_id: anomalyEvent.event_id,
+  status: AnomalyStatus.CLOSED,
+  handle_note: 'closed after manual verification'
+} satisfies HandleAnomalyRequest;
+
 const seatDetail = {
   ...seat,
   current_occupancy: {
@@ -252,6 +275,7 @@ const adminDevice = {
   mqtt_client_id: 'smartseat-device-1',
   online_status: DeviceOnlineStatus.ONLINE,
   sensor_status: SensorHealthStatus.OK,
+  maintenance: false,
   firmware_version: '0.0.1',
   hardware_version: 'esp32-p4',
   network_status: 'wifi:ok',
@@ -273,6 +297,76 @@ const setSeatEnabled = {
   enabled: false,
   reason: 'maintenance'
 } satisfies SetSeatEnabledRequest;
+
+const adminReleaseSeat = {
+  seat_id: 'seat-1',
+  reservation_id: reservation.reservation_id,
+  reason: 'administrator release',
+  restore_availability: true
+} satisfies AdminReleaseSeatRequest;
+
+const updateSeatMaintenance = {
+  seat_id: 'seat-1',
+  maintenance: true,
+  reason: 'terminal inspection'
+} satisfies UpdateSeatMaintenanceRequest;
+
+const updateDeviceMaintenance = {
+  device_id: 'device-1',
+  maintenance: false,
+  reason: 'terminal inspection complete'
+} satisfies UpdateDeviceMaintenanceRequest;
+
+const adminSystemConfig = {
+  auth: {
+    auth_mode: AuthMode.WECHAT,
+    oidc_secret_configured: false,
+    wechat_secret_configured: true
+  },
+  mqtt: {
+    enabled: true,
+    connected: false,
+    heartbeat_offline_threshold_seconds: 30
+  },
+  presence: {
+    evaluation_enabled: true,
+    present_stable_seconds: 3,
+    absent_stable_seconds: 10,
+    untrusted_stable_seconds: 5
+  },
+  auto_rules: {
+    enabled: true,
+    no_show_enabled: true,
+    usage_enabled: true,
+    occupancy_anomalies_enabled: true,
+    device_reconcile_enabled: true,
+    sensor_error_enabled: true,
+    no_show_interval_seconds: 30,
+    usage_interval_seconds: 30,
+    occupancy_anomaly_interval_seconds: 30,
+    device_reconcile_interval_seconds: 30,
+    ending_soon_window_seconds: 300
+  },
+  checkin: {
+    enabled: true,
+    qr_token_refresh_seconds: 15,
+    qr_token_ttl_seconds: 30
+  }
+} satisfies AdminSystemConfigDto;
+
+const adminActionLog = {
+  log_id: 'log-1',
+  admin_id: 'admin-1',
+  action_type: AdminActionType.CLOSE_ANOMALY,
+  target_type: 'anomaly',
+  target_id: 'anomaly-1',
+  reason: 'closed',
+  detail: {
+    previous_status: AnomalyStatus.ACKNOWLEDGED,
+    status: AnomalyStatus.CLOSED
+  },
+  created_at: '2026-05-02T00:00:00.000Z'
+} satisfies AdminActionLogDto;
 
 const createDevice = {
   mqtt_client_id: 'smartseat-device-2',
@@ -312,12 +406,19 @@ void studyRecord;
 void reservationHistory;
 void adminReservationList;
 void anomalyEvent;
+void acknowledgedAnomalyEvent;
+void handleAnomaly;
 void seatDetail;
 void adminSeatDetail;
 void adminDevice;
 void createSeat;
 void updateSeat;
 void setSeatEnabled;
+void adminReleaseSeat;
+void updateSeatMaintenance;
+void updateDeviceMaintenance;
+void adminSystemConfig;
+void adminActionLog;
 void createDevice;
 void updateDevice;
 void bindDeviceSeat;

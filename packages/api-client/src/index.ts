@@ -7,6 +7,7 @@ import {
   type AdminReservationListRequest,
   type AdminSeatDetailDto,
   type AdminSeatOverviewDto,
+  type AdminSystemConfigDto,
   type AnomalyEventDto,
   type AnomalyListRequest,
   type ApiErrorResponse,
@@ -24,8 +25,6 @@ import {
   type DeviceListRequest,
   type ExtendReservationRequest,
   type HandleAnomalyRequest,
-  type LeaderboardRequest,
-  type LeaderboardResponse,
   type LoginModeResponse,
   type MeResponse,
   type NoShowRecordDto,
@@ -39,9 +38,9 @@ import {
   type SeatDto,
   type SeatListRequest,
   type SetSeatEnabledRequest,
-  type StudyStatsDto,
   type UnbindDeviceSeatRequest,
   type UpdateAuthConfigRequest,
+  type UpdateDeviceMaintenanceRequest,
   type UpdateDeviceRequest,
   type UpdateLeaderboardPreferenceRequest,
   type UpdateSeatRequest,
@@ -373,14 +372,6 @@ export interface AnomaliesApi {
   handle(request: HandleAnomalyRequest): Promise<AnomalyEventDto>;
 }
 
-export interface StatsApi {
-  me(): Promise<StudyStatsDto>;
-}
-
-export interface LeaderboardApi {
-  list(request: LeaderboardRequest): Promise<LeaderboardResponse>;
-}
-
 export interface AdminApi {
   dashboard(): Promise<AdminDashboardDto>;
   listSeats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
@@ -400,10 +391,13 @@ export interface AdminApi {
   getSeatReservation(seat_id: string): Promise<ReservationDto | undefined>;
   seats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
   releaseSeat(request: AdminReleaseSeatRequest): Promise<SeatDetailDto>;
-  setSeatMaintenance(request: UpdateSeatMaintenanceRequest): Promise<SeatDetailDto>;
+  setSeatMaintenance(request: UpdateSeatMaintenanceRequest): Promise<AdminSeatDetailDto>;
+  setDeviceMaintenance(request: UpdateDeviceMaintenanceRequest): Promise<AdminDeviceDto>;
   noShows(request?: PageRequest): Promise<PageResponse<NoShowRecordDto>>;
   anomalies(request?: AnomalyListRequest): Promise<PageResponse<AnomalyEventDto>>;
+  getAnomaly(event_id: string): Promise<AnomalyEventDto>;
   handleAnomaly(request: HandleAnomalyRequest): Promise<AnomalyEventDto>;
+  getSystemConfig(): Promise<AdminSystemConfigDto>;
   getAuthConfig(): Promise<AuthConfigPublicDto>;
   updateAuthConfig(request: UpdateAuthConfigRequest): Promise<AuthConfigPublicDto>;
   actionLogs(request?: PageRequest): Promise<PageResponse<AdminActionLogDto>>;
@@ -417,8 +411,6 @@ export interface SmartSeatApiClient {
   reservations: ReservationsApi;
   checkin: CheckinApi;
   anomalies: AnomaliesApi;
-  stats: StatsApi;
-  leaderboard: LeaderboardApi;
   admin: AdminApi;
 }
 
@@ -580,19 +572,27 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
     },
     anomalies: {
       list: (request) =>
-        transport.request({ operation_id: 'anomalies.list', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'anomalies.list',
+          method: 'GET',
+          path: '/admin/anomalies',
+          query: request
+        }),
       handle: (request) =>
-        transport.request({ operation_id: 'anomalies.handle', method: 'POST', body: request })
-    },
-    stats: {
-      me: () => transport.request({ operation_id: 'stats.me', method: 'GET' })
-    },
-    leaderboard: {
-      list: (request) =>
-        transport.request({ operation_id: 'leaderboard.list', method: 'GET', query: request })
+        transport.request({
+          operation_id: 'anomalies.handle',
+          method: 'POST',
+          path: '/admin/anomalies/handle',
+          body: request
+        })
     },
     admin: {
-      dashboard: () => transport.request({ operation_id: 'admin.dashboard', method: 'GET' }),
+      dashboard: () =>
+        transport.request({
+          operation_id: 'admin.dashboard',
+          method: 'GET',
+          path: '/admin/dashboard'
+        }),
       listSeats: (request) =>
         transport.request({
           operation_id: 'admin.listSeats',
@@ -689,19 +689,59 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           query: request
         }),
       releaseSeat: (request) =>
-        transport.request({ operation_id: 'admin.releaseSeat', method: 'POST', body: request }),
+        transport.request({
+          operation_id: 'admin.releaseSeat',
+          method: 'POST',
+          path: '/admin/seats/release',
+          body: request
+        }),
       setSeatMaintenance: (request) =>
         transport.request({
           operation_id: 'admin.setSeatMaintenance',
           method: 'POST',
+          path: '/admin/seats/maintenance',
+          body: request
+        }),
+      setDeviceMaintenance: (request) =>
+        transport.request({
+          operation_id: 'admin.setDeviceMaintenance',
+          method: 'POST',
+          path: '/admin/devices/maintenance',
           body: request
         }),
       noShows: (request) =>
-        transport.request({ operation_id: 'admin.noShows', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'admin.noShows',
+          method: 'GET',
+          path: '/admin/no-shows',
+          query: request
+        }),
       anomalies: (request) =>
-        transport.request({ operation_id: 'admin.anomalies', method: 'GET', query: request }),
+        transport.request({
+          operation_id: 'admin.anomalies',
+          method: 'GET',
+          path: '/admin/anomalies',
+          query: request
+        }),
+      getAnomaly: (event_id) =>
+        transport.request({
+          operation_id: 'admin.getAnomaly',
+          method: 'GET',
+          path: `/admin/anomalies/${encodeURIComponent(event_id)}`
+        }),
       handleAnomaly: (request) =>
-        transport.request({ operation_id: 'admin.handleAnomaly', method: 'POST', body: request }),
+        transport.request({
+          operation_id: 'admin.handleAnomaly',
+          method: 'POST',
+          path: '/admin/anomalies/handle',
+          body: request
+        }),
+      getSystemConfig: () =>
+        transport.request({
+          operation_id: 'admin.getSystemConfig',
+          method: 'GET',
+          path: '/admin/config'
+        }),
       getAuthConfig: () =>
         transport.request({
           operation_id: 'admin.getAuthConfig',
@@ -716,7 +756,12 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           body: request
         }),
       actionLogs: (request) =>
-        transport.request({ operation_id: 'admin.actionLogs', method: 'GET', query: request })
+        transport.request({
+          operation_id: 'admin.actionLogs',
+          method: 'GET',
+          path: '/admin/action-logs',
+          query: request
+        })
     }
   };
 }

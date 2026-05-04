@@ -295,17 +295,18 @@
 
 ### CL-API-ADM-01 管理员接口、手动释放、维护与审计
 
-- [ ] 管理员看板接口可返回座位、设备、异常、no-show 汇总。
-- [ ] 普通学生访问管理员接口被拒绝。
-- [ ] 管理员可查看座位详情与当前预约/设备/异常信息。
-- [ ] 管理员可查看设备在线/离线和最后心跳。
-- [ ] 管理员可查看异常事件并更新处理状态。
-- [ ] 管理员手动释放必须填写原因。
-- [ ] 手动释放后座位/预约/终端状态同步正确。
-- [ ] 管理员可切换座位或设备维护状态，并可恢复。
-- [ ] 关键操作写入 AdminActionLog，包含 admin、action、target、reason、detail、timestamp。
-- [ ] 系统配置接口不暴露 secret 明文。
-- [ ] 证据路径已填写：____
+- [x] 管理员看板接口可返回座位、设备、异常、no-show 汇总。
+- [x] 普通学生访问管理员接口被拒绝。
+- [x] 管理员可查看座位详情与当前预约/设备/异常信息。
+- [x] 管理员可查看设备在线/离线和最后心跳。
+- [x] 管理员可查看异常事件并更新处理状态。
+- [x] 管理员手动释放必须填写原因。
+- [x] 手动释放后座位/预约/终端状态同步正确。
+- [x] 管理员可切换座位或设备维护状态，并可恢复。
+- [x] 关键操作写入 AdminActionLog，包含 admin、action、target、reason、detail、timestamp。
+- [x] 系统配置接口不暴露 secret 明文。
+- [x] 证据路径已填写：`apps/api/src/__tests__/api-admin.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`。
+- [x] 核验说明：`pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test` 已通过；所有新增 `/admin/*` 接口使用 ADMIN 守卫，配置接口只返回脱敏字段，MQTT 不可用时业务操作安全降级并写入审计 detail。
 
 ### CL-API-STAT-01 学习记录、个人统计与匿名排行榜
 

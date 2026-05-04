@@ -8,6 +8,7 @@ import { AutoRulesModule } from './jobs/auto-rules.module.js';
 import { AnomaliesModule } from './modules/anomalies/anomalies.module.js';
 import { RequestLoggingMiddleware } from './common/request/request-logging.middleware.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { DatabaseBaselineModule } from './modules/database-baseline/database-baseline.module.js';
 import { DevicesModule } from './modules/devices/devices.module.js';
 import { MqttModule } from './modules/mqtt/mqtt.module.js';
@@ -23,6 +24,7 @@ import { UsersModule } from './modules/users/users.module.js';
     DatabaseBaselineModule,
     UsersModule,
     AuthModule,
+    AdminModule,
     AnomaliesModule,
     SeatsModule,
     ReservationsModule,

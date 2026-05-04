@@ -136,6 +136,12 @@ describe('API platform', () => {
     expect(response.body.openapi).toEqual(expect.any(String));
     expect(response.body.paths).toHaveProperty('/health');
     expect(response.body.paths).toHaveProperty('/checkin');
+    expect(response.body.paths).toHaveProperty('/admin/dashboard');
+    expect(response.body.paths).toHaveProperty('/admin/seats/release');
+    expect(response.body.paths).toHaveProperty('/admin/seats/maintenance');
+    expect(response.body.paths).toHaveProperty('/admin/devices/maintenance');
+    expect(response.body.paths).toHaveProperty('/admin/anomalies/handle');
+    expect(response.body.paths).toHaveProperty('/admin/config');
     expect(response.body.paths['/checkin']).toHaveProperty('post');
     expect(response.body.paths['/auth/wechat/login'].post.requestBody.content).toMatchObject({
       'application/json': {
@@ -167,5 +173,30 @@ describe('API platform', () => {
         }
       }
     });
+    expect(response.body.paths['/admin/seats/release'].post.requestBody.content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining(['seat_id', 'reason', 'restore_availability']),
+          properties: {
+            reason: expect.objectContaining({ type: 'string' })
+          }
+        }
+      }
+    });
+    expect(response.body.paths['/admin/anomalies/handle'].post.requestBody.content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining(['event_id', 'status', 'handle_note']),
+          properties: {
+            handle_note: expect.objectContaining({ type: 'string' })
+          }
+        }
+      }
+    });
+    const configSchema =
+      response.body.paths['/admin/config'].get.responses['200'].content['application/json'].schema;
+    expect(configSchema.properties.auth.properties).not.toHaveProperty('oidc_client_secret');
+    expect(configSchema.properties.auth.properties).not.toHaveProperty('wechat_secret');
+    expect(configSchema.properties.auth.properties).not.toHaveProperty('token');
   });
 });

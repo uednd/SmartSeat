@@ -202,7 +202,7 @@ stateDiagram-v2
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Done |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Done |
-| API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Not Started |
+| API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Done |
 | API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Not Started |
 | MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Not Started |
 | MINI-02 | 学生页面闭环 | apps/miniapp | P0 | MINI-01、API-SEAT-01、API-RES-01/02/03、API-STAT-01 | Not Started |
@@ -574,6 +574,7 @@ stateDiagram-v2
 | 监控与告警 | 管理员敏感操作日志；异常处理失败日志。 |
 | 验收标准 | 管理员可查看和处理座位/设备/异常/no-show；手动释放同步终端；关键操作留痕。 |
 | 可分配给编码智能体的提示 | 只做管理员接口与审计；确保全部走管理员鉴权；补齐 release、handle anomaly、maintenance 测试。 |
+| 当前状态 | Done；已实现管理员 dashboard、座位/设备/no-show/异常查询、手动释放、座位维护、设备绑定座位派生维护、异常确认/处理/忽略/关闭、脱敏系统配置读取、AdminActionLog 审计和 api-client/OpenAPI DTO。所有新增 `/admin/*` 接口走 ADMIN 权限；MQTT 不可用时释放/维护安全降级并记录审计 detail。未实现小程序管理员页面、排行榜、固件逻辑、新自动规则或独立设备维护持久字段。 |
 
 ### API-STAT-01 学习记录、个人统计与匿名排行榜
 

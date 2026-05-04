@@ -194,6 +194,7 @@ export interface DeviceDto {
 export interface AdminDeviceDto extends DeviceDto {
   mqtt_client_id: string;
   sensor_status: SensorHealthStatus;
+  maintenance: boolean;
   sensor_model?: string;
   hardware_version?: string;
   network_status?: string;
@@ -326,8 +327,14 @@ export interface AnomalyListRequest extends PageRequest {
 
 export interface HandleAnomalyRequest {
   event_id: EntityId;
-  status: Extract<AnomalyStatus, AnomalyStatus.HANDLED | AnomalyStatus.IGNORED>;
-  handle_note?: string;
+  status: Extract<
+    AnomalyStatus,
+    | AnomalyStatus.ACKNOWLEDGED
+    | AnomalyStatus.HANDLED
+    | AnomalyStatus.IGNORED
+    | AnomalyStatus.CLOSED
+  >;
+  handle_note: string;
 }
 
 export interface StudyRecordDto {
@@ -443,7 +450,46 @@ export interface AdminReleaseSeatRequest {
 export interface UpdateSeatMaintenanceRequest {
   seat_id: EntityId;
   maintenance: boolean;
-  reason?: string;
+  reason: string;
+}
+
+export interface UpdateDeviceMaintenanceRequest {
+  device_id: EntityId;
+  maintenance: boolean;
+  reason: string;
+}
+
+export interface AdminSystemConfigDto {
+  auth: AuthConfigPublicDto;
+  mqtt: {
+    enabled: boolean;
+    connected: boolean;
+    heartbeat_offline_threshold_seconds: number;
+  };
+  presence: {
+    evaluation_enabled: boolean;
+    present_stable_seconds: number;
+    absent_stable_seconds: number;
+    untrusted_stable_seconds: number;
+  };
+  auto_rules: {
+    enabled: boolean;
+    no_show_enabled: boolean;
+    usage_enabled: boolean;
+    occupancy_anomalies_enabled: boolean;
+    device_reconcile_enabled: boolean;
+    sensor_error_enabled: boolean;
+    no_show_interval_seconds: number;
+    usage_interval_seconds: number;
+    occupancy_anomaly_interval_seconds: number;
+    device_reconcile_interval_seconds: number;
+    ending_soon_window_seconds: number;
+  };
+  checkin: {
+    enabled: boolean;
+    qr_token_refresh_seconds: number;
+    qr_token_ttl_seconds: number;
+  };
 }
 
 export interface UpdateAuthConfigRequest {
