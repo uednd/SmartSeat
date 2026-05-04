@@ -1,5 +1,6 @@
 import type {
   AdminActionType,
+  AnomalySource,
   AnomalyStatus,
   AnomalyType,
   AuthMode,
@@ -307,8 +308,11 @@ export interface AnomalyEventDto {
   device_id?: EntityId;
   reservation_id?: EntityId;
   description: string;
+  source: AnomalySource;
   status: AnomalyStatus;
+  reason?: string;
   created_at: IsoDateTimeString;
+  resolved_at?: IsoDateTimeString;
   handled_by?: EntityId;
   handled_at?: IsoDateTimeString;
   handle_note?: string;

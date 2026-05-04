@@ -37,6 +37,11 @@ export interface DeviceMqttState {
   seat: Seat | null;
 }
 
+export interface DeviceOfflineTransition {
+  deviceId: string;
+  seatId: string | null;
+}
+
 @Injectable()
 export class DevicesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -404,6 +409,13 @@ export class DevicesService {
   }
 
   async markHeartbeatTimedOutDevices(now: Date, thresholdSeconds: number): Promise<number> {
+    return (await this.markHeartbeatTimedOutDevicesDetailed(now, thresholdSeconds)).length;
+  }
+
+  async markHeartbeatTimedOutDevicesDetailed(
+    now: Date,
+    thresholdSeconds: number
+  ): Promise<DeviceOfflineTransition[]> {
     const cutoff = new Date(now.getTime() - thresholdSeconds * 1000);
     const devices = await this.prisma.device.findMany({
       where: {
@@ -412,15 +424,17 @@ export class DevicesService {
       },
       orderBy: [{ deviceId: 'asc' }]
     });
-    let offlineCount = 0;
+    const transitions: DeviceOfflineTransition[] = [];
 
     for (const device of devices) {
-      if (await this.markDeviceOffline(device.deviceId)) {
-        offlineCount += 1;
+      const transition = await this.markDeviceOffline(device.deviceId);
+
+      if (transition !== null) {
+        transitions.push(transition);
       }
     }
 
-    return offlineCount;
+    return transitions;
   }
 
   async getDeviceMqttState(deviceId: string): Promise<DeviceMqttState | null> {
@@ -443,14 +457,14 @@ export class DevicesService {
     };
   }
 
-  private async markDeviceOffline(deviceId: string): Promise<boolean> {
+  private async markDeviceOffline(deviceId: string): Promise<DeviceOfflineTransition | null> {
     return await this.prisma.$transaction(async (tx) => {
       const device = await tx.device.findUnique({
         where: { deviceId }
       });
 
       if (device === null || device.onlineStatus === DeviceOnlineStatus.OFFLINE) {
-        return false;
+        return null;
       }
 
       await tx.device.update({
@@ -464,7 +478,10 @@ export class DevicesService {
         await this.updateBoundSeatAfterDeviceOffline(tx, device.seatId);
       }
 
-      return true;
+      return {
+        deviceId: device.deviceId,
+        seatId: device.seatId
+      };
     });
   }
 

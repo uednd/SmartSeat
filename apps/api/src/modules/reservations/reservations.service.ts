@@ -54,7 +54,6 @@ import { toSeatDto } from '../seats/seat-device.mapper.js';
 
 const CHECKIN_START_OFFSET_MS = 5 * 60 * 1000;
 const CHECKIN_DEADLINE_OFFSET_MS = 15 * 60 * 1000;
-const ENDING_SOON_WINDOW_MS = 10 * 60 * 1000;
 const MIN_VALID_STUDY_MINUTES = 15;
 const SHORT_STUDY_INVALID_REASON = 'DURATION_LT_15_MINUTES';
 const ACTIVE_RESERVATION_STATUSES = [
@@ -69,6 +68,23 @@ type CheckinTransactionResult = {
   device: Device;
   checkedInAt: Date;
 };
+
+export interface ReservationRuleTransition {
+  reservationId: string;
+  userId: string;
+  seatId: string;
+  deviceId: string | null;
+}
+
+export interface NoShowReservationScanResult {
+  expired: ReservationRuleTransition[];
+}
+
+export interface UsageReservationScanResult {
+  endingSoon: ReservationRuleTransition[];
+  finished: ReservationRuleTransition[];
+  pendingRelease: ReservationRuleTransition[];
+}
 
 @Injectable()
 export class ReservationsService implements OnModuleInit, OnModuleDestroy {
@@ -609,6 +625,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async expireNoShowReservations(now = new Date()): Promise<number> {
+    const result = await this.expireNoShowReservationsDetailed(now);
+
+    return result.expired.length;
+  }
+
+  async expireNoShowReservationsDetailed(now = new Date()): Promise<NoShowReservationScanResult> {
     const expired = await this.prisma.$transaction(
       async (tx) => {
         const reservations = await tx.reservation.findMany({
@@ -620,8 +642,15 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
           },
           orderBy: [{ checkinDeadline: 'asc' }]
         });
+        const transitions: ReservationRuleTransition[] = [];
 
         for (const reservation of reservations) {
+          const seat = await tx.seat.findUnique({
+            where: {
+              seatId: reservation.seatId
+            }
+          });
+
           await tx.reservation.update({
             where: {
               reservationId: reservation.reservationId
@@ -647,25 +676,31 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
             }
           });
           await this.releaseSeatIfNoActiveReservation(tx, reservation.seatId);
+          transitions.push({
+            reservationId: reservation.reservationId,
+            userId: reservation.userId,
+            seatId: reservation.seatId,
+            deviceId: seat?.deviceId ?? null
+          });
         }
 
-        return reservations.length;
+        return transitions;
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
     );
 
-    if (expired > 0) {
+    if (expired.length > 0) {
       this.logger.log(
         JSON.stringify({
           category: 'reservations_expired_no_show',
-          count: expired
+          count: expired.length
         })
       );
     }
 
-    return expired;
+    return { expired };
   }
 
   async advanceUsageReservations(now = new Date()): Promise<{
@@ -673,6 +708,22 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
     finished: number;
     pending_release: number;
   }> {
+    const result = await this.advanceUsageReservationsDetailed(now);
+
+    return {
+      ending_soon: result.endingSoon.length,
+      finished: result.finished.length,
+      pending_release: result.pendingRelease.length
+    };
+  }
+
+  async advanceUsageReservationsDetailed(
+    now = new Date(),
+    endingSoonWindowSeconds = getConfigNumber(
+      this.configService,
+      'AUTO_RULES_ENDING_SOON_WINDOW_SECONDS'
+    )
+  ): Promise<UsageReservationScanResult> {
     const result = await this.prisma.$transaction(
       async (tx) => {
         const reservations = await tx.reservation.findMany({
@@ -681,11 +732,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
           },
           orderBy: [{ endTime: 'asc' }]
         });
-        const counts = {
-          ending_soon: 0,
-          finished: 0,
-          pending_release: 0
+        const transitions: UsageReservationScanResult = {
+          endingSoon: [],
+          finished: [],
+          pendingRelease: []
         };
+        const endingSoonWindowMs = endingSoonWindowSeconds * 1000;
 
         for (const reservation of reservations) {
           const seat = await tx.seat.findUnique({
@@ -709,7 +761,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
                     businessStatus: SeatStatus.PENDING_RELEASE
                   }
                 });
-                counts.pending_release += 1;
+                transitions.pendingRelease.push({
+                  reservationId: reservation.reservationId,
+                  userId: reservation.userId,
+                  seatId: reservation.seatId,
+                  deviceId: seat.deviceId
+                });
               }
               continue;
             }
@@ -726,11 +783,16 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
             });
             await this.upsertStudyRecord(tx, reservation, reservation.endTime);
             await this.releaseSeatIfNoActiveReservation(tx, reservation.seatId);
-            counts.finished += 1;
+            transitions.finished.push({
+              reservationId: reservation.reservationId,
+              userId: reservation.userId,
+              seatId: reservation.seatId,
+              deviceId: seat.deviceId
+            });
             continue;
           }
 
-          if (reservation.endTime.getTime() - now.getTime() <= ENDING_SOON_WINDOW_MS) {
+          if (reservation.endTime.getTime() - now.getTime() <= endingSoonWindowMs) {
             if (seat.businessStatus !== SeatStatus.ENDING_SOON) {
               await tx.seat.update({
                 where: {
@@ -740,23 +802,34 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
                   businessStatus: SeatStatus.ENDING_SOON
                 }
               });
-              counts.ending_soon += 1;
+              transitions.endingSoon.push({
+                reservationId: reservation.reservationId,
+                userId: reservation.userId,
+                seatId: reservation.seatId,
+                deviceId: seat.deviceId
+              });
             }
           }
         }
 
-        return counts;
+        return transitions;
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
     );
 
-    if (result.ending_soon > 0 || result.finished > 0 || result.pending_release > 0) {
+    if (
+      result.endingSoon.length > 0 ||
+      result.finished.length > 0 ||
+      result.pendingRelease.length > 0
+    ) {
       this.logger.log(
         JSON.stringify({
           category: 'usage_reservations_advanced',
-          ...result
+          ending_soon: result.endingSoon.length,
+          finished: result.finished.length,
+          pending_release: result.pendingRelease.length
         })
       );
     }

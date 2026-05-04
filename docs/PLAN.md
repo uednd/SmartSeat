@@ -201,7 +201,7 @@ stateDiagram-v2
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Done |
 | API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Done |
-| API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Not Started |
+| API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Done |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Not Started |
 | API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Not Started |
 | MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Not Started |
@@ -547,6 +547,12 @@ stateDiagram-v2
 | 回滚要求 | 可逐项关闭自动规则；关闭后不破坏人工释放能力。 |
 | 监控与告警 | 任务执行时长、扫描数量、异常生成数量、任务失败日志。 |
 | 验收标准 | 自动规则能覆盖 PRD 核心异常；任务重复执行不产生重复异常或错误状态。 |
+| 当前状态 | Done；已实现可配置自动规则调度、no-show 自动释放、ENDING_SOON 切换、到期无人完成、到期有人 `PENDING_RELEASE`、设备离线 reconcile、空闲有人/使用中无人/到期有人/设备离线/传感器异常事件生成、pending 异常幂等与设备恢复自动解决。未实现管理员 UI、小程序页面、固件驱动或手动异常处理接口。 |
+| 任务周期与阈值 | `AUTO_RULES_NO_SHOW_INTERVAL_SECONDS=30`、`AUTO_RULES_USAGE_INTERVAL_SECONDS=30`、`AUTO_RULES_OCCUPANCY_ANOMALY_INTERVAL_SECONDS=30`、`AUTO_RULES_DEVICE_RECONCILE_INTERVAL_SECONDS=15`；ENDING_SOON 默认 600 秒；空闲有人默认 60 秒、使用中无人默认 300 秒、到期有人默认 60 秒、传感器异常默认 120 秒；设备离线继续复用 `MQTT_HEARTBEAT_OFFLINE_THRESHOLD_SECONDS=75`。 |
+| 幂等条件 | no-show 仅扫描 `WAITING_CHECKIN` 且超过 `checkin_deadline` 的预约；学习记录使用 `reservation_id` upsert；同一 `event_type + seat_id + device_id + reservation_id` 的 `PENDING` 异常通过数据库 partial unique index 与服务层 `createPendingOnce` 双重去重；重复扫描不重复释放、计数、写学习记录或生成 pending 异常。 |
+| 异常类型与状态 | 自动规则生成 `NO_SHOW`、`UNRESERVED_OCCUPANCY`、`EARLY_LEAVE_SUSPECTED`、`OVERTIME_OCCUPANCY`、`DEVICE_OFFLINE`、`SENSOR_ERROR`，来源为 `SCHEDULER`，状态为 `PENDING`；设备恢复心跳后自动将 `DEVICE_OFFLINE` 标记为 `HANDLED` 并写入 `resolved_at` 与原因。 |
+| 证据路径 | 代码：`apps/api/src/jobs/**`、`apps/api/src/modules/anomalies/**`、`apps/api/src/modules/reservations/reservations.service.ts`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/modules/mqtt/**`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260504000000_api_iot_03_anomaly_rules/migration.sql`、`packages/contracts/src/enums.ts`、`packages/contracts/src/api.ts`、`.env.example`、`.env.deploy.example`；测试：`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`。 |
+| 已执行核验 | `pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm --filter @smartseat/api lint`、`pnpm typecheck`、`pnpm lint`、`pnpm format` 已通过。 |
 | 可分配给编码智能体的提示 | 基于 ScheduleModule 实现周期任务；只做规则扫描与状态落库；不要做小程序页面。 |
 
 ### API-ADM-01 管理员接口、手动释放、维护与审计

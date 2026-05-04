@@ -84,6 +84,12 @@ export enum AnomalyStatus {
   IGNORED = 'IGNORED'
 }
 
+export enum AnomalySource {
+  SCHEDULER = 'SCHEDULER',
+  MQTT = 'MQTT',
+  SYSTEM = 'SYSTEM'
+}
+
 export enum LeaderboardMetric {
   WEEKLY_DURATION = 'WEEKLY_DURATION',
   WEEKLY_VISITS = 'WEEKLY_VISITS',

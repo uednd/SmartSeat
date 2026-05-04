@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Interval } from '@nestjs/schedule';
+import { AnomalyType } from '@prisma/client';
 import {
   DisplayLayout,
   MQTT_TOPIC_ROOT,
@@ -12,6 +12,7 @@ import {
 } from '@smartseat/contracts';
 
 import { getConfigNumber } from '../../common/config/config-reader.js';
+import { AnomaliesService } from '../anomalies/anomalies.service.js';
 import { DevicesService } from '../devices/devices.service.js';
 import { MqttBrokerService } from './mqtt-broker.service.js';
 import { MqttCommandBusService } from './mqtt-command-bus.service.js';
@@ -24,7 +25,8 @@ export class MqttDeviceStateService implements OnModuleInit {
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(MqttBrokerService) private readonly broker: MqttBrokerService,
     @Inject(DevicesService) private readonly devicesService: DevicesService,
-    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService
+    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService,
+    @Inject(AnomaliesService) private readonly anomaliesService: AnomaliesService
   ) {}
 
   onModuleInit(): void {
@@ -63,11 +65,36 @@ export class MqttDeviceStateService implements OnModuleInit {
     }
 
     if (result.wasOffline === true) {
-      await this.commandBus.syncLatestDeviceState(payload.device_id);
+      const synced = await this.commandBus.syncLatestDeviceState(payload.device_id);
+
+      if (!synced) {
+        this.logger.warn(`MQTT state sync degraded after heartbeat for ${payload.device_id}.`);
+      }
+
+      if (result.seat !== null && result.seat !== undefined) {
+        const resolved = await this.anomaliesService.resolvePending({
+          eventType: AnomalyType.DEVICE_OFFLINE,
+          seatId: result.seat.seatId,
+          deviceId: payload.device_id,
+          resolvedAt: observedAt,
+          reason: 'DEVICE_HEARTBEAT_RECOVERED',
+          message: `Device ${payload.device_id} heartbeat recovered.`
+        });
+
+        if (resolved > 0) {
+          this.logger.log(
+            JSON.stringify({
+              category: 'device_offline_anomaly_resolved',
+              device_id: payload.device_id,
+              seat_id: result.seat.seatId,
+              count: resolved
+            })
+          );
+        }
+      }
     }
   }
 
-  @Interval('mqtt-device-offline-check', 15_000)
   async markOfflineDevices(): Promise<void> {
     const thresholdSeconds = getConfigNumber(
       this.configService,

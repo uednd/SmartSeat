@@ -275,16 +275,23 @@
 
 ### CL-API-IOT-03 调度任务、自动规则与异常事件
 
-- [ ] no-show 扫描可在签到窗口结束后自动释放预约并记录未到。
-- [ ] ENDING_SOON 或到期提醒状态可按配置时间切换。
-- [ ] 空闲座位持续检测到有人时生成“疑似未预约占用”异常。
-- [ ] 使用中座位持续检测无人时生成“疑似提前离座”异常或提醒。
-- [ ] 到期仍有人时进入待释放或生成异常。
-- [ ] 设备离线事件可生成异常或影响可用性状态。
-- [ ] 异常事件具有类型、状态、来源、关联座位/设备/预约、创建时间。
-- [ ] 周期任务幂等，不重复生成同一未处理异常。
-- [ ] 任务执行时长、扫描数量、失败原因有日志。
-- [ ] 证据路径已填写：____
+- [x] no-show 扫描可在签到窗口结束后自动释放预约并记录未到。
+- [x] ENDING_SOON 或到期提醒状态可按配置时间切换。
+- [x] 空闲座位持续检测到有人时生成“疑似未预约占用”异常。
+- [x] 使用中座位持续检测无人时生成“疑似提前离座”异常或提醒。
+- [x] 到期仍有人时进入待释放或生成异常。
+- [x] 设备离线事件可生成异常或影响可用性状态。
+- [x] 异常事件具有类型、状态、来源、关联座位/设备/预约、创建时间。
+- [x] 周期任务幂等，不重复生成同一未处理异常。
+- [x] 任务执行时长、扫描数量、失败原因有日志。
+
+证据：
+
+- 代码路径：`apps/api/src/jobs/**`、`apps/api/src/modules/anomalies/**`、`apps/api/src/modules/reservations/reservations.service.ts`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/modules/mqtt/**`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260504000000_api_iot_03_anomaly_rules/migration.sql`、`packages/contracts/src/enums.ts`、`packages/contracts/src/api.ts`、`.env.example`、`.env.deploy.example`
+- 测试路径：`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`
+- 已通过命令：`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/contracts typecheck`；`pnpm --filter @smartseat/api-client typecheck`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api lint`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
+- 范围说明：本任务只实现后端自动规则、异常事件持久化、幂等与终端同步触发；管理员异常查询/处理、小程序页面、固件驱动和手动释放审计仍归 `API-ADM-01`、`MINI-03`、`FW-02`。
+- [x] 证据路径已填写：见本节代码路径、测试路径与已通过命令。
 
 ### CL-API-ADM-01 管理员接口、手动释放、维护与审计
 
@@ -464,10 +471,10 @@
 
 ### 5.4 异常与管理员释放闸门
 
-- [ ] no-show 可自动释放并记录。
-- [ ] 空闲占用可生成异常。
-- [ ] 提前离座可生成异常或提醒。
-- [ ] 到期仍有人可进入待释放或异常处理。
+- [x] no-show 可自动释放并记录。
+- [x] 空闲占用可生成异常。
+- [x] 提前离座可生成异常或提醒。
+- [x] 到期仍有人可进入待释放或异常处理。
 - [ ] 管理员可查看异常并处理。
 - [ ] 管理员手动释放必须填写原因并记录审计日志。
 - [ ] 释放后终端和小程序状态同步。

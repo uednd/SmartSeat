@@ -92,6 +92,12 @@ enum AnomalyStatus {
   IGNORED
 }
 
+enum AnomalySource {
+  SCHEDULER
+  MQTT
+  SYSTEM
+}
+
 enum AdminActionType {
   RELEASE_SEAT
   SET_MAINTENANCE
@@ -312,8 +318,11 @@ model AnomalyEvent {
   deviceId      String?       @map("device_id")
   reservationId String?       @map("reservation_id")
   description   String
+  source        AnomalySource @default(SYSTEM)
+  reason        String?
   status        AnomalyStatus @default(PENDING)
   createdAt     DateTime      @default(now()) @map("created_at")
+  resolvedAt    DateTime?     @map("resolved_at")
   handledById   String?       @map("handled_by")
   handledAt     DateTime?     @map("handled_at")
   handleNote    String?       @map("handle_note")

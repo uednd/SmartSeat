@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AnomaliesModule } from '../anomalies/anomalies.module.js';
 import { DevicesModule } from '../devices/devices.module.js';
 import { SensorsModule } from '../sensors/sensors.module.js';
 import {
@@ -12,7 +13,7 @@ import { MqttDeviceStateService } from './mqtt-device-state.service.js';
 import { MqttPresenceService } from './mqtt-presence.service.js';
 
 @Module({
-  imports: [DevicesModule, SensorsModule],
+  imports: [DevicesModule, SensorsModule, AnomaliesModule],
   providers: [
     MqttBrokerService,
     MqttCommandBusService,

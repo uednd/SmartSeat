@@ -49,17 +49,17 @@ export class MqttCommandBusService {
     });
   }
 
-  async syncLatestDeviceState(deviceId: string): Promise<void> {
+  async syncLatestDeviceState(deviceId: string): Promise<boolean> {
     const state = await this.devicesService.getDeviceMqttState(deviceId);
 
     if (state === null) {
       this.logger.warn(`Skipped MQTT state sync for unknown device: ${deviceId}`);
-      return;
+      return false;
     }
 
     if (state.seat === null) {
       this.logger.warn(`Skipped MQTT state sync for unbound device: ${deviceId}`);
-      return;
+      return false;
     }
 
     const displayPayload =
@@ -67,8 +67,12 @@ export class MqttCommandBusService {
     const lightPayload =
       this.latestLightPayloads.get(deviceId) ?? buildLightPayloadFromCurrentState(state);
 
-    await this.publishDisplay(displayPayload);
-    await this.publishLight(lightPayload);
+    const [displayPublished, lightPublished] = await Promise.all([
+      this.publishDisplay(displayPayload),
+      this.publishLight(lightPayload)
+    ]);
+
+    return displayPublished && lightPublished;
   }
 }
 

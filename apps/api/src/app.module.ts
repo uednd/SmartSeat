@@ -4,6 +4,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller.js';
 import { ApiConfigModule } from './common/config/api-config.module.js';
 import { DatabaseModule } from './common/database/database.module.js';
+import { AutoRulesModule } from './jobs/auto-rules.module.js';
+import { AnomaliesModule } from './modules/anomalies/anomalies.module.js';
 import { RequestLoggingMiddleware } from './common/request/request-logging.middleware.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { DatabaseBaselineModule } from './modules/database-baseline/database-baseline.module.js';
@@ -21,10 +23,12 @@ import { UsersModule } from './modules/users/users.module.js';
     DatabaseBaselineModule,
     UsersModule,
     AuthModule,
+    AnomaliesModule,
     SeatsModule,
     ReservationsModule,
     DevicesModule,
     SensorsModule,
+    AutoRulesModule,
     MqttModule,
     ScheduleModule.forRoot()
   ],

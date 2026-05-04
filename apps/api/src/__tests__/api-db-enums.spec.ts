@@ -1,5 +1,6 @@
 import {
   AdminActionType as ContractAdminActionType,
+  AnomalySource as ContractAnomalySource,
   AnomalyStatus as ContractAnomalyStatus,
   AnomalyType as ContractAnomalyType,
   AuthMode as ContractAuthMode,
@@ -16,6 +17,7 @@ import {
 } from '@smartseat/contracts';
 import {
   AdminActionType,
+  AnomalySource,
   AnomalyStatus,
   AnomalyType,
   AuthMode,
@@ -49,6 +51,7 @@ describe('Prisma enum baseline', () => {
     ['QRTokenStatus', QRTokenStatus, ContractQRTokenStatus],
     ['AnomalyType', AnomalyType, ContractAnomalyType],
     ['AnomalyStatus', AnomalyStatus, ContractAnomalyStatus],
+    ['AnomalySource', AnomalySource, ContractAnomalySource],
     ['AdminActionType', AdminActionType, ContractAdminActionType]
   ])('keeps %s aligned with packages/contracts', (_name, prismaEnum, contractEnum) => {
     expect(sortedValues(prismaEnum)).toEqual(sortedValues(contractEnum));

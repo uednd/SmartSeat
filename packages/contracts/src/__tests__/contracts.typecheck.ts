@@ -1,5 +1,8 @@
 import {
   ApiErrorCode,
+  AnomalySource,
+  AnomalyStatus,
+  AnomalyType,
   DeviceCommandType,
   DeviceOnlineStatus,
   DisplayLayout,
@@ -16,6 +19,7 @@ import {
   type AdminDeviceDto,
   type AdminReservationListRequest,
   type AdminSeatDetailDto,
+  type AnomalyEventDto,
   type ApiErrorResponse,
   type BindDeviceSeatRequest,
   type CheckinRequest,
@@ -196,6 +200,18 @@ const adminReservationList = {
   page: 1
 } satisfies AdminReservationListRequest;
 
+const anomalyEvent = {
+  event_id: 'anomaly-1',
+  event_type: AnomalyType.UNRESERVED_OCCUPANCY,
+  seat_id: 'seat-1',
+  device_id: 'device-1',
+  description: 'Seat is free but presence is stable PRESENT.',
+  source: AnomalySource.SCHEDULER,
+  status: AnomalyStatus.PENDING,
+  reason: 'IDLE_SEAT_PRESENT_STABLE',
+  created_at: '2026-05-02T00:00:00.000Z'
+} satisfies AnomalyEventDto;
+
 const seatDetail = {
   ...seat,
   current_occupancy: {
@@ -295,6 +311,7 @@ void currentUsage;
 void studyRecord;
 void reservationHistory;
 void adminReservationList;
+void anomalyEvent;
 void seatDetail;
 void adminSeatDetail;
 void adminDevice;

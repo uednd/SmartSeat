@@ -2,12 +2,17 @@ import { Buffer } from 'node:buffer';
 
 import { ConfigService } from '@nestjs/config';
 import {
+  AnomalySource,
+  AnomalyStatus,
+  AnomalyType,
   DeviceCommandType,
   DeviceOnlineStatus,
   DisplayLayout,
   LightMode,
   LightStatus,
   PresenceStatus,
+  QRTokenStatus,
+  ReservationStatus,
   SeatAvailability,
   SeatStatus,
   SeatUnavailableReason,
@@ -18,11 +23,14 @@ import {
 } from '@smartseat/contracts';
 import { describe, expect, it } from 'vitest';
 
+import { AutoRulesService } from '../jobs/auto-rules.service.js';
+import { AnomaliesService } from '../modules/anomalies/anomalies.service.js';
 import { DevicesService } from '../modules/devices/devices.service.js';
 import { MqttBrokerService } from '../modules/mqtt/mqtt-broker.service.js';
 import { MqttCommandBusService } from '../modules/mqtt/mqtt-command-bus.service.js';
 import { MqttDeviceStateService } from '../modules/mqtt/mqtt-device-state.service.js';
 import { MqttPresenceService } from '../modules/mqtt/mqtt-presence.service.js';
+import { ReservationsService } from '../modules/reservations/reservations.service.js';
 import { PresenceEvaluatorService } from '../modules/sensors/presence-evaluator.service.js';
 import { SensorsService } from '../modules/sensors/sensors.service.js';
 
@@ -66,16 +74,111 @@ interface FakeSensorReading {
   createdAt: Date;
 }
 
+interface FakeReservation {
+  reservationId: string;
+  userId: string;
+  seatId: string;
+  startTime: Date;
+  endTime: Date;
+  checkinStartTime: Date;
+  checkinDeadline: Date;
+  status: ReservationStatus;
+  checkedInAt: Date | null;
+  releasedAt: Date | null;
+  releaseReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface FakeUser {
+  userId: string;
+  noShowCountWeek: number;
+  noShowCountMonth: number;
+}
+
+interface FakeQRToken {
+  tokenId: string;
+  reservationId: string | null;
+  seatId: string;
+  deviceId: string;
+  status: QRTokenStatus;
+}
+
+interface FakeStudyRecord {
+  recordId: string;
+  userId: string;
+  reservationId: string;
+  seatId: string;
+  startTime: Date;
+  endTime: Date;
+  durationMinutes: number;
+  validFlag: boolean;
+  invalidReason: string | null;
+  createdAt: Date;
+}
+
+interface FakeAnomalyEvent {
+  eventId: string;
+  eventType: AnomalyType;
+  source: AnomalySource;
+  seatId: string;
+  userId: string | null;
+  deviceId: string | null;
+  reservationId: string | null;
+  description: string;
+  reason: string | null;
+  status: AnomalyStatus;
+  createdAt: Date;
+  resolvedAt: Date | null;
+  handledById: string | null;
+  handledAt: Date | null;
+  handleNote: string | null;
+}
+
 interface PublishedMessage {
   topic: string;
   payload: unknown;
   options: { qos: 0 | 1 | 2; retain: boolean };
 }
 
+type SensorReadingFindArgs = {
+  where?: {
+    deviceId?: string;
+    seatId?: string;
+    presenceStatus?: { not: PresenceStatus };
+    reportedAt?: {
+      gte?: Date;
+      gt?: Date;
+      lte?: Date;
+    };
+  };
+  orderBy?: Array<{ reportedAt?: 'asc' | 'desc'; createdAt?: 'asc' | 'desc' }>;
+  take?: number;
+};
+
+type ReservationWhere = {
+  seatId?: string;
+  status?: ReservationStatus | { in?: readonly ReservationStatus[] };
+  checkinDeadline?: { lt?: Date };
+};
+
+type AnomalyWhere = {
+  eventType?: AnomalyType;
+  seatId?: string;
+  deviceId?: string | null;
+  reservationId?: string | null;
+  status?: AnomalyStatus;
+};
+
 class FakePrismaService {
   devices: FakeDevice[] = [];
   seats: FakeSeat[] = [];
   sensorReadings: FakeSensorReading[] = [];
+  reservations: FakeReservation[] = [];
+  users: FakeUser[] = [];
+  qrTokens: FakeQRToken[] = [];
+  studyRecords: FakeStudyRecord[] = [];
+  anomalyEvents: FakeAnomalyEvent[] = [];
 
   device = {
     findUnique: async ({ where }: { where: { deviceId: string } }) =>
@@ -120,6 +223,24 @@ class FakePrismaService {
   seat = {
     findUnique: async ({ where }: { where: { seatId: string } }) =>
       this.seats.find((seat) => seat.seatId === where.seatId) ?? null,
+    findMany: async (args: {
+      where?: { deviceId?: { not: null }; maintenance?: boolean };
+      orderBy?: Array<{ seatId: 'asc' }>;
+    }) => {
+      const seats = this.seats.filter((seat) => {
+        if (args.where?.deviceId?.not === null && seat.deviceId === null) {
+          return false;
+        }
+
+        if (args.where?.maintenance !== undefined && seat.maintenance !== args.where.maintenance) {
+          return false;
+        }
+
+        return true;
+      });
+
+      return seats.sort((left, right) => left.seatId.localeCompare(right.seatId));
+    },
     update: async ({ where, data }: { where: { seatId: string }; data: Partial<FakeSeat> }) => {
       const seat = this.seats.find((candidate) => candidate.seatId === where.seatId);
 
@@ -129,6 +250,112 @@ class FakePrismaService {
 
       Object.assign(seat, data, { updatedAt: new Date('2026-05-03T09:00:00.000Z') });
       return seat;
+    }
+  };
+
+  user = {
+    update: async ({
+      where,
+      data
+    }: {
+      where: { userId: string };
+      data: {
+        noShowCountWeek?: { increment: number };
+        noShowCountMonth?: { increment: number };
+      };
+    }) => {
+      const user = this.users.find((candidate) => candidate.userId === where.userId);
+
+      if (user === undefined) {
+        throw new Error('Missing fake user.');
+      }
+
+      user.noShowCountWeek += data.noShowCountWeek?.increment ?? 0;
+      user.noShowCountMonth += data.noShowCountMonth?.increment ?? 0;
+
+      return user;
+    }
+  };
+
+  reservation = {
+    findMany: async (args: { where?: ReservationWhere; orderBy?: unknown }) =>
+      this.reservations
+        .filter((reservation) => matchesReservation(reservation, args.where))
+        .sort((left, right) => left.endTime.getTime() - right.endTime.getTime()),
+    findFirst: async (args: { where?: ReservationWhere; orderBy?: unknown }) =>
+      this.reservations
+        .filter((reservation) => matchesReservation(reservation, args.where))
+        .sort((left, right) => left.endTime.getTime() - right.endTime.getTime())[0] ?? null,
+    count: async ({ where }: { where?: ReservationWhere }) =>
+      this.reservations.filter((reservation) => matchesReservation(reservation, where)).length,
+    update: async ({
+      where,
+      data
+    }: {
+      where: { reservationId: string };
+      data: Partial<FakeReservation>;
+    }) => {
+      const reservation = this.reservations.find(
+        (candidate) => candidate.reservationId === where.reservationId
+      );
+
+      if (reservation === undefined) {
+        throw new Error('Missing fake reservation.');
+      }
+
+      Object.assign(reservation, data, { updatedAt: new Date('2026-05-03T09:00:00.000Z') });
+
+      return reservation;
+    }
+  };
+
+  qRToken = {
+    updateMany: async ({
+      where,
+      data
+    }: {
+      where: { reservationId?: string; status?: QRTokenStatus };
+      data: Partial<FakeQRToken>;
+    }) => {
+      const tokens = this.qrTokens.filter(
+        (token) =>
+          (where.reservationId === undefined || token.reservationId === where.reservationId) &&
+          (where.status === undefined || token.status === where.status)
+      );
+
+      for (const token of tokens) {
+        Object.assign(token, data);
+      }
+
+      return { count: tokens.length };
+    }
+  };
+
+  studyRecord = {
+    upsert: async ({
+      where,
+      create
+    }: {
+      where: { reservationId: string };
+      update: Partial<FakeStudyRecord>;
+      create: Omit<FakeStudyRecord, 'recordId' | 'createdAt'>;
+    }) => {
+      const existing = this.studyRecords.find(
+        (record) => record.reservationId === where.reservationId
+      );
+
+      if (existing !== undefined) {
+        return existing;
+      }
+
+      const record: FakeStudyRecord = {
+        recordId: `study_record_${this.studyRecords.length + 1}`,
+        ...create,
+        createdAt: new Date('2026-05-03T09:00:00.000Z')
+      };
+      this.studyRecords.push(record);
+
+      return record;
     }
   };
 
@@ -160,19 +387,12 @@ class FakePrismaService {
 
       return reading;
     },
-    findMany: async (args: {
-      where?: {
-        deviceId?: string;
-        seatId?: string;
-        reportedAt?: {
-          gte?: Date;
-          lte?: Date;
-        };
-      };
-      orderBy?: Array<{ reportedAt?: 'asc' | 'desc'; createdAt?: 'asc' | 'desc' }>;
-      take?: number;
-    }) => {
-      const cutoff = args.where?.reportedAt?.lte;
+    findFirst: async (args: SensorReadingFindArgs) =>
+      (await this.sensorReading.findMany({ ...args, take: 1 }))[0] ?? null,
+    findMany: async (args: SensorReadingFindArgs) => {
+      const statusNot = args.where?.presenceStatus?.not;
+      const ceiling = args.where?.reportedAt?.lte;
+      const greaterThan = args.where?.reportedAt?.gt;
       const floor = args.where?.reportedAt?.gte;
       const readings = this.sensorReadings.filter((reading) => {
         if (args.where?.deviceId !== undefined && reading.deviceId !== args.where.deviceId) {
@@ -183,11 +403,19 @@ class FakePrismaService {
           return false;
         }
 
-        if (cutoff !== undefined && reading.reportedAt > cutoff) {
+        if (statusNot !== undefined && reading.presenceStatus === statusNot) {
+          return false;
+        }
+
+        if (ceiling !== undefined && reading.reportedAt > ceiling) {
           return false;
         }
 
         if (floor !== undefined && reading.reportedAt < floor) {
+          return false;
+        }
+
+        if (greaterThan !== undefined && reading.reportedAt <= greaterThan) {
           return false;
         }
 
@@ -205,6 +433,64 @@ class FakePrismaService {
       });
 
       return readings.slice(0, args.take ?? readings.length);
+    }
+  };
+
+  anomalyEvent = {
+    findFirst: async (args: { where?: AnomalyWhere; orderBy?: unknown }) =>
+      this.anomalyEvents
+        .filter((event) => matchesAnomaly(event, args.where))
+        .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime())[0] ?? null,
+    create: async ({ data }: { data: Partial<FakeAnomalyEvent> }) => {
+      const duplicate = this.anomalyEvents.find(
+        (event) =>
+          event.status === AnomalyStatus.PENDING &&
+          event.eventType === data.eventType &&
+          event.seatId === data.seatId &&
+          event.deviceId === (data.deviceId ?? null) &&
+          event.reservationId === (data.reservationId ?? null)
+      );
+
+      if (duplicate !== undefined) {
+        throw Object.assign(new Error('Fake anomaly conflict.'), { code: 'P2002' });
+      }
+
+      const event: FakeAnomalyEvent = {
+        eventId: `anomaly_${this.anomalyEvents.length + 1}`,
+        eventType: requiredEnum(data.eventType),
+        source: data.source ?? AnomalySource.SYSTEM,
+        seatId: requiredString(data.seatId),
+        userId: data.userId ?? null,
+        deviceId: data.deviceId ?? null,
+        reservationId: data.reservationId ?? null,
+        description: requiredString(data.description),
+        reason: data.reason ?? null,
+        status: data.status ?? AnomalyStatus.PENDING,
+        createdAt: data.createdAt ?? new Date('2026-05-03T09:00:00.000Z'),
+        resolvedAt: data.resolvedAt ?? null,
+        handledById: data.handledById ?? null,
+        handledAt: data.handledAt ?? null,
+        handleNote: data.handleNote ?? null
+      };
+
+      this.anomalyEvents.push(event);
+
+      return event;
+    },
+    updateMany: async ({
+      where,
+      data
+    }: {
+      where?: AnomalyWhere;
+      data: Partial<FakeAnomalyEvent>;
+    }) => {
+      const events = this.anomalyEvents.filter((event) => matchesAnomaly(event, where));
+
+      for (const event of events) {
+        Object.assign(event, data);
+      }
+
+      return { count: events.length };
     }
   };
 
@@ -243,6 +529,74 @@ class FakeBrokerService {
   }
 }
 
+const matchesReservation = (
+  reservation: FakeReservation,
+  where: ReservationWhere = {}
+): boolean => {
+  if (where.seatId !== undefined && reservation.seatId !== where.seatId) {
+    return false;
+  }
+
+  if (where.status !== undefined) {
+    if (typeof where.status === 'object' && 'in' in where.status) {
+      if (!where.status.in?.includes(reservation.status)) {
+        return false;
+      }
+    } else if (reservation.status !== where.status) {
+      return false;
+    }
+  }
+
+  if (
+    where.checkinDeadline?.lt !== undefined &&
+    reservation.checkinDeadline >= where.checkinDeadline.lt
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+const matchesAnomaly = (event: FakeAnomalyEvent, where: AnomalyWhere = {}): boolean => {
+  if (where.eventType !== undefined && event.eventType !== where.eventType) {
+    return false;
+  }
+
+  if (where.seatId !== undefined && event.seatId !== where.seatId) {
+    return false;
+  }
+
+  if (where.deviceId !== undefined && event.deviceId !== where.deviceId) {
+    return false;
+  }
+
+  if (where.reservationId !== undefined && event.reservationId !== where.reservationId) {
+    return false;
+  }
+
+  if (where.status !== undefined && event.status !== where.status) {
+    return false;
+  }
+
+  return true;
+};
+
+const requiredString = (value: string | null | undefined): string => {
+  if (value === null || value === undefined) {
+    throw new Error('Missing required fake string.');
+  }
+
+  return value;
+};
+
+const requiredEnum = <T extends string>(value: T | null | undefined): T => {
+  if (value === null || value === undefined) {
+    throw new Error('Missing required fake enum.');
+  }
+
+  return value;
+};
+
 const createServices = (
   input: {
     connected?: boolean;
@@ -265,19 +619,45 @@ const createServices = (
     PRESENCE_PRESENT_STABLE_SECONDS: input.presentStableSeconds ?? 60,
     PRESENCE_ABSENT_STABLE_SECONDS: input.absentStableSeconds ?? 300,
     PRESENCE_UNTRUSTED_STABLE_SECONDS: input.untrustedStableSeconds ?? 120,
-    PRESENCE_EVALUATION_ENABLED: input.presenceEvaluationEnabled ?? true
+    PRESENCE_EVALUATION_ENABLED: input.presenceEvaluationEnabled ?? true,
+    AUTO_RULES_ENABLED: true,
+    AUTO_RULES_NO_SHOW_ENABLED: true,
+    AUTO_RULES_USAGE_ENABLED: true,
+    AUTO_RULES_OCCUPANCY_ANOMALIES_ENABLED: true,
+    AUTO_RULES_DEVICE_RECONCILE_ENABLED: true,
+    AUTO_RULES_SENSOR_ERROR_ENABLED: true,
+    AUTO_RULES_NO_SHOW_INTERVAL_SECONDS: 30,
+    AUTO_RULES_USAGE_INTERVAL_SECONDS: 30,
+    AUTO_RULES_OCCUPANCY_ANOMALY_INTERVAL_SECONDS: 30,
+    AUTO_RULES_DEVICE_RECONCILE_INTERVAL_SECONDS: 15,
+    AUTO_RULES_ENDING_SOON_WINDOW_SECONDS: 600,
+    ANOMALY_IDLE_PRESENT_STABLE_SECONDS: 60,
+    ANOMALY_OCCUPIED_ABSENT_STABLE_SECONDS: 300,
+    ANOMALY_OVERTIME_PRESENT_STABLE_SECONDS: 60,
+    ANOMALY_SENSOR_ERROR_STABLE_SECONDS: 120
   });
+  const anomaliesService = new AnomaliesService(prisma as never);
   const deviceStateService = new MqttDeviceStateService(
     config,
     broker as unknown as MqttBrokerService,
     devicesService,
-    commandBus
+    commandBus,
+    anomaliesService
   );
   const presenceEvaluator = new PresenceEvaluatorService(config, prisma as never);
   const sensorsService = new SensorsService(config, prisma as never, presenceEvaluator);
   const presenceService = new MqttPresenceService(
     broker as unknown as MqttBrokerService,
     sensorsService
+  );
+  const reservationsService = new ReservationsService(prisma as never, config, commandBus);
+  const autoRulesService = new AutoRulesService(
+    config,
+    prisma as never,
+    reservationsService,
+    devicesService,
+    anomaliesService,
+    commandBus
   );
 
   return {
@@ -286,6 +666,9 @@ const createServices = (
     devicesService,
     commandBus,
     deviceStateService,
+    anomaliesService,
+    reservationsService,
+    autoRulesService,
     sensorsService,
     presenceService
   };
@@ -300,6 +683,8 @@ const seedBoundDevice = (
     availabilityStatus?: SeatAvailability;
     unavailableReason?: SeatUnavailableReason | null;
     maintenance?: boolean;
+    presenceStatus?: PresenceStatus;
+    sensorStatus?: SensorHealthStatus;
   } = {}
 ) => {
   const now = new Date('2026-05-03T08:00:00.000Z');
@@ -309,7 +694,7 @@ const seedBoundDevice = (
     mqttClientId: 'mqtt-device-001',
     onlineStatus: input.onlineStatus ?? DeviceOnlineStatus.OFFLINE,
     lastHeartbeatAt: input.lastHeartbeatAt ?? null,
-    sensorStatus: SensorHealthStatus.UNKNOWN,
+    sensorStatus: input.sensorStatus ?? SensorHealthStatus.UNKNOWN,
     sensorModel: null,
     firmwareVersion: null,
     hardwareVersion: null,
@@ -328,7 +713,7 @@ const seedBoundDevice = (
         ? (input.unavailableReason ?? null)
         : SeatUnavailableReason.DEVICE_OFFLINE,
     deviceId: 'device_001',
-    presenceStatus: 'UNKNOWN',
+    presenceStatus: input.presenceStatus ?? PresenceStatus.UNKNOWN,
     maintenance: input.maintenance ?? false,
     createdAt: now,
     updatedAt: now
@@ -338,6 +723,85 @@ const seedBoundDevice = (
   prisma.seats.push(seat);
 
   return { device, seat };
+};
+
+const seedRuleUser = (prisma: FakePrismaService, userId = 'user_student'): FakeUser => {
+  const user: FakeUser = {
+    userId,
+    noShowCountWeek: 0,
+    noShowCountMonth: 0
+  };
+
+  prisma.users.push(user);
+
+  return user;
+};
+
+const seedRuleReservation = (
+  prisma: FakePrismaService,
+  input: Partial<FakeReservation> = {}
+): FakeReservation => {
+  const startTime = input.startTime ?? new Date('2026-05-03T09:00:00.000Z');
+  const reservation: FakeReservation = {
+    reservationId: input.reservationId ?? 'reservation_rule_001',
+    userId: input.userId ?? 'user_student',
+    seatId: input.seatId ?? 'seat_001',
+    startTime,
+    endTime: input.endTime ?? new Date('2026-05-03T10:00:00.000Z'),
+    checkinStartTime: input.checkinStartTime ?? new Date(startTime.getTime() - 5 * 60 * 1000),
+    checkinDeadline: input.checkinDeadline ?? new Date(startTime.getTime() + 15 * 60 * 1000),
+    status: input.status ?? ReservationStatus.WAITING_CHECKIN,
+    checkedInAt: input.checkedInAt ?? null,
+    releasedAt: input.releasedAt ?? null,
+    releaseReason: input.releaseReason ?? null,
+    createdAt: input.createdAt ?? new Date('2026-05-03T08:00:00.000Z'),
+    updatedAt: input.updatedAt ?? new Date('2026-05-03T08:00:00.000Z')
+  };
+
+  prisma.reservations.push(reservation);
+
+  return reservation;
+};
+
+const seedRuleQrToken = (
+  prisma: FakePrismaService,
+  input: Partial<FakeQRToken> = {}
+): FakeQRToken => {
+  const token: FakeQRToken = {
+    tokenId: input.tokenId ?? 'qr_rule_001',
+    reservationId: input.reservationId ?? 'reservation_rule_001',
+    seatId: input.seatId ?? 'seat_001',
+    deviceId: input.deviceId ?? 'device_001',
+    status: input.status ?? QRTokenStatus.UNUSED
+  };
+
+  prisma.qrTokens.push(token);
+
+  return token;
+};
+
+const seedRuleReading = (
+  prisma: FakePrismaService,
+  input: {
+    presenceStatus: PresenceStatus;
+    reportedAt: Date;
+    sensorStatus?: SensorHealthStatus;
+  }
+): FakeSensorReading => {
+  const reading: FakeSensorReading = {
+    readingId: `rule_reading_${prisma.sensorReadings.length + 1}`,
+    deviceId: 'device_001',
+    seatId: 'seat_001',
+    presenceStatus: input.presenceStatus,
+    sensorStatus: input.sensorStatus ?? SensorHealthStatus.OK,
+    rawValue: null,
+    reportedAt: input.reportedAt,
+    createdAt: input.reportedAt
+  };
+
+  prisma.sensorReadings.push(reading);
+
+  return reading;
 };
 
 const heartbeatPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -777,5 +1241,256 @@ describe('API-IOT-01 MQTT device state', () => {
 
     expect(prisma.sensorReadings).toHaveLength(2);
     expect(seat.presenceStatus).toBe(PresenceStatus.UNKNOWN);
+  });
+});
+
+describe('API-IOT-03 automatic rules and anomaly events', () => {
+  it('releases no-show reservations, creates one anomaly, and keeps state consistent', async () => {
+    const { prisma, autoRulesService } = createServices();
+    const { seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.RESERVED,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null
+    });
+    const user = seedRuleUser(prisma);
+    const reservation = seedRuleReservation(prisma, {
+      checkinDeadline: new Date('2026-05-03T09:15:00.000Z')
+    });
+    const token = seedRuleQrToken(prisma, { reservationId: reservation.reservationId });
+
+    const first = await autoRulesService.runNoShowScan(new Date('2026-05-03T09:16:00.000Z'));
+    const second = await autoRulesService.runNoShowScan(new Date('2026-05-03T09:16:30.000Z'));
+
+    expect(first).toMatchObject({
+      changed_count: 1,
+      anomaly_created_count: 1,
+      sync_failed_count: 0
+    });
+    expect(second).toMatchObject({ changed_count: 0, anomaly_created_count: 0 });
+    expect(reservation).toMatchObject({
+      status: ReservationStatus.NO_SHOW,
+      releaseReason: 'NO_SHOW',
+      releasedAt: new Date('2026-05-03T09:16:00.000Z')
+    });
+    expect(seat.businessStatus).toBe(SeatStatus.FREE);
+    expect(token.status).toBe(QRTokenStatus.INVALIDATED);
+    expect(user.noShowCountWeek).toBe(1);
+    expect(user.noShowCountMonth).toBe(1);
+    expect(prisma.studyRecords).toHaveLength(0);
+    expect(prisma.anomalyEvents).toEqual([
+      expect.objectContaining({
+        eventType: AnomalyType.NO_SHOW,
+        status: AnomalyStatus.PENDING,
+        source: AnomalySource.SCHEDULER,
+        seatId: 'seat_001',
+        deviceId: 'device_001',
+        reservationId: reservation.reservationId
+      })
+    ]);
+  });
+
+  it('switches checked-in reservations to ENDING_SOON and synchronizes the terminal', async () => {
+    const { prisma, autoRulesService, broker } = createServices();
+    const { seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.OCCUPIED,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null
+    });
+    seedRuleUser(prisma);
+    seedRuleReservation(prisma, {
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:05:00.000Z')
+    });
+
+    const metrics = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:00.000Z'));
+
+    expect(metrics).toMatchObject({ changed_count: 1, anomaly_created_count: 0 });
+    expect(seat.businessStatus).toBe(SeatStatus.ENDING_SOON);
+    expect(broker.published.map((message) => message.topic)).toEqual([
+      'seat/device_001/display',
+      'seat/device_001/light'
+    ]);
+  });
+
+  it('creates unreserved occupancy and early leave anomalies from stable presence', async () => {
+    const { prisma, autoRulesService } = createServices();
+    const { seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.FREE,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null,
+      presenceStatus: PresenceStatus.PRESENT
+    });
+    seedRuleReading(prisma, {
+      presenceStatus: PresenceStatus.PRESENT,
+      reportedAt: new Date('2026-05-03T09:00:00.000Z')
+    });
+    seedRuleReading(prisma, {
+      presenceStatus: PresenceStatus.PRESENT,
+      reportedAt: new Date('2026-05-03T09:01:00.000Z')
+    });
+
+    const unreserved = await autoRulesService.runOccupancyAnomalyScan(
+      new Date('2026-05-03T09:01:00.000Z')
+    );
+
+    seat.businessStatus = SeatStatus.OCCUPIED;
+    seat.presenceStatus = PresenceStatus.ABSENT;
+    prisma.sensorReadings = [];
+    seedRuleUser(prisma);
+    const reservation = seedRuleReservation(prisma, {
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z')
+    });
+    seedRuleReading(prisma, {
+      presenceStatus: PresenceStatus.ABSENT,
+      reportedAt: new Date('2026-05-03T09:01:00.000Z')
+    });
+    seedRuleReading(prisma, {
+      presenceStatus: PresenceStatus.ABSENT,
+      reportedAt: new Date('2026-05-03T09:06:00.000Z')
+    });
+
+    const earlyLeave = await autoRulesService.runOccupancyAnomalyScan(
+      new Date('2026-05-03T09:06:00.000Z')
+    );
+
+    expect(unreserved.anomaly_created_count).toBe(1);
+    expect(earlyLeave.anomaly_created_count).toBe(1);
+    expect(prisma.anomalyEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: AnomalyType.UNRESERVED_OCCUPANCY,
+          reservationId: null
+        }),
+        expect.objectContaining({
+          eventType: AnomalyType.EARLY_LEAVE_SUSPECTED,
+          reservationId: reservation.reservationId
+        })
+      ])
+    );
+  });
+
+  it('moves overtime occupied seats to pending release and creates an idempotent anomaly', async () => {
+    const { prisma, autoRulesService } = createServices();
+    const { seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.OCCUPIED,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null,
+      presenceStatus: PresenceStatus.PRESENT
+    });
+    seedRuleUser(prisma);
+    const reservation = seedRuleReservation(prisma, {
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z')
+    });
+
+    const first = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:00.000Z'));
+    const second = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:30.000Z'));
+
+    expect(first).toMatchObject({ changed_count: 1, anomaly_created_count: 1 });
+    expect(second).toMatchObject({ changed_count: 0, anomaly_created_count: 0 });
+    expect(seat.businessStatus).toBe(SeatStatus.PENDING_RELEASE);
+    expect(reservation.status).toBe(ReservationStatus.CHECKED_IN);
+    expect(prisma.studyRecords).toHaveLength(0);
+    expect(prisma.anomalyEvents).toEqual([
+      expect.objectContaining({
+        eventType: AnomalyType.OVERTIME_OCCUPANCY,
+        reservationId: reservation.reservationId
+      })
+    ]);
+  });
+
+  it('finishes expired absent reservations once and keeps seat and study record consistent', async () => {
+    const { prisma, autoRulesService } = createServices();
+    const { seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.OCCUPIED,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null,
+      presenceStatus: PresenceStatus.ABSENT
+    });
+    seedRuleUser(prisma);
+    const reservation = seedRuleReservation(prisma, {
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:05:00.000Z'),
+      endTime: new Date('2026-05-03T10:00:00.000Z')
+    });
+
+    const first = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:00.000Z'));
+    const second = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:30.000Z'));
+
+    expect(first).toMatchObject({ changed_count: 1, anomaly_created_count: 0 });
+    expect(second).toMatchObject({ changed_count: 0 });
+    expect(reservation.status).toBe(ReservationStatus.FINISHED);
+    expect(seat.businessStatus).toBe(SeatStatus.FREE);
+    expect(prisma.studyRecords).toHaveLength(1);
+    expect(prisma.studyRecords[0]).toMatchObject({
+      reservationId: reservation.reservationId,
+      durationMinutes: 55,
+      validFlag: true
+    });
+  });
+
+  it('creates device offline anomalies and resolves them when heartbeat recovers', async () => {
+    const { prisma, autoRulesService, deviceStateService } = createServices();
+    const { device, seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      lastHeartbeatAt: new Date('2026-05-03T09:00:00.000Z'),
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null
+    });
+
+    const offline = await autoRulesService.runDeviceReconcile(new Date('2026-05-03T09:01:16.000Z'));
+
+    expect(offline).toMatchObject({ changed_count: 1, anomaly_created_count: 1 });
+    expect(device.onlineStatus).toBe(DeviceOnlineStatus.OFFLINE);
+    expect(seat.unavailableReason).toBe(SeatUnavailableReason.DEVICE_OFFLINE);
+    expect(prisma.anomalyEvents[0]).toMatchObject({
+      eventType: AnomalyType.DEVICE_OFFLINE,
+      status: AnomalyStatus.PENDING
+    });
+
+    await deviceStateService.handleHeartbeatMessage(
+      'device_001',
+      Buffer.from(JSON.stringify(heartbeatPayload())),
+      new Date('2026-05-03T09:02:00.000Z')
+    );
+
+    expect(device.onlineStatus).toBe(DeviceOnlineStatus.ONLINE);
+    expect(seat.unavailableReason).toBeNull();
+    expect(prisma.anomalyEvents[0]).toMatchObject({
+      status: AnomalyStatus.HANDLED,
+      reason: 'DEVICE_HEARTBEAT_RECOVERED',
+      resolvedAt: new Date('2026-05-03T09:02:00.000Z')
+    });
+  });
+
+  it('does not crash automatic usage sync when MQTT is unavailable', async () => {
+    const { prisma, autoRulesService } = createServices({ connected: false });
+    seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.ONLINE,
+      businessStatus: SeatStatus.OCCUPIED,
+      availabilityStatus: SeatAvailability.AVAILABLE,
+      unavailableReason: null
+    });
+    seedRuleUser(prisma);
+    seedRuleReservation(prisma, {
+      status: ReservationStatus.CHECKED_IN,
+      checkedInAt: new Date('2026-05-03T09:00:00.000Z'),
+      endTime: new Date('2026-05-03T10:05:00.000Z')
+    });
+
+    const metrics = await autoRulesService.runUsageScan(new Date('2026-05-03T10:00:00.000Z'));
+
+    expect(metrics).toMatchObject({
+      changed_count: 1,
+      sync_failed_count: 1
+    });
   });
 });
