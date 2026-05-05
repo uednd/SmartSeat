@@ -327,17 +327,17 @@
 
 ### CL-MINI-01 小程序公共壳层、登录页与角色路由
 
-- [ ] 所有实际页面均已注册到 `pages.json`。
-- [ ] 小程序可作为体验版运行的基础配置已具备。
-- [ ] 公共 API client 使用 `packages/api-client` 或统一封装，不散落手写请求。
-- [ ] 登录页可展示当前登录模式。
-- [ ] 微信登录入口可调用后端微信登录接口。
-- [ ] OIDC 登录入口可进入后端 OIDC start/callback 流程或体验版等价流程。
-- [ ] 登录后按后端返回角色进入学生或管理员首页。
-- [ ] 未登录访问受保护页面会跳转登录。
-- [ ] 退出登录会清除 token 和用户状态。
-- [ ] token 过期或 401 有统一处理。
-- [ ] 证据路径已填写：____
+- [x] 所有实际页面均已注册到 `pages.json`。
+- [x] 小程序可作为体验版运行的基础配置已具备。
+- [x] 公共 API client 使用 `packages/api-client` 或统一封装，不散落手写请求。
+- [x] 登录页可展示当前登录模式。
+- [x] 微信登录入口可调用后端微信登录接口。
+- [x] OIDC 登录入口可进入后端 OIDC start/callback 流程或体验版等价流程。
+- [x] 登录后按后端返回角色进入学生或管理员首页。
+- [x] 未登录访问受保护页面会跳转登录。
+- [x] 退出登录会清除 token 和用户状态。
+- [x] token 过期或 401 有统一处理。
+- [x] 证据路径已填写：代码 `apps/miniapp/src/pages.json`、`apps/miniapp/src/pages/auth/**`、`apps/miniapp/src/pages/student/home.vue`、`apps/miniapp/src/pages/admin/home.vue`、`apps/miniapp/src/pages/me/profile.vue`、`apps/miniapp/src/api/**`、`apps/miniapp/src/router/**`、`apps/miniapp/src/stores/**`、`apps/miniapp/.env.example`、`apps/miniapp/package.json`；测试 `apps/miniapp/src/api/__tests__/errors.spec.ts`、`apps/miniapp/src/router/__tests__/guards.spec.ts`、`apps/miniapp/src/stores/__tests__/auth.spec.ts`；已通过 `pnpm --filter @smartseat/miniapp test`、`pnpm --filter @smartseat/miniapp typecheck`、`pnpm --filter @smartseat/miniapp lint`、`pnpm --filter @smartseat/miniapp build:h5`、`pnpm --filter @smartseat/miniapp build:mp-weixin`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm typecheck`、`pnpm lint`、`pnpm format`、`git diff --check`。
 
 ### CL-MINI-02 学生页面闭环
 

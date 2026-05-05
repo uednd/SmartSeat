@@ -27,7 +27,7 @@
 | `docs/PLAN.md` | 已作为任务真源维护到 `API-STAT-01`，P0 后端任务与 `API-STAT-01` 已标记 Done；OPS-01 仍为 In Progress | 后续任务按依赖继续推进；OPS-01 仍需 SIM-01、完整 reset-demo 和端到端演示证据后才能标记 Done |
 | `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录后端已完成任务证据至 `CL-API-STAT-01` | 后续任务完成时继续补证据路径，并修正跨阶段通用描述避免滞后 |
 | `apps/api` | 已实现 NestJS 平台层、Prisma 数据模型/迁移/seed、Auth、Seats/Devices、Reservations/Current Usage/Check-in、MQTT、Sensors、Jobs/Anomalies、Admin、Study Records/Leaderboard 和增强版 `/health` | 小程序端闭环、设备模拟器闭环、固件联调和完整演示脚本仍需后续任务实现 |
-| `apps/miniapp` | `pages.json` 为空，页面目录仅有占位 | 需要先实现页面注册、壳层、登录与角色路由 |
+| `apps/miniapp` | 已完成 uni-app Vue3/Vite 依赖、最小入口与 initialized-only 占位页；业务页面、登录和角色路由仍未实现 | 需要继续实现 SmartSeat 页面闭环、登录与角色路由 |
 | `apps/device-simulator` | 仅输出初始化提示 | 需要实现 MQTT 设备模拟与演示场景驱动 |
 | `packages/contracts` | 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload | 后续接口、状态机或 MQTT 契约变更必须继续同步 |
 | `packages/api-client` | 已提供 typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化和当前已交付后端 endpoint 绑定 | 后续新增业务接口仍需继续同步 path、DTO 和错误码 |
@@ -204,7 +204,7 @@ stateDiagram-v2
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Done |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Done |
 | API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Done |
-| MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Not Started |
+| MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Done |
 | MINI-02 | 学生页面闭环 | apps/miniapp | P0 | MINI-01、API-SEAT-01、API-RES-01/02/03、API-STAT-01 | Not Started |
 | MINI-03 | 管理员页面闭环 | apps/miniapp | P0 | MINI-01、API-ADM-01、API-IOT-03 | Not Started |
 | FW-01 | 固件基础与传感器适配抽象 | firmware | P0 | GOV-02、SHR-01 | Not Started |
@@ -604,9 +604,9 @@ stateDiagram-v2
 | 目标 | 补齐 uni-app 页面注册、公共布局、登录页、token 管理、角色路由、API client 接入。 |
 | 非目标 | 不实现学生业务页；不实现管理员业务页。 |
 | 前置条件 | SHR-01、API-AUTH-01 完成。 |
-| 输入 | `pages.json`、PRD 6.2、6.3。 |
-| 输出 | `pages.json` 页面清单、登录页、路由守卫、store、API client 封装。 |
-| 涉及文件/目录 | `apps/miniapp/pages.json`、`apps/miniapp/src/pages/auth/**`、`stores/**`、`router/**`、`api/**`。 |
+| 输入 | `apps/miniapp/src/pages.json`、PRD 6.2、6.3。 |
+| 输出 | `apps/miniapp/src/pages.json` 页面清单、登录页、路由守卫、store、API client 封装。 |
+| 涉及文件/目录 | `apps/miniapp/src/pages.json`、`apps/miniapp/src/pages/auth/**`、`stores/**`、`router/**`、`api/**`。 |
 | 接口契约 | 调用 `/auth/mode`、`/me`，预留微信/OIDC 登录入口。 |
 | 数据变更 | 本地 token 与用户信息存储。 |
 | 测试要求 | 未登录跳转、登录后按角色进入、退出登录、token 过期处理。 |
@@ -616,6 +616,10 @@ stateDiagram-v2
 | 监控与告警 | 前端错误提示与 API 错误码映射日志。 |
 | 验收标准 | 所有页面注册；学生和管理员共用一个入口；登录后按后端角色路由。 |
 | 可分配给编码智能体的提示 | 只做公共壳层、登录与路由；不要实现学生/管理员业务页面；使用 api-client，不要手写散乱 fetch。 |
+| 当前状态 | Done；已补齐 uni-app 页面清单、统一登录页、OIDC 回调占位、学生/管理员/我的占位页、基于 `packages/api-client` 的 uni.request 适配、token/session 持久化、`/me` 刷新、角色路由守卫、退出登录、loading/error/empty 壳层和 MINI-01 纯逻辑测试。未实现学生预约、扫码签到、统计排行榜、管理员看板、设备管理、异常处理或固件联动。 |
+| 证据路径 | 代码：`apps/miniapp/src/pages.json`、`apps/miniapp/src/pages/auth/**`、`apps/miniapp/src/pages/student/home.vue`、`apps/miniapp/src/pages/admin/home.vue`、`apps/miniapp/src/pages/me/profile.vue`、`apps/miniapp/src/api/**`、`apps/miniapp/src/router/**`、`apps/miniapp/src/stores/**`、`apps/miniapp/src/utils/**`、`apps/miniapp/.env.example`、`apps/miniapp/package.json`；测试：`apps/miniapp/src/api/__tests__/errors.spec.ts`、`apps/miniapp/src/router/__tests__/guards.spec.ts`、`apps/miniapp/src/stores/__tests__/auth.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm install` 通过；`pnpm --filter @smartseat/miniapp test` 通过，15 个用例通过；`pnpm --filter @smartseat/miniapp typecheck` 通过；`pnpm --filter @smartseat/miniapp lint` 通过；`pnpm --filter @smartseat/miniapp build:h5` 通过；`pnpm --filter @smartseat/miniapp build:mp-weixin` 通过；`pnpm --filter @smartseat/api-client typecheck` 通过；`pnpm typecheck` 通过；`pnpm lint` 通过；`pnpm format` 通过；`git diff --check` 通过。 |
+| 阻塞核验 | 无；本任务未做真实微信 AppID、真实学校 OIDC Provider 或微信开发者工具人工联调。 |
 
 ### MINI-02 学生页面闭环
 

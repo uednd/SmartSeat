@@ -1,11 +1,11 @@
 # SmartSeat
 
-SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则、管理员释放/维护/审计接口、学习统计和匿名排行榜后端接口。后续继续落地 ESP32-P4 终端、uni-app 微信小程序、设备模拟器等业务能力。
+SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则、管理员释放/维护/审计接口、学习统计和匿名排行榜后端接口，并已补齐 uni-app 微信小程序的 Vue3/Vite 依赖基线与 initialized-only 占位页。后续继续落地 ESP32-P4 终端、小程序业务页面、设备模拟器等业务能力。
 
 ## 仓库结构
 
 ```text
-apps/miniapp              uni-app 微信小程序骨架，业务页面和角色路由尚未实现
+apps/miniapp              uni-app 微信小程序 Vue3/Vite 基线与 initialized-only 占位页，业务页面和角色路由尚未实现
 apps/api                  NestJS API，包含平台层、数据库基线、认证、座位/设备、预约/签到、MQTT、异常和管理员接口
 apps/device-simulator     TypeScript CLI 占位程序
 firmware/smart-seat-terminal
