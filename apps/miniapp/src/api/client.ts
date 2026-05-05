@@ -1,9 +1,9 @@
-import { createHttpTransport, createSmartSeatApiClient } from '@smartseat/api-client';
+import { createSmartSeatApiClient } from '@smartseat/api-client';
 
 import { getStoredToken } from '../stores/storage';
-import { uniFetch } from './uni-transport';
+import { createUniTransport } from './uni-transport';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:3000';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:3000';
 const API_TIMEOUT_MS = 10000;
 
 export function getApiBaseUrl(): string {
@@ -12,10 +12,9 @@ export function getApiBaseUrl(): string {
 
 export function createMiniappApiClient() {
   return createSmartSeatApiClient(
-    createHttpTransport({
+    createUniTransport({
       baseUrl: getApiBaseUrl(),
       token: () => getStoredToken(),
-      fetch: uniFetch,
       timeout_ms: API_TIMEOUT_MS
     })
   );

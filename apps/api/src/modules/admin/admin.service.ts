@@ -74,7 +74,7 @@ export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
     @Inject(MqttBrokerService) private readonly mqttBroker: MqttBrokerService,

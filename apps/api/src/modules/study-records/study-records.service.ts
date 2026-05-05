@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   Prisma,
   Reservation,
@@ -37,7 +37,7 @@ type StudyRecordWithUser = StudyRecord & { user: User };
 export class StudyRecordsService {
   private readonly logger = new Logger(StudyRecordsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async upsertFromReservation(
     tx: StudyRecordClient,

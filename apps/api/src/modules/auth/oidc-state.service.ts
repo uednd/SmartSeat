@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SignJWT, jwtVerify } from 'jose';
 
@@ -22,8 +22,8 @@ interface OidcStateClaims {
 @Injectable()
 export class OidcStateService {
   constructor(
-    private readonly configService: ConfigService,
-    private readonly prisma: PrismaService
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService
   ) {}
 
   async signState(input: { nonce: string; redirectUri: string }): Promise<string> {

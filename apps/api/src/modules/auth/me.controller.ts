@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Patch, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { type MeResponse, type UpdateLeaderboardPreferenceRequest } from '@smartseat/contracts';
 
@@ -18,8 +18,8 @@ import { AuthConfigService } from './auth-config.service.js';
 @UseGuards(BearerAuthGuard)
 export class MeController {
   constructor(
-    private readonly usersService: UsersService,
-    private readonly authConfigService: AuthConfigService
+    @Inject(UsersService) private readonly usersService: UsersService,
+    @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService
   ) {}
 
   @Get()

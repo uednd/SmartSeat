@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   AnomalyStatus,
   DeviceOnlineStatus,
@@ -33,7 +33,7 @@ const ACTIVE_RESERVATION_STATUSES = [
 
 @Injectable()
 export class SeatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async listPublicSeats(request: SeatListRequest): Promise<PageResponse<SeatDto>> {
     const page = normalizePageRequest(request);

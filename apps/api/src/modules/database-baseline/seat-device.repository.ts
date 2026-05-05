@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../../common/database/prisma.service.js';
 
 @Injectable()
 export class SeatDeviceRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   findSeatWithActiveBinding(seatId: string) {
     return this.prisma.seat.findUnique({

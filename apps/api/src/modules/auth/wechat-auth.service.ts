@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { AuthProvider } from '@prisma/client';
 import {
   ApiErrorCode,
@@ -30,10 +30,10 @@ interface NormalizedWeChatLoginRequest {
 @Injectable()
 export class WeChatAuthService {
   constructor(
-    private readonly authConfigService: AuthConfigService,
-    private readonly tokenService: TokenService,
-    private readonly usersService: UsersService,
-    private readonly provider: WeChatAuthProviderSelector
+    @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
+    @Inject(TokenService) private readonly tokenService: TokenService,
+    @Inject(UsersService) private readonly usersService: UsersService,
+    @Inject(WeChatAuthProviderSelector) private readonly provider: WeChatAuthProviderSelector
   ) {}
 
   async login(request: WechatLoginRequest): Promise<AuthSessionResponse> {

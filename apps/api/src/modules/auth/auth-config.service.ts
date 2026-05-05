@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdminActionType, AuthMode as PrismaAuthMode, Prisma } from '@prisma/client';
 import {
@@ -21,8 +21,8 @@ type AuthConfigRecord = Awaited<ReturnType<PrismaService['authConfig']['findUniq
 @Injectable()
 export class AuthConfigService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ConfigService) private readonly configService: ConfigService
   ) {}
 
   async getLoginMode(): Promise<LoginModeResponse> {

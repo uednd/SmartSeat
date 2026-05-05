@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   DeviceOnlineStatus,
   Prisma,
@@ -44,7 +44,7 @@ export interface DeviceOfflineTransition {
 
 @Injectable()
 export class DevicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async listDevices(request: DeviceListRequest): Promise<PageResponse<DeviceDto>> {
     const page = normalizePageRequest(request);

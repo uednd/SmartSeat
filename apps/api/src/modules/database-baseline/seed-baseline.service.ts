@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 
 import { PrismaService } from '../../common/database/prisma.service.js';
@@ -19,7 +19,7 @@ export interface SeedBaselineSnapshot {
 @Injectable()
 export class SeedBaselineService {
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
     private readonly users: UserRepository,
     private readonly seatsAndDevices: SeatDeviceRepository,
     private readonly reservations: ReservationRepository

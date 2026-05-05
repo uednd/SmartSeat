@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as oidcClient from 'openid-client';
 
@@ -179,9 +179,9 @@ export class RealOidcAuthProvider implements OidcAuthProvider {
 @Injectable()
 export class OidcAuthProviderSelector implements OidcAuthProvider {
   constructor(
-    private readonly configService: ConfigService,
-    private readonly mockProvider: MockOidcAuthProvider,
-    private readonly realProvider: RealOidcAuthProvider
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(MockOidcAuthProvider) private readonly mockProvider: MockOidcAuthProvider,
+    @Inject(RealOidcAuthProvider) private readonly realProvider: RealOidcAuthProvider
   ) {}
 
   async buildAuthorizationUrl(input: OidcAuthorizeInput): Promise<string> {

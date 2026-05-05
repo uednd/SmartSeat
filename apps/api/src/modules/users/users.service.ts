@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { AuthProvider, Prisma, User, UserRole as PrismaUserRole } from '@prisma/client';
 import {
   ApiErrorCode,
@@ -34,7 +34,7 @@ export interface UpdateUserProfileInput {
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findById(userId: string): Promise<User | null> {
     return await this.prisma.user.findUnique({

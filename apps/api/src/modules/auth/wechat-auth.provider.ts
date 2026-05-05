@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { getConfigString } from '../../common/config/config-reader.js';
@@ -54,7 +54,7 @@ interface WeChatCode2SessionResponse {
 
 @Injectable()
 export class RealWeChatAuthProvider implements WeChatAuthProvider {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
 
   async exchangeCode(code: string): Promise<WeChatSession> {
     const url = new URL('https://api.weixin.qq.com/sns/jscode2session');
@@ -95,9 +95,9 @@ export class RealWeChatAuthProvider implements WeChatAuthProvider {
 @Injectable()
 export class WeChatAuthProviderSelector implements WeChatAuthProvider {
   constructor(
-    private readonly configService: ConfigService,
-    private readonly mockProvider: MockWeChatAuthProvider,
-    private readonly realProvider: RealWeChatAuthProvider
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(MockWeChatAuthProvider) private readonly mockProvider: MockWeChatAuthProvider,
+    @Inject(RealWeChatAuthProvider) private readonly realProvider: RealWeChatAuthProvider
   ) {}
 
   async exchangeCode(code: string): Promise<WeChatSession> {

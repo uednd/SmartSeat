@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SignJWT, jwtVerify } from 'jose';
 import { ApiErrorCode, type UserRole } from '@smartseat/contracts';
@@ -23,7 +23,7 @@ export interface SignTokenOptions {
 
 @Injectable()
 export class TokenService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
 
   async signUserToken(claims: TokenClaims, options: SignTokenOptions = {}): Promise<SignedToken> {
     const ttlSeconds =

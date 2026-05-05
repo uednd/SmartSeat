@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthProvider } from '@prisma/client';
 import {
@@ -39,12 +39,12 @@ interface NormalizedOidcCallbackRequest {
 @Injectable()
 export class OidcAuthService {
   constructor(
-    private readonly authConfigService: AuthConfigService,
-    private readonly configService: ConfigService,
-    private readonly oidcStateService: OidcStateService,
-    private readonly provider: OidcAuthProviderSelector,
-    private readonly tokenService: TokenService,
-    private readonly usersService: UsersService
+    @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
+    @Inject(ConfigService) private readonly configService: ConfigService,
+    @Inject(OidcStateService) private readonly oidcStateService: OidcStateService,
+    @Inject(OidcAuthProviderSelector) private readonly provider: OidcAuthProviderSelector,
+    @Inject(TokenService) private readonly tokenService: TokenService,
+    @Inject(UsersService) private readonly usersService: UsersService
   ) {}
 
   async getAuthorizeUrl(): Promise<OidcAuthorizeUrlResponse> {

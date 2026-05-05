@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+  Put,
+  UseGuards
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AuthSessionResponse,
@@ -31,9 +41,9 @@ import { WeChatAuthService } from './wechat-auth.service.js';
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly authConfigService: AuthConfigService,
-    private readonly oidcAuthService: OidcAuthService,
-    private readonly weChatAuthService: WeChatAuthService
+    @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
+    @Inject(OidcAuthService) private readonly oidcAuthService: OidcAuthService,
+    @Inject(WeChatAuthService) private readonly weChatAuthService: WeChatAuthService
   ) {}
 
   @Get('mode')
@@ -74,7 +84,7 @@ export class AuthController {
 @Controller('admin/auth')
 @UseGuards(BearerAuthGuard, AdminGuard)
 export class AdminAuthController {
-  constructor(private readonly authConfigService: AuthConfigService) {}
+  constructor(@Inject(AuthConfigService) private readonly authConfigService: AuthConfigService) {}
 
   @Get('mode')
   @ApiOperation({ summary: 'Get current auth configuration for administrators' })

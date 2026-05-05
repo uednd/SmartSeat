@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   AnomalySource,
   AnomalyStatus,
@@ -40,7 +40,7 @@ export interface ResolvePendingAnomalyInput {
 export class AnomaliesService {
   private readonly logger = new Logger(AnomaliesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async createPendingOnce(input: CreatePendingAnomalyInput): Promise<CreatePendingAnomalyResult> {
     const existing = await this.findPending(input);

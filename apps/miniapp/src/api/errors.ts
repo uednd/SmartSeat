@@ -1,5 +1,7 @@
 import { ApiClientError, ApiErrorCode } from '@smartseat/api-client';
 
+import { MiniappNetworkError } from './uni-transport';
+
 export function isAuthExpiredError(error: unknown): boolean {
   if (!(error instanceof ApiClientError)) {
     return false;
@@ -13,6 +15,10 @@ export function isAuthExpiredError(error: unknown): boolean {
 }
 
 export function mapApiErrorToMessage(error: unknown): string {
+  if (error instanceof MiniappNetworkError) {
+    return `${error.message}。请确认后端已启动，并检查 VITE_SMARTSEAT_API_BASE_URL。`;
+  }
+
   if (!(error instanceof ApiClientError)) {
     return error instanceof Error ? error.message : '请求失败，请稍后重试';
   }

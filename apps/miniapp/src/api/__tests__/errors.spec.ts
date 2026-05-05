@@ -2,6 +2,7 @@ import { ApiClientError, ApiErrorCode } from '@smartseat/api-client';
 import { describe, expect, it } from 'vitest';
 
 import { isAuthExpiredError, mapApiErrorToMessage } from '../errors';
+import { MiniappNetworkError } from '../uni-transport';
 
 describe('miniapp API error mapping', () => {
   it('maps expired token responses to the shared login-expired prompt', () => {
@@ -42,5 +43,15 @@ describe('miniapp API error mapping', () => {
   it('falls back to generic errors for unknown failures', () => {
     expect(mapApiErrorToMessage(new Error('network down'))).toBe('network down');
     expect(mapApiErrorToMessage('bad')).toBe('请求失败，请稍后重试');
+  });
+
+  it('maps miniapp network failures to actionable diagnostics', () => {
+    expect(
+      mapApiErrorToMessage(
+        new MiniappNetworkError('http://127.0.0.1:3000/auth/mode', 'request:fail')
+      )
+    ).toBe(
+      '无法连接 SmartSeat API（http://127.0.0.1:3000/auth/mode）：request:fail。请确认后端已启动，并检查 VITE_SMARTSEAT_API_BASE_URL。'
+    );
   });
 });

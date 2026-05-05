@@ -92,7 +92,7 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
   private qrRefreshTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService,
     private readonly studyRecordsService: StudyRecordsService
