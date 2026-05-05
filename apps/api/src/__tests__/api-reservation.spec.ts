@@ -10,7 +10,8 @@ import {
   SeatAvailability,
   SeatStatus,
   SeatUnavailableReason,
-  SensorHealthStatus
+  SensorHealthStatus,
+  StudyRecordSource
 } from '@prisma/client';
 import {
   ApiErrorCode,
@@ -97,6 +98,7 @@ interface FakeStudyRecord {
   startTime: Date;
   endTime: Date;
   durationMinutes: number;
+  source: StudyRecordSource;
   validFlag: boolean;
   invalidReason: string | null;
   createdAt: Date;
@@ -1125,6 +1127,9 @@ describe('API-RES-01 reservation state machine and API', () => {
   });
 
   it('extends a checked-in reservation when the following time range has no conflict', async () => {
+    const startTime = new Date(Date.now() + 60 * 60_000);
+    const endTime = new Date(startTime.getTime() + 60 * 60_000);
+    const extendedEndTime = new Date(startTime.getTime() + 90 * 60_000);
     prisma.seedSeat({
       seatId: 'seat_occupied_extend',
       seatNo: 'B-002',
@@ -1134,10 +1139,10 @@ describe('API-RES-01 reservation state machine and API', () => {
       reservationId: 'reservation_extend',
       userId: 'user_student',
       seatId: 'seat_occupied_extend',
-      startTime: new Date('2026-05-04T09:00:00.000Z'),
-      endTime: new Date('2026-05-04T10:00:00.000Z'),
+      startTime,
+      endTime,
       status: ReservationStatus.CHECKED_IN,
-      checkedInAt: new Date('2026-05-04T09:01:00.000Z')
+      checkedInAt: new Date(startTime.getTime() + 60_000)
     });
 
     const response = await request(app.getHttpServer())
@@ -1145,13 +1150,13 @@ describe('API-RES-01 reservation state machine and API', () => {
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
         reservation_id: 'reservation_extend',
-        end_time: '2026-05-04T10:30:00.000Z'
+        end_time: extendedEndTime.toISOString()
       })
       .expect(201);
 
     expect(response.body).toMatchObject({
       reservation_id: 'reservation_extend',
-      end_time: '2026-05-04T10:30:00.000Z',
+      end_time: extendedEndTime.toISOString(),
       status: ReservationStatus.CHECKED_IN
     });
     expect(prisma.seats.find((seat) => seat.seatId === 'seat_occupied_extend')).toMatchObject({
@@ -1160,6 +1165,10 @@ describe('API-RES-01 reservation state machine and API', () => {
   });
 
   it('rejects invalid, conflicting, or unauthorized extension attempts', async () => {
+    const startTime = new Date(Date.now() + 60 * 60_000);
+    const endTime = new Date(startTime.getTime() + 60 * 60_000);
+    const invalidEndTime = new Date(endTime.getTime() - 60_000);
+    const extendedEndTime = new Date(startTime.getTime() + 90 * 60_000);
     prisma.seedSeat({
       seatId: 'seat_occupied_extend_reject',
       seatNo: 'B-003',
@@ -1169,17 +1178,17 @@ describe('API-RES-01 reservation state machine and API', () => {
       reservationId: 'reservation_extend_reject',
       userId: 'user_student',
       seatId: 'seat_occupied_extend_reject',
-      startTime: new Date('2026-05-04T09:00:00.000Z'),
-      endTime: new Date('2026-05-04T10:00:00.000Z'),
+      startTime,
+      endTime,
       status: ReservationStatus.CHECKED_IN,
-      checkedInAt: new Date('2026-05-04T09:01:00.000Z')
+      checkedInAt: new Date(startTime.getTime() + 60_000)
     });
     prisma.seedReservation({
       reservationId: 'reservation_following_conflict',
       userId: 'user_other_student',
       seatId: 'seat_occupied_extend_reject',
-      startTime: new Date('2026-05-04T10:10:00.000Z'),
-      endTime: new Date('2026-05-04T11:00:00.000Z')
+      startTime: new Date(endTime.getTime() + 10 * 60_000),
+      endTime: new Date(endTime.getTime() + 60 * 60_000)
     });
     prisma.seedReservation({
       reservationId: 'reservation_waiting_no_extend',
@@ -1192,7 +1201,7 @@ describe('API-RES-01 reservation state machine and API', () => {
       .set('Authorization', `Bearer ${otherStudentToken}`)
       .send({
         reservation_id: 'reservation_extend_reject',
-        end_time: '2026-05-04T10:30:00.000Z'
+        end_time: extendedEndTime.toISOString()
       })
       .expect(403);
     const notActive = await request(app.getHttpServer())
@@ -1200,7 +1209,7 @@ describe('API-RES-01 reservation state machine and API', () => {
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
         reservation_id: 'reservation_waiting_no_extend',
-        end_time: '2026-05-04T10:30:00.000Z'
+        end_time: extendedEndTime.toISOString()
       })
       .expect(409);
     const invalidWindow = await request(app.getHttpServer())
@@ -1208,7 +1217,7 @@ describe('API-RES-01 reservation state machine and API', () => {
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
         reservation_id: 'reservation_extend_reject',
-        end_time: '2026-05-04T09:59:00.000Z'
+        end_time: invalidEndTime.toISOString()
       })
       .expect(400);
     const conflict = await request(app.getHttpServer())
@@ -1216,7 +1225,7 @@ describe('API-RES-01 reservation state machine and API', () => {
       .set('Authorization', `Bearer ${studentToken}`)
       .send({
         reservation_id: 'reservation_extend_reject',
-        end_time: '2026-05-04T10:30:00.000Z'
+        end_time: extendedEndTime.toISOString()
       })
       .expect(409);
 
@@ -1261,7 +1270,8 @@ describe('API-RES-01 reservation state machine and API', () => {
     expect(prisma.studyRecords[0]).toMatchObject({
       reservationId: 'reservation_user_release',
       userId: 'user_student',
-      seatId: 'seat_user_release'
+      seatId: 'seat_user_release',
+      source: StudyRecordSource.USER_RELEASED
     });
   });
 
@@ -1376,6 +1386,7 @@ describe('API-RES-01 reservation state machine and API', () => {
     expect(prisma.studyRecords[0]).toMatchObject({
       reservationId: 'reservation_finished',
       durationMinutes: 55,
+      source: StudyRecordSource.TIME_FINISHED,
       validFlag: true
     });
   });

@@ -13,6 +13,7 @@ import {
   SeatAvailability,
   SeatStatus,
   SensorHealthStatus,
+  StudyRecordSource,
   UserRole
 } from '@prisma/client';
 
@@ -354,6 +355,7 @@ async function seedHistoricalUsage(): Promise<void> {
         startTime: item.startTime,
         endTime: item.endTime,
         durationMinutes: item.durationMinutes,
+        source: StudyRecordSource.TIME_FINISHED,
         validFlag: true,
         invalidReason: null
       },
@@ -365,6 +367,7 @@ async function seedHistoricalUsage(): Promise<void> {
         startTime: item.startTime,
         endTime: item.endTime,
         durationMinutes: item.durationMinutes,
+        source: StudyRecordSource.TIME_FINISHED,
         validFlag: true
       }
     });

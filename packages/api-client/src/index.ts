@@ -26,6 +26,8 @@ import {
   type ExtendReservationRequest,
   type HandleAnomalyRequest,
   type LoginModeResponse,
+  type LeaderboardRequest,
+  type LeaderboardResponse,
   type MeResponse,
   type NoShowRecordDto,
   type OidcCallbackRequest,
@@ -38,6 +40,7 @@ import {
   type SeatDto,
   type SeatListRequest,
   type SetSeatEnabledRequest,
+  type StudyStatsDto,
   type UnbindDeviceSeatRequest,
   type UpdateAuthConfigRequest,
   type UpdateDeviceMaintenanceRequest,
@@ -372,6 +375,14 @@ export interface AnomaliesApi {
   handle(request: HandleAnomalyRequest): Promise<AnomalyEventDto>;
 }
 
+export interface StatsApi {
+  getMe(): Promise<StudyStatsDto>;
+}
+
+export interface LeaderboardApi {
+  get(request: LeaderboardRequest): Promise<LeaderboardResponse>;
+}
+
 export interface AdminApi {
   dashboard(): Promise<AdminDashboardDto>;
   listSeats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
@@ -411,6 +422,8 @@ export interface SmartSeatApiClient {
   reservations: ReservationsApi;
   checkin: CheckinApi;
   anomalies: AnomaliesApi;
+  stats: StatsApi;
+  leaderboard: LeaderboardApi;
   admin: AdminApi;
 }
 
@@ -584,6 +597,23 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           method: 'POST',
           path: '/admin/anomalies/handle',
           body: request
+        })
+    },
+    stats: {
+      getMe: () =>
+        transport.request({
+          operation_id: 'stats.getMe',
+          method: 'GET',
+          path: '/stats/me'
+        })
+    },
+    leaderboard: {
+      get: (request) =>
+        transport.request({
+          operation_id: 'leaderboard.get',
+          method: 'GET',
+          path: '/leaderboard',
+          query: request
         })
     },
     admin: {

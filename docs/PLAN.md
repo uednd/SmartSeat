@@ -203,7 +203,7 @@ stateDiagram-v2
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Done |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Done |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Done |
-| API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Not Started |
+| API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Done |
 | MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Not Started |
 | MINI-02 | 学生页面闭环 | apps/miniapp | P0 | MINI-01、API-SEAT-01、API-RES-01/02/03、API-STAT-01 | Not Started |
 | MINI-03 | 管理员页面闭环 | apps/miniapp | P0 | MINI-01、API-ADM-01、API-IOT-03 | Not Started |
@@ -587,13 +587,14 @@ stateDiagram-v2
 | 输出 | StudyRecord 服务、`/stats/me`、`/leaderboard`、榜单 opt-in/out。 |
 | 涉及文件/目录 | `apps/api/src/modules/study-records/**`、`apps/api/src/modules/leaderboard/**`。 |
 | 接口契约 | 个人统计 DTO、排行榜 DTO、匿名名字段、排名字段。 |
-| 数据变更 | StudyRecord 写入；User 榜单参与偏好。 |
+| 数据变更 | StudyRecord 写入并记录 `source`；User 榜单参与偏好。 |
 | 测试要求 | `<15` 分钟无效记录过滤、跨天连续天数、本周统计、匿名显示、退出榜单、本人排名可见。 |
 | 文档要求 | 说明有效学习规则、榜单指标、匿名策略。 |
-| 部署/配置要求 | 周期统计可实时计算或定时缓存，需在 ADR/文档说明。 |
-| 回滚要求 | 可关闭排行榜展示，不删除学习记录。 |
-| 监控与告警 | 统计查询耗时、榜单生成失败日志。 |
+| 部署/配置要求 | 采用实时计算：`/stats/me` 与 `/leaderboard` 查询时从有效 StudyRecord 聚合，避免原型阶段新增缓存表与定时缓存一致性成本。 |
+| 回滚要求 | 可通过小程序隐藏榜单入口或用户 opt-out 降级展示，不删除学习记录。 |
+| 监控与告警 | 统计查询耗时超过阈值记录 warn 日志；榜单生成失败走全局错误日志。 |
 | 验收标准 | 学生可查看个人统计与匿名排行榜；榜单不展示真实身份。 |
+| 当前状态 | Done；已实现 `StudyRecordsService` 统一生成主动离座、正常结束、管理员释放学习记录，`<15` 分钟与管理员显式排除记录不计入有效统计；`GET /stats/me` 返回本周到馆次数、本周/累计学习时长、连续学习天数和最近记录；`GET /leaderboard` 支持周学习时长、到馆次数、连续学习榜，公共 entries 仅返回匿名名和排名/指标，opt-out 用户不进入公共榜单，当前学生可看到自己的匿名排名位置。已同步 contracts、api-client、Prisma migration、OpenAPI schema，并通过 `api-stat.spec.ts`、OpenAPI 回归和 API 全量测试验证。未实现小程序页面、管理员页面视觉、预约状态机新规则、定时缓存或异常刷时长自动识别。 |
 | 可分配给编码智能体的提示 | 只做记录与统计接口；不要做前端视觉；补齐 opt-in/out、无效记录过滤、匿名排名测试。 |
 
 ### MINI-01 小程序公共壳层、登录页与角色路由

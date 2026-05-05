@@ -8,6 +8,7 @@ import {
   DeviceCommandType,
   DeviceOnlineStatus,
   DisplayLayout,
+  LeaderboardMetric,
   LightMode,
   LightStatus,
   MqttDeviceEventType,
@@ -17,6 +18,7 @@ import {
   SeatAvailability,
   SeatStatus,
   SensorHealthStatus,
+  StudyRecordSource,
   buildMqttTopic,
   type AdminActionLogDto,
   type AdminDeviceDto,
@@ -34,6 +36,8 @@ import {
   type CurrentUsageResponse,
   type ExtendReservationRequest,
   type HandleAnomalyRequest,
+  type LeaderboardRequest,
+  type LeaderboardResponse,
   type MqttCommandPayload,
   type MqttDisplayPayload,
   type MqttHeartbeatPayload,
@@ -46,6 +50,7 @@ import {
   type SeatDto,
   type SetSeatEnabledRequest,
   type StudyRecordDto,
+  type StudyStatsDto,
   type UpdateDeviceMaintenanceRequest,
   type UpdateDeviceRequest,
   type UpdateSeatMaintenanceRequest,
@@ -194,9 +199,47 @@ const studyRecord = {
   start_time: reservation.checked_in_at,
   end_time: '2026-05-02T01:00:00.000Z',
   duration_minutes: 59,
+  source: StudyRecordSource.USER_RELEASED,
   valid_flag: true,
   created_at: '2026-05-02T01:00:00.000Z'
 } satisfies StudyRecordDto;
+
+const studyStats = {
+  user_id: reservation.user_id,
+  week_visit_count: 1,
+  week_duration_minutes: 59,
+  total_duration_minutes: 59,
+  streak_days: 1,
+  no_show_count_week: 0,
+  no_show_count_month: 0,
+  recent_records: [studyRecord]
+} satisfies StudyStatsDto;
+
+const leaderboardRequest = {
+  metric: LeaderboardMetric.WEEKLY_DURATION,
+  week_start: '2026-04-27T16:00:00.000Z'
+} satisfies LeaderboardRequest;
+
+const leaderboard = {
+  metric: LeaderboardMetric.WEEKLY_DURATION,
+  week_start: '2026-04-27T16:00:00.000Z',
+  entries: [
+    {
+      rank: 1,
+      anonymous_name: '匿名用户 08',
+      metric: LeaderboardMetric.WEEKLY_DURATION,
+      value: 59,
+      is_current_user: true
+    }
+  ],
+  current_user_entry: {
+    rank: 1,
+    anonymous_name: '匿名用户 08',
+    metric: LeaderboardMetric.WEEKLY_DURATION,
+    value: 59,
+    is_current_user: true
+  }
+} satisfies LeaderboardResponse;
 
 const reservationHistory = {
   page: 1,
@@ -302,7 +345,8 @@ const adminReleaseSeat = {
   seat_id: 'seat-1',
   reservation_id: reservation.reservation_id,
   reason: 'administrator release',
-  restore_availability: true
+  restore_availability: true,
+  exclude_study_record: true
 } satisfies AdminReleaseSeatRequest;
 
 const updateSeatMaintenance = {
@@ -403,6 +447,9 @@ void extendReservation;
 void userReleaseReservation;
 void currentUsage;
 void studyRecord;
+void studyStats;
+void leaderboardRequest;
+void leaderboard;
 void reservationHistory;
 void adminReservationList;
 void anomalyEvent;

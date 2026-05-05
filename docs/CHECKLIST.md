@@ -310,15 +310,15 @@
 
 ### CL-API-STAT-01 学习记录、个人统计与匿名排行榜
 
-- [ ] 主动离座、正常结束、管理员释放等场景下学习记录生成规则明确。
-- [ ] `<15` 分钟或 PRD 指定阈值以下记录不计入有效学习。
-- [ ] `/stats/me` 返回本周到馆次数、累计学习时长、连续学习天数等个人统计。
-- [ ] `/leaderboard` 支持周学习时长榜、到馆次数榜、连续学习榜。
-- [ ] 榜单默认或按规则匿名展示，不暴露真实姓名、openid、学号等身份信息。
-- [ ] 学生可退出/参与榜单，退出后不出现在公共榜单中。
-- [ ] 当前学生可看到自己的匿名排名或个人位置。
-- [ ] 统计跨天、跨周边界测试已覆盖。
-- [ ] 证据路径已填写：____
+- [x] 主动离座、正常结束、管理员释放等场景下学习记录生成规则明确：`StudyRecordsService.upsertFromReservation()` 统一要求已签到、记录开始/结束时间、时长、source 与有效性。
+- [x] `<15` 分钟或 PRD 指定阈值以下记录不计入有效学习：`api-stat.spec.ts` 覆盖 `DURATION_LT_15_MINUTES`，管理员显式排除覆盖 `ADMIN_MARKED_INVALID`。
+- [x] `/stats/me` 返回本周到馆次数、累计学习时长、连续学习天数等个人统计：OpenAPI 与 `api-stat.spec.ts` 覆盖本周、累计、最近记录和连续天数。
+- [x] `/leaderboard` 支持周学习时长榜、到馆次数榜、连续学习榜：`WEEKLY_DURATION`、`WEEKLY_VISITS`、`STREAK_DAYS` 均有测试覆盖。
+- [x] 榜单默认或按规则匿名展示，不暴露真实姓名、openid、学号等身份信息：公共 entries 仅包含 `anonymous_name`、`rank`、`metric`、`value`、`is_current_user`。
+- [x] 学生可退出/参与榜单，退出后不出现在公共榜单中：复用 `/me/leaderboard-preference`，opt-out 用户被排行榜聚合过滤。
+- [x] 当前学生可看到自己的匿名排名或个人位置：`current_user_entry` 覆盖当前学生匿名排名。
+- [x] 统计跨天、跨周边界测试已覆盖：Asia/Shanghai 周一边界、跨天连续学习、上一周记录过滤均在 `api-stat.spec.ts` 中验证。
+- [x] 证据路径已填写：`apps/api/src/__tests__/api-stat.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；验证命令 `pnpm --filter @smartseat/api test` 通过，输出 `120 passed | 5 skipped`。
 
 ### CL-MINI-01 小程序公共壳层、登录页与角色路由
 
@@ -483,10 +483,10 @@
 
 ### 5.5 学习统计与匿名排行榜闸门
 
-- [ ] 有效学习记录生成规则正确。
-- [ ] 个人统计显示本周到馆次数、累计学习时长、连续学习天数。
-- [ ] 匿名排行榜不展示真实身份。
-- [ ] 退出榜单后不出现在公共榜单。
+- [x] 有效学习记录生成规则正确。
+- [x] 个人统计显示本周到馆次数、累计学习时长、连续学习天数。
+- [x] 匿名排行榜不展示真实身份。
+- [x] 退出榜单后不出现在公共榜单。
 - [ ] 演示数据可展示多用户排名。
 - [ ] 关联任务：API-STAT-01、MINI-02、OPS-01。
 

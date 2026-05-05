@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../common/database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { MqttModule } from '../mqtt/mqtt.module.js';
+import { StudyRecordsModule } from '../study-records/study-records.module.js';
 import { UsersModule } from '../users/users.module.js';
 import {
   AdminReservationsController,
@@ -13,7 +14,7 @@ import {
 import { ReservationsService } from './reservations.service.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, UsersModule, MqttModule],
+  imports: [DatabaseModule, AuthModule, UsersModule, MqttModule, StudyRecordsModule],
   controllers: [
     ReservationsController,
     CurrentUsageController,

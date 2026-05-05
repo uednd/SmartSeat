@@ -1,6 +1,6 @@
 # SmartSeat
 
-SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则和管理员释放/维护/审计接口。后续继续落地 ESP32-P4 终端、uni-app 微信小程序、设备模拟器、统计和排行榜等业务能力。
+SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则、管理员释放/维护/审计接口、学习统计和匿名排行榜后端接口。后续继续落地 ESP32-P4 终端、uni-app 微信小程序、设备模拟器等业务能力。
 
 ## 仓库结构
 
@@ -75,7 +75,7 @@ pnpm docker:down
 
 - `packages/contracts`：共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload。
 - `packages/api-client`：typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化。
-- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、`/me`、微信/OIDC 登录、座位/设备查询、预约创建/取消、续约/离座/到期推进、动态二维码扫码签到、MQTT 心跳与 display/light/command 命令总线、presence 持续时间判断、异常自动规则、管理员 dashboard/no-show/异常查询、手动释放、维护切换、脱敏配置读取和 AdminActionLog 审计。
+- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、`/me`、微信/OIDC 登录、座位/设备查询、预约创建/取消、续约/离座/到期推进、动态二维码扫码签到、MQTT 心跳与 display/light/command 命令总线、presence 持续时间判断、异常自动规则、管理员 dashboard/no-show/异常查询、手动释放、维护切换、脱敏配置读取、AdminActionLog 审计、`/stats/me` 和匿名 `/leaderboard`。
 - 准生产单机 Docker 部署包：NestJS API、PostgreSQL、Mosquitto、一次性 migrate + seed 初始化服务。
 
 后端平台接口：
@@ -95,9 +95,9 @@ pnpm docker:down
 - `GET /me`
 - `PATCH /me/leaderboard-preference`
 
-后端座位、设备、预约、扫码签到、异常和管理员接口已在 OpenAPI 中暴露，包括 `/seats`、`/devices`、`/reservations`、`/current-usage`、`/checkin`、`/admin/dashboard`、`/admin/no-shows`、`/admin/anomalies`、`/admin/seats/release`、`/admin/seats/maintenance`、`/admin/devices/maintenance`、`/admin/config` 和管理员审计日志接口。
+后端座位、设备、预约、扫码签到、异常、统计、排行榜和管理员接口已在 OpenAPI 中暴露，包括 `/seats`、`/devices`、`/reservations`、`/current-usage`、`/checkin`、`/stats/me`、`/leaderboard`、`/admin/dashboard`、`/admin/no-shows`、`/admin/anomalies`、`/admin/seats/release`、`/admin/seats/maintenance`、`/admin/devices/maintenance`、`/admin/config` 和管理员审计日志接口。
 
-仍未实现：统计计算、排行榜接口、小程序真实页面与角色路由、设备模拟器业务流、固件业务逻辑、独立设备维护持久字段。真实微信和学校 OIDC 外网联调需要按部署环境另行配置，不使用仓库占位 secret。
+仍未实现：小程序真实页面与角色路由、设备模拟器业务流、固件业务逻辑、独立设备维护持久字段、异常刷时长自动识别。真实微信和学校 OIDC 外网联调需要按部署环境另行配置，不使用仓库占位 secret。
 
 ## 本地基础设施
 

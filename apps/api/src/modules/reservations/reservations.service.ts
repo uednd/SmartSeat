@@ -17,6 +17,7 @@ import {
   ReservationStatus,
   SeatAvailability,
   SeatStatus,
+  StudyRecordSource,
   type Device,
   type QRToken,
   type Reservation,
@@ -51,11 +52,10 @@ import { AppHttpException } from '../../common/errors/app-http.exception.js';
 import { toReservationDto } from './reservation.mapper.js';
 import { MqttCommandBusService } from '../mqtt/mqtt-command-bus.service.js';
 import { toSeatDto } from '../seats/seat-device.mapper.js';
+import { StudyRecordsService } from '../study-records/study-records.service.js';
 
 const CHECKIN_START_OFFSET_MS = 5 * 60 * 1000;
 const CHECKIN_DEADLINE_OFFSET_MS = 15 * 60 * 1000;
-const MIN_VALID_STUDY_MINUTES = 15;
-const SHORT_STUDY_INVALID_REASON = 'DURATION_LT_15_MINUTES';
 const ACTIVE_RESERVATION_STATUSES = [
   ReservationStatus.WAITING_CHECKIN,
   ReservationStatus.CHECKED_IN
@@ -94,7 +94,8 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ConfigService) private readonly configService: ConfigService,
-    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService
+    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService,
+    private readonly studyRecordsService: StudyRecordsService
   ) {}
 
   onModuleInit(): void {
@@ -603,7 +604,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
           data
         });
 
-        await this.upsertStudyRecord(tx, existing, now);
+        await this.studyRecordsService.upsertFromReservation(
+          tx,
+          existing,
+          now,
+          StudyRecordSource.USER_RELEASED
+        );
         await this.releaseSeatIfNoActiveReservation(tx, existing.seatId);
         return updated;
       },
@@ -781,7 +787,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
                 releaseReason: 'TIME_FINISHED'
               }
             });
-            await this.upsertStudyRecord(tx, reservation, reservation.endTime);
+            await this.studyRecordsService.upsertFromReservation(
+              tx,
+              reservation,
+              reservation.endTime,
+              StudyRecordSource.TIME_FINISHED
+            );
             await this.releaseSeatIfNoActiveReservation(tx, reservation.seatId);
             transitions.finished.push({
               reservationId: reservation.reservationId,
@@ -1319,36 +1330,6 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
         }
       );
     }
-  }
-
-  private async upsertStudyRecord(
-    tx: ReservationClient,
-    reservation: Reservation,
-    endTime: Date
-  ): Promise<void> {
-    const startTime = reservation.checkedInAt ?? reservation.startTime;
-    const durationMinutes = Math.max(
-      0,
-      Math.floor((endTime.getTime() - startTime.getTime()) / 60_000)
-    );
-    const validFlag = durationMinutes >= MIN_VALID_STUDY_MINUTES;
-
-    await tx.studyRecord.upsert({
-      where: {
-        reservationId: reservation.reservationId
-      },
-      update: {},
-      create: {
-        userId: reservation.userId,
-        reservationId: reservation.reservationId,
-        seatId: reservation.seatId,
-        startTime,
-        endTime,
-        durationMinutes,
-        validFlag,
-        invalidReason: validFlag ? null : SHORT_STUDY_INVALID_REASON
-      }
-    });
   }
 
   private async releaseSeatIfNoActiveReservation(

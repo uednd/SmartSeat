@@ -111,6 +111,12 @@ enum AdminActionType {
   UPDATE_AUTH_CONFIG
 }
 
+enum StudyRecordSource {
+  USER_RELEASED
+  TIME_FINISHED
+  ADMIN_RELEASED
+}
+
 model User {
   userId             String              @id @default(cuid()) @map("user_id")
   authProvider       AuthProvider        @map("auth_provider")
@@ -361,19 +367,20 @@ model MaintenanceRecord {
 }
 
 model StudyRecord {
-  recordId        String      @id @default(cuid()) @map("record_id")
-  userId          String      @map("user_id")
-  reservationId   String      @map("reservation_id")
-  seatId          String      @map("seat_id")
-  startTime       DateTime    @map("start_time")
-  endTime         DateTime    @map("end_time")
-  durationMinutes Int         @map("duration_minutes")
-  validFlag       Boolean     @default(true) @map("valid_flag")
-  invalidReason   String?     @map("invalid_reason")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  user            User        @relation(fields: [userId], references: [userId], onDelete: Restrict)
-  reservation     Reservation @relation(fields: [reservationId], references: [reservationId], onDelete: Restrict)
-  seat            Seat        @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
+  recordId        String            @id @default(cuid()) @map("record_id")
+  userId          String            @map("user_id")
+  reservationId   String            @map("reservation_id")
+  seatId          String            @map("seat_id")
+  startTime       DateTime          @map("start_time")
+  endTime         DateTime          @map("end_time")
+  durationMinutes Int               @map("duration_minutes")
+  source          StudyRecordSource @default(TIME_FINISHED)
+  validFlag       Boolean           @default(true) @map("valid_flag")
+  invalidReason   String?           @map("invalid_reason")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  user            User              @relation(fields: [userId], references: [userId], onDelete: Restrict)
+  reservation     Reservation       @relation(fields: [reservationId], references: [reservationId], onDelete: Restrict)
+  seat            Seat              @relation(fields: [seatId], references: [seatId], onDelete: Restrict)
 
   @@unique([reservationId])
   @@index([userId, startTime])

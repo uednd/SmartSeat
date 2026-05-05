@@ -1,0 +1,4 @@
+CREATE TYPE "StudyRecordSource" AS ENUM ('USER_RELEASED', 'TIME_FINISHED', 'ADMIN_RELEASED');
+
+ALTER TABLE "study_records"
+ADD COLUMN "source" "StudyRecordSource" NOT NULL DEFAULT 'TIME_FINISHED';

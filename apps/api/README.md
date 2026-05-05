@@ -1,6 +1,6 @@
 # @smartseat/api
 
-SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力、`API-SEAT-01` 座位/设备查询、`API-RES-01/02/03` 预约与扫码签到链路、`API-IOT-01/02/03` MQTT 与传感器/异常自动规则，以及 `API-ADM-01` 管理员 dashboard、手动释放、维护、配置脱敏读取和审计接口。统计计算、排行榜和小程序页面仍未实现。
+SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数据库基线、`API-AUTH-01/02/03` 认证与用户基础能力、`API-SEAT-01` 座位/设备查询、`API-RES-01/02/03` 预约与扫码签到链路、`API-IOT-01/02/03` MQTT 与传感器/异常自动规则、`API-ADM-01` 管理员 dashboard、手动释放、维护、配置脱敏读取和审计接口，以及 `API-STAT-01` 学习统计与匿名排行榜接口。小程序页面仍未实现。
 
 ## 启动配置
 
@@ -31,7 +31,7 @@ SmartSeat NestJS 后端服务。当前已具备平台层能力、`API-DB-01` 数
 - `GET /auth/oidc/authorize-url`：OIDC 登录模式下返回授权 URL 和签名 state。
 - `POST /auth/oidc/callback`：OIDC 登录模式下完成 code 回调、用户绑定和系统 token 签发；支持 mock/real provider，测试不依赖学校真实 Provider。
 - `GET /me`：返回当前用户、角色、匿名名、展示名、登录模式和小程序 `next_route`。
-- `PATCH /me/leaderboard-preference`：更新当前用户是否参与匿名排行榜的隐私偏好，不计算排行榜。
+- `PATCH /me/leaderboard-preference`：更新当前用户是否参与匿名排行榜的隐私偏好。
 
 当前认证边界：已实现 STUDENT/ADMIN 区分、首个用户成为管理员、微信/OIDC mock provider 可测闭环和 token 守卫；未实现小程序页面、OIDC 管理员组映射、真实微信外网联调、真实学校 OIDC 外网联调。
 
@@ -117,7 +117,17 @@ Seed 中的设备在线状态和心跳时间只是演示初始数据。`API-IOT-
 
 手动释放和维护/恢复会写入 `AdminActionLog`，并尝试通过 MQTT 同步终端 display/light 或维护命令；MQTT 禁用或断连时不回滚业务状态，会在审计 detail 中记录降级结果。配置读取接口只返回登录模式、MQTT 状态和阈值等脱敏字段，不返回 secret、client secret、password 或 token。设备维护不新增独立 `Device.maintenance` 字段，按绑定座位维护状态派生。
 
-本阶段仍不处理统计计算、排行榜、小程序页面、设备模拟器或固件逻辑。
+## 学习统计与匿名排行榜
+
+`API-STAT-01` 已实现实时聚合统计，不新增缓存表或定时缓存任务：
+
+- `GET /stats/me`：当前学生本周到馆次数、本周/累计学习时长、连续学习天数、最近学习记录。
+- `GET /leaderboard`：匿名周学习时长榜、到馆次数榜、连续学习榜；公共 entries 不返回真实身份字段。
+- `PATCH /me/leaderboard-preference`：学生 opt-in/opt-out；opt-out 不进入公共榜单，个人统计仍可查看。
+
+学习记录由主动离座、正常结束和管理员释放等已签到结束场景生成；`<15` 分钟或管理员显式排除的记录不计入有效统计。
+
+本阶段仍不处理小程序页面、设备模拟器、固件逻辑或异常刷时长自动识别。
 
 Prisma Migrate 不维护手写 down migration。本地/演示回滚等价操作是 `pnpm db:reset-demo` 重建；已提交 migration 的修正通过新增 migration 或恢复数据库备份完成。
 

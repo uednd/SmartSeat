@@ -2,13 +2,14 @@ import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module.js';
 import { MqttModule } from '../mqtt/mqtt.module.js';
+import { StudyRecordsModule } from '../study-records/study-records.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { DatabaseModule } from '../../common/database/database.module.js';
 import { AdminController } from './admin.controller.js';
 import { AdminService } from './admin.service.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, UsersModule, MqttModule],
+  imports: [DatabaseModule, AuthModule, UsersModule, MqttModule, StudyRecordsModule],
   controllers: [AdminController],
   providers: [AdminService],
   exports: [AdminService]

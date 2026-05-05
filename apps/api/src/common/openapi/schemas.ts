@@ -427,6 +427,88 @@ export const checkinResponseSchema: SchemaObject = {
   }
 };
 
+export const studyRecordSchema: SchemaObject = {
+  type: 'object',
+  required: [
+    'record_id',
+    'user_id',
+    'reservation_id',
+    'seat_id',
+    'start_time',
+    'end_time',
+    'duration_minutes',
+    'source',
+    'valid_flag',
+    'created_at'
+  ],
+  properties: {
+    record_id: id(),
+    user_id: id(),
+    reservation_id: id(),
+    seat_id: id(),
+    start_time: dateTime(),
+    end_time: dateTime(),
+    duration_minutes: integer(),
+    source: text(),
+    valid_flag: bool(),
+    invalid_reason: text(),
+    created_at: dateTime()
+  }
+};
+
+export const studyStatsSchema: SchemaObject = {
+  type: 'object',
+  required: [
+    'user_id',
+    'week_visit_count',
+    'week_duration_minutes',
+    'total_duration_minutes',
+    'streak_days',
+    'no_show_count_week',
+    'no_show_count_month',
+    'recent_records'
+  ],
+  properties: {
+    user_id: id(),
+    week_visit_count: integer(),
+    week_duration_minutes: integer(),
+    total_duration_minutes: integer(),
+    streak_days: integer(),
+    no_show_count_week: integer(),
+    no_show_count_month: integer(),
+    recent_records: {
+      type: 'array',
+      items: studyRecordSchema
+    }
+  }
+};
+
+export const leaderboardEntrySchema: SchemaObject = {
+  type: 'object',
+  required: ['rank', 'anonymous_name', 'metric', 'value', 'is_current_user'],
+  properties: {
+    rank: integer(),
+    anonymous_name: text(),
+    metric: text(),
+    value: integer(),
+    is_current_user: bool()
+  }
+};
+
+export const leaderboardResponseSchema: SchemaObject = {
+  type: 'object',
+  required: ['metric', 'week_start', 'entries'],
+  properties: {
+    metric: text(),
+    week_start: dateTime(),
+    entries: {
+      type: 'array',
+      items: leaderboardEntrySchema
+    },
+    current_user_entry: leaderboardEntrySchema
+  }
+};
+
 export const adminDashboardSchema: SchemaObject = {
   type: 'object',
   required: [
@@ -499,7 +581,8 @@ export const adminReleaseSeatRequestSchema: SchemaObject = {
     seat_id: id(),
     reservation_id: id(),
     reason: text(),
-    restore_availability: bool()
+    restore_availability: bool(),
+    exclude_study_record: bool()
   }
 };
 

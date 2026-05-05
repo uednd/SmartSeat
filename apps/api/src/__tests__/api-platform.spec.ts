@@ -136,6 +136,8 @@ describe('API platform', () => {
     expect(response.body.openapi).toEqual(expect.any(String));
     expect(response.body.paths).toHaveProperty('/health');
     expect(response.body.paths).toHaveProperty('/checkin');
+    expect(response.body.paths).toHaveProperty('/stats/me');
+    expect(response.body.paths).toHaveProperty('/leaderboard');
     expect(response.body.paths).toHaveProperty('/admin/dashboard');
     expect(response.body.paths).toHaveProperty('/admin/seats/release');
     expect(response.body.paths).toHaveProperty('/admin/seats/maintenance');
@@ -143,6 +145,8 @@ describe('API platform', () => {
     expect(response.body.paths).toHaveProperty('/admin/anomalies/handle');
     expect(response.body.paths).toHaveProperty('/admin/config');
     expect(response.body.paths['/checkin']).toHaveProperty('post');
+    expect(response.body.paths['/stats/me']).toHaveProperty('get');
+    expect(response.body.paths['/leaderboard']).toHaveProperty('get');
     expect(response.body.paths['/auth/wechat/login'].post.requestBody.content).toMatchObject({
       'application/json': {
         schema: {
@@ -173,16 +177,47 @@ describe('API platform', () => {
         }
       }
     });
+    expect(response.body.paths['/stats/me'].get.responses['200'].content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining([
+            'week_visit_count',
+            'week_duration_minutes',
+            'total_duration_minutes',
+            'streak_days',
+            'recent_records'
+          ]),
+          properties: {
+            recent_records: expect.objectContaining({ type: 'array' })
+          }
+        }
+      }
+    });
+    expect(response.body.paths['/leaderboard'].get.responses['200'].content).toMatchObject({
+      'application/json': {
+        schema: {
+          required: expect.arrayContaining(['metric', 'week_start', 'entries']),
+          properties: {
+            entries: expect.objectContaining({ type: 'array' })
+          }
+        }
+      }
+    });
     expect(response.body.paths['/admin/seats/release'].post.requestBody.content).toMatchObject({
       'application/json': {
         schema: {
           required: expect.arrayContaining(['seat_id', 'reason', 'restore_availability']),
           properties: {
-            reason: expect.objectContaining({ type: 'string' })
+            reason: expect.objectContaining({ type: 'string' }),
+            exclude_study_record: expect.objectContaining({ type: 'boolean' })
           }
         }
       }
     });
+    expect(
+      response.body.paths['/leaderboard'].get.responses['200'].content['application/json'].schema
+        .properties.entries.items.properties
+    ).not.toHaveProperty('user_id');
     expect(response.body.paths['/admin/anomalies/handle'].post.requestBody.content).toMatchObject({
       'application/json': {
         schema: {

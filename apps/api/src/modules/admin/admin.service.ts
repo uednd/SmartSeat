@@ -11,6 +11,7 @@ import {
   SeatAvailability,
   SeatStatus,
   SeatUnavailableReason,
+  StudyRecordSource,
   type AdminActionLog,
   type AnomalyEvent,
   type Device,
@@ -45,14 +46,13 @@ import { MqttBrokerService } from '../mqtt/mqtt-broker.service.js';
 import { MqttCommandBusService } from '../mqtt/mqtt-command-bus.service.js';
 import { toAnomalyEventDto } from '../anomalies/anomaly.mapper.js';
 import { toAdminDeviceDto, toAdminSeatDetailDto } from '../seats/seat-device.mapper.js';
+import { StudyRecordsService } from '../study-records/study-records.service.js';
 
 const ACTIVE_RESERVATION_STATUSES = [
   ReservationStatus.WAITING_CHECKIN,
   ReservationStatus.CHECKED_IN
 ] as const;
 const ACTIVE_ANOMALY_STATUSES = [AnomalyStatus.PENDING, AnomalyStatus.ACKNOWLEDGED] as const;
-const MIN_VALID_STUDY_MINUTES = 15;
-const SHORT_STUDY_INVALID_REASON = 'DURATION_LT_15_MINUTES';
 const RELEASE_HANDLED_ANOMALY_TYPES = [
   AnomalyType.UNRESERVED_OCCUPANCY,
   AnomalyType.EARLY_LEAVE_SUSPECTED,
@@ -78,7 +78,8 @@ export class AdminService {
     @Inject(ConfigService) private readonly configService: ConfigService,
     @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
     @Inject(MqttBrokerService) private readonly mqttBroker: MqttBrokerService,
-    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService
+    @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService,
+    private readonly studyRecordsService: StudyRecordsService
   ) {}
 
   async getDashboard(now = new Date()): Promise<AdminDashboardDto> {
@@ -285,7 +286,17 @@ export class AdminService {
         await this.invalidateUnusedQrTokensForReservation(tx, reservation.reservationId);
 
         if (wasCheckedIn) {
-          await this.upsertStudyRecord(tx, reservation, now);
+          await this.studyRecordsService.upsertFromReservation(
+            tx,
+            reservation,
+            now,
+            StudyRecordSource.ADMIN_RELEASED,
+            request.exclude_study_record === true
+              ? {
+                  forceInvalidReason: this.studyRecordsService.getAdminMarkedInvalidReason()
+                }
+              : {}
+          );
         }
 
         await tx.anomalyEvent.updateMany({
@@ -333,6 +344,7 @@ export class AdminService {
           previous_seat_business_status: seat.businessStatus,
           seat_business_status: SeatStatus.FREE,
           restore_availability: request.restore_availability,
+          exclude_study_record: request.exclude_study_record === true,
           availability_status: updatedSeat.availabilityStatus,
           unavailable_reason: updatedSeat.unavailableReason,
           mqtt_synced: false
@@ -791,34 +803,6 @@ export class AdminService {
           mqtt_state_synced: stateSynced,
           mqtt_synced: mqttSynced
         }
-      }
-    });
-  }
-
-  private async upsertStudyRecord(
-    tx: Prisma.TransactionClient,
-    reservation: Reservation,
-    endTime: Date
-  ): Promise<void> {
-    const startTime = reservation.checkedInAt ?? reservation.startTime;
-    const durationMinutes = Math.max(
-      0,
-      Math.floor((endTime.getTime() - startTime.getTime()) / 60_000)
-    );
-    const validFlag = durationMinutes >= MIN_VALID_STUDY_MINUTES;
-
-    await tx.studyRecord.upsert({
-      where: { reservationId: reservation.reservationId },
-      update: {},
-      create: {
-        userId: reservation.userId,
-        reservationId: reservation.reservationId,
-        seatId: reservation.seatId,
-        startTime,
-        endTime,
-        durationMinutes,
-        validFlag,
-        invalidReason: validFlag ? null : SHORT_STUDY_INVALID_REASON
       }
     });
   }

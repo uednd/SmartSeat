@@ -13,7 +13,8 @@ import {
   SeatAvailability,
   SeatStatus,
   SeatUnavailableReason,
-  SensorHealthStatus
+  SensorHealthStatus,
+  StudyRecordSource
 } from '@prisma/client';
 import {
   AnomalyStatus as ContractAnomalyStatus,
@@ -29,6 +30,7 @@ import { AdminService } from '../modules/admin/admin.service.js';
 import type { AuthConfigService } from '../modules/auth/auth-config.service.js';
 import type { MqttBrokerService } from '../modules/mqtt/mqtt-broker.service.js';
 import type { MqttCommandBusService } from '../modules/mqtt/mqtt-command-bus.service.js';
+import { StudyRecordsService } from '../modules/study-records/study-records.service.js';
 
 class FakePrismaService {
   seats = [
@@ -360,6 +362,10 @@ describe('API-ADM-01 administrator service', () => {
       releaseReason: 'manual release'
     });
     expect(prisma.studyRecords).toHaveLength(1);
+    expect(prisma.studyRecords[0]).toMatchObject({
+      source: StudyRecordSource.ADMIN_RELEASED,
+      validFlag: true
+    });
     expect(prisma.qrTokens[0]).toMatchObject({ status: QRTokenStatus.INVALIDATED });
     expect(prisma.anomalies.find((event) => event.eventId === 'anomaly_overtime')).toMatchObject({
       status: AnomalyStatus.HANDLED,
@@ -405,6 +411,29 @@ describe('API-ADM-01 administrator service', () => {
       releaseReason: 'student absent'
     });
     expect(prisma.studyRecords).toHaveLength(0);
+  });
+
+  it('allows administrators to mark a released study record invalid', async () => {
+    const { service, prisma } = createService();
+
+    await service.releaseSeat(
+      adminUser,
+      {
+        seat_id: 'seat_admin',
+        reservation_id: 'reservation_admin',
+        reason: 'invalid study duration',
+        restore_availability: true,
+        exclude_study_record: true
+      },
+      new Date('2026-05-04T09:30:00.000Z')
+    );
+
+    expect(prisma.studyRecords).toHaveLength(1);
+    expect(prisma.studyRecords[0]).toMatchObject({
+      source: StudyRecordSource.ADMIN_RELEASED,
+      validFlag: false,
+      invalidReason: 'ADMIN_MARKED_INVALID'
+    });
   });
 
   it('sets and restores seat and device-derived maintenance with records and audit logs', async () => {
@@ -503,6 +532,7 @@ describe('API-ADM-01 administrator service', () => {
 const createService = () => {
   const prisma = new FakePrismaService();
   const commandBus = new FakeCommandBus();
+  const studyRecordsService = new StudyRecordsService(prisma as unknown as PrismaService);
   const service = new AdminService(
     prisma as unknown as PrismaService,
     createConfigService() as never,
@@ -523,7 +553,8 @@ const createService = () => {
     {
       getHealth: () => ({ enabled: true, connected: false, brokerUrl: 'mqtt://localhost:1883' })
     } as unknown as MqttBrokerService,
-    commandBus as unknown as MqttCommandBusService
+    commandBus as unknown as MqttCommandBusService,
+    studyRecordsService
   );
 
   return { service, prisma, commandBus };

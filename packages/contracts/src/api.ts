@@ -14,6 +14,7 @@ import type {
   SeatStatus,
   SeatUnavailableReason,
   SensorHealthStatus,
+  StudyRecordSource,
   UserRole
 } from './enums.js';
 
@@ -345,6 +346,7 @@ export interface StudyRecordDto {
   start_time: IsoDateTimeString;
   end_time: IsoDateTimeString;
   duration_minutes: number;
+  source: StudyRecordSource;
   valid_flag: boolean;
   invalid_reason?: string;
   created_at: IsoDateTimeString;
@@ -354,6 +356,7 @@ export interface StudyStatsDto {
   user_id: EntityId;
   week_visit_count: number;
   week_duration_minutes: number;
+  total_duration_minutes: number;
   streak_days: number;
   no_show_count_week: number;
   no_show_count_month: number;
@@ -362,7 +365,6 @@ export interface StudyStatsDto {
 
 export interface LeaderboardEntryDto {
   rank: number;
-  user_id?: EntityId;
   anonymous_name: string;
   metric: LeaderboardMetric;
   value: number;
@@ -445,6 +447,7 @@ export interface AdminReleaseSeatRequest {
   reservation_id?: EntityId;
   reason: string;
   restore_availability: boolean;
+  exclude_study_record?: boolean;
 }
 
 export interface UpdateSeatMaintenanceRequest {

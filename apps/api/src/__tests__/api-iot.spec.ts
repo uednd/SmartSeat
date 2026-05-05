@@ -17,6 +17,7 @@ import {
   SeatStatus,
   SeatUnavailableReason,
   SensorHealthStatus,
+  StudyRecordSource,
   type MqttCommandPayload,
   type MqttDisplayPayload,
   type MqttLightPayload
@@ -33,6 +34,7 @@ import { MqttPresenceService } from '../modules/mqtt/mqtt-presence.service.js';
 import { ReservationsService } from '../modules/reservations/reservations.service.js';
 import { PresenceEvaluatorService } from '../modules/sensors/presence-evaluator.service.js';
 import { SensorsService } from '../modules/sensors/sensors.service.js';
+import { StudyRecordsService } from '../modules/study-records/study-records.service.js';
 
 interface FakeDevice {
   deviceId: string;
@@ -112,6 +114,7 @@ interface FakeStudyRecord {
   startTime: Date;
   endTime: Date;
   durationMinutes: number;
+  source: StudyRecordSource;
   validFlag: boolean;
   invalidReason: string | null;
   createdAt: Date;
@@ -650,7 +653,13 @@ const createServices = (
     broker as unknown as MqttBrokerService,
     sensorsService
   );
-  const reservationsService = new ReservationsService(prisma as never, config, commandBus);
+  const studyRecordsService = new StudyRecordsService(prisma as never);
+  const reservationsService = new ReservationsService(
+    prisma as never,
+    config,
+    commandBus,
+    studyRecordsService
+  );
   const autoRulesService = new AutoRulesService(
     config,
     prisma as never,
@@ -1433,6 +1442,7 @@ describe('API-IOT-03 automatic rules and anomaly events', () => {
     expect(prisma.studyRecords[0]).toMatchObject({
       reservationId: reservation.reservationId,
       durationMinutes: 55,
+      source: StudyRecordSource.TIME_FINISHED,
       validFlag: true
     });
   });

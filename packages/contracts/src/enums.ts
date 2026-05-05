@@ -98,6 +98,12 @@ export enum LeaderboardMetric {
   STREAK_DAYS = 'STREAK_DAYS'
 }
 
+export enum StudyRecordSource {
+  USER_RELEASED = 'USER_RELEASED',
+  TIME_FINISHED = 'TIME_FINISHED',
+  ADMIN_RELEASED = 'ADMIN_RELEASED'
+}
+
 export enum DisplayLayout {
   FREE = 'FREE',
   RESERVED = 'RESERVED',
