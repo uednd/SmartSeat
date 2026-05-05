@@ -100,9 +100,12 @@ interface FakeUser {
 
 interface FakeQRToken {
   tokenId: string;
+  token: string;
   reservationId: string | null;
   seatId: string;
   deviceId: string;
+  generatedAt: Date;
+  expiredAt: Date;
   status: QRTokenStatus;
 }
 
@@ -162,7 +165,8 @@ type SensorReadingFindArgs = {
 type ReservationWhere = {
   seatId?: string;
   status?: ReservationStatus | { in?: readonly ReservationStatus[] };
-  checkinDeadline?: { lt?: Date };
+  checkinStartTime?: { lte?: Date };
+  checkinDeadline?: { lt?: Date; gte?: Date };
 };
 
 type AnomalyWhere = {
@@ -313,17 +317,92 @@ class FakePrismaService {
   };
 
   qRToken = {
+    findFirst: async (args: {
+      where: {
+        reservationId?: string;
+        seatId?: string;
+        deviceId?: string;
+        status?: QRTokenStatus;
+        expiredAt?: { gt?: Date };
+      };
+      orderBy?: Array<{ generatedAt: 'desc' }>;
+    }) =>
+      [...this.qrTokens]
+        .filter((token) => {
+          if (
+            args.where.reservationId !== undefined &&
+            token.reservationId !== args.where.reservationId
+          ) {
+            return false;
+          }
+
+          if (args.where.seatId !== undefined && token.seatId !== args.where.seatId) {
+            return false;
+          }
+
+          if (args.where.deviceId !== undefined && token.deviceId !== args.where.deviceId) {
+            return false;
+          }
+
+          if (args.where.status !== undefined && token.status !== args.where.status) {
+            return false;
+          }
+
+          if (
+            args.where.expiredAt?.gt !== undefined &&
+            !(token.expiredAt > args.where.expiredAt.gt)
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .sort((left, right) => right.generatedAt.getTime() - left.generatedAt.getTime())[0] ?? null,
+    create: async ({
+      data
+    }: {
+      data: {
+        token: string;
+        reservationId: string;
+        seatId: string;
+        deviceId: string;
+        generatedAt: Date;
+        expiredAt: Date;
+        status: QRTokenStatus;
+      };
+    }) => {
+      const token: FakeQRToken = {
+        tokenId: `qr_generated_${this.qrTokens.length + 1}`,
+        token: data.token,
+        reservationId: data.reservationId,
+        seatId: data.seatId,
+        deviceId: data.deviceId,
+        generatedAt: data.generatedAt,
+        expiredAt: data.expiredAt,
+        status: data.status
+      };
+
+      this.qrTokens.push(token);
+      return token;
+    },
     updateMany: async ({
       where,
       data
     }: {
-      where: { reservationId?: string; status?: QRTokenStatus };
+      where: {
+        reservationId?: string;
+        status?: QRTokenStatus;
+        expiredAt?: {
+          lte?: Date;
+        };
+      };
       data: Partial<FakeQRToken>;
     }) => {
       const tokens = this.qrTokens.filter(
         (token) =>
           (where.reservationId === undefined || token.reservationId === where.reservationId) &&
-          (where.status === undefined || token.status === where.status)
+          (where.status === undefined || token.status === where.status) &&
+          (where.expiredAt?.lte === undefined || token.expiredAt <= where.expiredAt.lte)
       );
 
       for (const token of tokens) {
@@ -557,6 +636,20 @@ const matchesReservation = (
     return false;
   }
 
+  if (
+    where.checkinStartTime?.lte !== undefined &&
+    reservation.checkinStartTime > where.checkinStartTime.lte
+  ) {
+    return false;
+  }
+
+  if (
+    where.checkinDeadline?.gte !== undefined &&
+    reservation.checkinDeadline < where.checkinDeadline.gte
+  ) {
+    return false;
+  }
+
   return true;
 };
 
@@ -637,28 +730,30 @@ const createServices = (
     ANOMALY_IDLE_PRESENT_STABLE_SECONDS: 60,
     ANOMALY_OCCUPIED_ABSENT_STABLE_SECONDS: 300,
     ANOMALY_OVERTIME_PRESENT_STABLE_SECONDS: 60,
-    ANOMALY_SENSOR_ERROR_STABLE_SECONDS: 120
+    ANOMALY_SENSOR_ERROR_STABLE_SECONDS: 120,
+    QR_TOKEN_TTL_SECONDS: 30,
+    QR_TOKEN_REFRESH_SECONDS: 15
   });
   const anomaliesService = new AnomaliesService(prisma as never);
+  const reservationsService = new ReservationsService(
+    prisma as never,
+    config,
+    commandBus,
+    new StudyRecordsService(prisma as never)
+  );
   const deviceStateService = new MqttDeviceStateService(
     config,
     broker as unknown as MqttBrokerService,
     devicesService,
     commandBus,
-    anomaliesService
+    anomaliesService,
+    reservationsService
   );
   const presenceEvaluator = new PresenceEvaluatorService(config, prisma as never);
   const sensorsService = new SensorsService(config, prisma as never, presenceEvaluator);
   const presenceService = new MqttPresenceService(
     broker as unknown as MqttBrokerService,
     sensorsService
-  );
-  const studyRecordsService = new StudyRecordsService(prisma as never);
-  const reservationsService = new ReservationsService(
-    prisma as never,
-    config,
-    commandBus,
-    studyRecordsService
   );
   const autoRulesService = new AutoRulesService(
     config,
@@ -778,9 +873,12 @@ const seedRuleQrToken = (
 ): FakeQRToken => {
   const token: FakeQRToken = {
     tokenId: input.tokenId ?? 'qr_rule_001',
+    token: input.token ?? 'qr-token-001',
     reservationId: input.reservationId ?? 'reservation_rule_001',
     seatId: input.seatId ?? 'seat_001',
     deviceId: input.deviceId ?? 'device_001',
+    generatedAt: input.generatedAt ?? new Date('2026-05-03T08:59:30.000Z'),
+    expiredAt: input.expiredAt ?? new Date('2026-05-03T09:00:00.000Z'),
     status: input.status ?? QRTokenStatus.UNUSED
   };
 
@@ -942,6 +1040,81 @@ describe('API-IOT-01 MQTT device state', () => {
     expect(device.onlineStatus).toBe(DeviceOnlineStatus.OFFLINE);
     expect(device.lastHeartbeatAt).toBeNull();
     expect(broker.published).toEqual([]);
+  });
+
+  it('reissues a current QR token on device recovery instead of replaying an expired cached token', async () => {
+    const { prisma, broker, commandBus, deviceStateService } = createServices();
+    const { device, seat } = seedBoundDevice(prisma, {
+      onlineStatus: DeviceOnlineStatus.OFFLINE,
+      businessStatus: SeatStatus.RESERVED,
+      availabilityStatus: SeatAvailability.UNAVAILABLE,
+      unavailableReason: SeatUnavailableReason.DEVICE_OFFLINE
+    });
+    seedRuleUser(prisma);
+    seedRuleReservation(prisma, {
+      reservationId: 'reservation_recover_001',
+      checkinStartTime: new Date('2026-05-03T08:55:00.000Z'),
+      checkinDeadline: new Date('2026-05-03T09:15:00.000Z')
+    });
+    seedRuleQrToken(prisma, {
+      tokenId: 'qr_recover_expired',
+      token: 'stale-token',
+      reservationId: 'reservation_recover_001',
+      generatedAt: new Date('2026-05-03T08:59:30.000Z'),
+      expiredAt: new Date('2026-05-03T08:59:59.000Z')
+    });
+
+    await commandBus.publishDisplay({
+      device_id: 'device_001',
+      seat_id: 'seat_001',
+      timestamp: '2026-05-03T08:59:30.000Z',
+      current_time: '2026-05-03T08:59:30.000Z',
+      seat_status: SeatStatus.RESERVED,
+      layout: DisplayLayout.RESERVED,
+      checkin_deadline: '2026-05-03T09:15:00.000Z',
+      qr_token: 'stale-token'
+    });
+    broker.published.length = 0;
+
+    await deviceStateService.handleHeartbeatMessage(
+      'device_001',
+      Buffer.from(JSON.stringify(heartbeatPayload())),
+      new Date('2026-05-03T09:00:05.000Z')
+    );
+
+    const expired = prisma.qrTokens.find((token) => token.tokenId === 'qr_recover_expired');
+    const current = prisma.qrTokens.find((token) => token.tokenId !== 'qr_recover_expired');
+    const displayPayload = broker.published.find(
+      (message) => message.topic === 'seat/device_001/display'
+    )?.payload as MqttDisplayPayload | undefined;
+
+    expect(device.onlineStatus).toBe(DeviceOnlineStatus.ONLINE);
+    expect(seat.availabilityStatus).toBe(SeatAvailability.AVAILABLE);
+    expect(seat.unavailableReason).toBeNull();
+    expect(expired?.status).toBe(QRTokenStatus.EXPIRED);
+    expect(current).toMatchObject({
+      reservationId: 'reservation_recover_001',
+      deviceId: 'device_001',
+      seatId: 'seat_001',
+      status: QRTokenStatus.UNUSED,
+      expiredAt: new Date('2026-05-03T09:00:35.000Z')
+    });
+    expect(current?.token).not.toBe('stale-token');
+    expect(displayPayload).toMatchObject({
+      device_id: 'device_001',
+      seat_id: 'seat_001',
+      seat_status: SeatStatus.RESERVED,
+      layout: DisplayLayout.RESERVED,
+      checkin_deadline: '2026-05-03T09:15:00.000Z',
+      qr_token: current?.token
+    });
+    expect(
+      broker.published.some(
+        (message) =>
+          message.topic === 'seat/device_001/display' &&
+          (message.payload as MqttDisplayPayload).qr_token === 'stale-token'
+      )
+    ).toBe(false);
   });
 
   it('publishes display, light, and command payloads to device topics', async () => {

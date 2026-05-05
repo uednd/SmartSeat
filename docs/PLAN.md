@@ -18,19 +18,19 @@
 
 ## 2. 当前仓库基线
 
-当前仓库已完成 monorepo 与目录骨架、ADR 决策包、共享契约/API client 基线、NestJS 后端平台基础、API-DB-01 的 Prisma schema/migration/seed/数据库访问封装，以及准生产单机 Docker 部署子集；认证、预约业务、真实 MQTT、小程序页面、设备模拟器闭环和固件业务仍未实现。API-DB-01 已在 Docker/PostgreSQL 可用后完成实库迁移、seed 幂等和数据库集成测试核验。后续任务必须以此事实为基线，不得假设已有隐藏实现。
+当前仓库已完成 monorepo 与目录骨架、GOV-01/GOV-02 治理文档、共享契约/API client、NestJS 后端平台、Prisma 数据模型与 seed、认证、座位/设备聚合、预约与当前使用、动态二维码签到、MQTT 在线状态与命令总线、presence 持续时间判断、自动规则与异常事件、管理员接口/审计，以及学习记录/个人统计/匿名排行榜，已实现到 `API-STAT-01`。尚未完成的是小程序页面闭环、设备模拟器闭环、固件业务、完整演示脚本与发布闸门。后续任务必须以此事实为基线，不得假设已有隐藏实现。
 
 | 区域 | 当前状态 | 后续计划含义 |
 |---|---|---|
 | 根工程 | 已有 pnpm workspace、根 `package.json`、基础 lint/format 配置 | 可继续保持 TypeScript monorepo 组织方式 |
 | `docs/PRD.md` | 已定义角色、登录、状态机、MQTT、终端、小程序、后端、数据模型、流程、非功能需求 | 作为唯一需求基线 |
-| `docs/PLAN.md` | 已重构为任务真源，SHR-01、API-PLT-01 与 API-DB-01 已完成；OPS-01 的准生产单机 Docker 部署子集已实现但任务未整体完成 | 后续任务按依赖继续推进；OPS-01 仍需 SIM-01、完整 reset-demo 和端到端演示证据后才能标记 Done |
-| `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录 SHR-01/API-PLT-01/API-DB-01 证据 | 后续任务完成时继续补证据路径 |
-| `apps/api` | 已有 NestJS 平台层：配置校验、统一错误、请求日志、OpenAPI、ScheduleModule、增强版 `/health`；已补 Prisma 数据模型、migration、seed、数据库访问封装和 Docker API 镜像 | 认证、预约业务模块、真实 MQTT 接入仍需后续任务实现 |
+| `docs/PLAN.md` | 已作为任务真源维护到 `API-STAT-01`，P0 后端任务与 `API-STAT-01` 已标记 Done；OPS-01 仍为 In Progress | 后续任务按依赖继续推进；OPS-01 仍需 SIM-01、完整 reset-demo 和端到端演示证据后才能标记 Done |
+| `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录后端已完成任务证据至 `CL-API-STAT-01` | 后续任务完成时继续补证据路径，并修正跨阶段通用描述避免滞后 |
+| `apps/api` | 已实现 NestJS 平台层、Prisma 数据模型/迁移/seed、Auth、Seats/Devices、Reservations/Current Usage/Check-in、MQTT、Sensors、Jobs/Anomalies、Admin、Study Records/Leaderboard 和增强版 `/health` | 小程序端闭环、设备模拟器闭环、固件联调和完整演示脚本仍需后续任务实现 |
 | `apps/miniapp` | `pages.json` 为空，页面目录仅有占位 | 需要先实现页面注册、壳层、登录与角色路由 |
 | `apps/device-simulator` | 仅输出初始化提示 | 需要实现 MQTT 设备模拟与演示场景驱动 |
 | `packages/contracts` | 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload | 后续接口、状态机或 MQTT 契约变更必须继续同步 |
-| `packages/api-client` | 已提供 typed client 方法边界、transport 注入、base URL/token 注入与统一错误归一化 | 后续 API-PLT/OpenAPI 与业务接口落地后绑定真实 endpoint |
+| `packages/api-client` | 已提供 typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化和当前已交付后端 endpoint 绑定 | 后续新增业务接口仍需继续同步 path、DTO 和错误码 |
 | `firmware/smart-seat-terminal` | ESP-IDF 目录骨架，组件目录为空 | 需要先建立组件边界，再实现 Wi-Fi/MQTT/显示/灯光/传感器适配 |
 | `infra` | 本地 PostgreSQL + Mosquitto；准生产单机 compose 已覆盖 API、PostgreSQL、Mosquitto、一次性 migrate + seed init；Mosquitto 当前允许匿名 | 适合本地联调和单机准生产部署验证；正式安全策略、TLS、备份、监控需另行配置 |
 | `scripts` | 仅占位 | 需要补齐启动、seed、reset-demo、演示脚本 |
@@ -378,17 +378,17 @@ stateDiagram-v2
 | 输出 | `GET /auth/oidc/authorize-url`、`POST /auth/oidc/callback`、OIDC provider 封装、用户映射。 |
 | 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/config/**`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`、`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`。 |
 | 接口契约 | `authorize-url` 返回 `authorization_url` 与签名 `state`；`callback` 输入 `code`/`state`，成功返回兼容 `AuthSessionResponse` 的系统 token、用户、角色和 `next_route`。 |
-| 数据变更 | 复用现有 User `oidc_sub` 与 `external_user_no` 字段；以 `issuer + subject` 作为稳定绑定键；不新增 Prisma migration。 |
-| 测试要求 | state 校验、回调失败、未授权用户、已存在 subject、登录模式不匹配、secret 不出后端。 |
+| 数据变更 | 复用现有 User `oidc_sub` 与 `external_user_no` 字段；以 `issuer + subject` 作为稳定绑定键；新增 `OidcAuthState` 一次性 state 消费记录以阻断 callback 重放。 |
+| 测试要求 | state 单次使用、state/nonce 消费、重放 callback 失败、回调失败、未授权用户、已存在 subject、登录模式不匹配、secret 不出后端。 |
 | 文档要求 | 说明 issuer、client id、client secret、redirect uri、scope 配置。 |
 | 部署/配置要求 | `OIDC_ISSUER`、`OIDC_CLIENT_ID`、`OIDC_CLIENT_SECRET`、`OIDC_REDIRECT_URI`、`OIDC_AUTH_PROVIDER_MODE=mock/real` 写入 `.env.example`；真实 secret 不入库；production 禁止 placeholder。 |
 | 回滚要求 | 可关闭 OIDC 模式；保留用户映射。 |
 | 监控与告警 | 登录失败率、回调失败原因、provider 不可达日志。 |
 | 验收标准 | OIDC 模式下通过学校身份源登录；不出现注册入口；secret 仅后端使用；角色路由信息完整。 |
 | 可分配给编码智能体的提示 | 采用后端持有 secret 的授权码流；只做 start/callback 与 subject 映射；不要改 UI；必须补安全与失败用例。 |
-| 当前状态 | Done；已实现 mock/real OIDC provider、`GET /auth/oidc/authorize-url`、`POST /auth/oidc/callback`、签名 state、OIDC 用户创建/复用、token 签发和模式/错误码校验。 |
-| 证据路径 | 代码：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/src/common/config/api-env.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
-| 已执行核验 | `pnpm add openid-client@^6.8.4 --filter @smartseat/api` 完成依赖与 lockfile 更新；`pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
+| 当前状态 | Done；已实现 mock/real OIDC provider、`GET /auth/oidc/authorize-url`、`POST /auth/oidc/callback`、签名 state、OIDC 用户创建/复用、token 签发、一次性 state 消费和重放失败校验。 |
+| 证据路径 | 代码：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260505010000_api_auth_03_oidc_state_replay_protection/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
+| 已执行核验 | `pnpm --filter @smartseat/api db:generate` 通过；`pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm --filter @smartseat/api lint` 通过。 |
 | 阻塞核验 | 无；本任务未做真实学校 OIDC Provider 外网联调，未实现小程序页面或 OIDC 管理员组映射。 |
 
 ### API-SEAT-01 座位/设备查询聚合
@@ -475,8 +475,8 @@ stateDiagram-v2
 | 部署/配置要求 | MQTT broker URL、用户名、密码、client id、超时阈值写入 `.env.example`。 |
 | 回滚要求 | 可关闭 MQTT 连接，系统降级为模拟状态。 |
 | 监控与告警 | 心跳延迟、离线设备数、payload 校验失败、MQTT 重连日志。 |
-| 验收标准 | 后端可接收心跳、判定离线、向设备下发最新显示/灯光命令；恢复在线后重放状态。 |
-| 当前状态 | Done；已实现可开关 MQTT broker 连接、`seat/+/heartbeat` 订阅与 payload 校验、Device 在线/离线状态维护、display/light/command 命令总线、恢复在线后的基础显示/灯光同步，以及 `/health` MQTT 连接状态；未实现 presence 持续时间判断、SensorReading 持久化、异常事件、动态二维码、小程序页面、模拟器或固件逻辑。 |
+| 验收标准 | 后端可接收心跳、判定离线、向设备下发最新显示/灯光命令；恢复在线后按后端当前有效状态重新同步。 |
+| 当前状态 | Done；已实现可开关 MQTT broker 连接、`seat/+/heartbeat` 订阅与 payload 校验、Device 在线/离线状态维护、display/light/command 命令总线、恢复在线后的显示/灯光同步，以及对等待签到座位在恢复在线后按当前有效 QRToken 重新下发 display payload；presence 持续时间判断、异常事件与管理员/统计能力已在后续任务完成，小程序页面、模拟器和固件逻辑仍未完成。 |
 | Topic 与 QoS/retain | heartbeat 订阅 `seat/+/heartbeat`，QoS 1；display/light/command 发布到 `seat/{device_id}/display`、`seat/{device_id}/light`、`seat/{device_id}/command`，QoS 1，retain false；payload 复用 `packages/contracts/src/mqtt.ts`。 |
 | 设备认证暂定方案 | 本地/初赛演示可使用匿名 Mosquitto；API 支持 broker URL、client id、用户名、密码，并通过注册 Device 与座位绑定校验保留设备鉴权扩展点，正式环境仍需 ACL、设备级凭据或 TLS/mTLS。 |
 | 已执行核验 | `pnpm install --frozen-lockfile` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm --filter @smartseat/api test` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过；`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config` 通过；本地 `mqtt://localhost:1883` smoke 连接并订阅 `seat/+/heartbeat` 通过。 |
@@ -495,14 +495,14 @@ stateDiagram-v2
 | 涉及文件/目录 | `apps/api/src/modules/reservations/**`、`packages/contracts/**`。 |
 | 接口契约 | `POST /checkin`、`GET /current-usage`、MQTT display payload。 |
 | 数据变更 | QRToken 表；Reservation `checked_in_at`、状态变更。 |
-| 测试要求 | token 过期、重复签到、非本人签到、超出签到窗口、设备离线、已取消预约。 |
+| 测试要求 | token 过期、重复签到、非本人签到、超出签到窗口、设备离线、设备离线期间 token 过期后恢复在线重同步、已取消预约。 |
 | 文档要求 | OpenAPI、错误码、扫码流程图、token TTL 与刷新周期说明。 |
 | 部署/配置要求 | token TTL、刷新周期、签名密钥或随机生成策略可配置。 |
 | 回滚要求 | 可关闭签到入口；QRToken 表可回滚；读状态不受影响。 |
 | 监控与告警 | token 生成数、签到成功/失败率、重复签到异常数。 |
 | 验收标准 | 终端显示动态二维码；学生扫码后后端校验成功并切换为 `OCCUPIED`；失败场景返回明确错误。 |
-| 当前状态 | Done；已实现不可预测短时 QRToken 生成、过期、失效、一次性使用、`POST /checkin`、设备在线校验、签到窗口校验、本人预约校验、成功后 Reservation=`CHECKED_IN` 与 Seat=`OCCUPIED`，并通过 MQTT display/light 同步终端状态。token 默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED` 可关闭签到入口；扫码流程为终端 display payload 下发 `seat_id`/`device_id`/`timestamp`/`qr_token`，小程序提交 `POST /checkin`，后端校验持久化 QRToken、预约、座位、设备与服务端时间后提交状态流转。未实现排行榜、管理员页面、传感器持续时间判断或异常事件引擎。 |
-| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。 |
+| 当前状态 | Done；已实现不可预测短时 QRToken 生成、过期、失效、一次性使用、`POST /checkin`、设备在线校验、签到窗口校验、本人预约校验、成功后 Reservation=`CHECKED_IN` 与 Seat=`OCCUPIED`，并通过 MQTT display/light 同步终端状态。token 默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED` 可关闭签到入口；扫码流程为终端 display payload 下发 `seat_id`/`device_id`/`timestamp`/`qr_token`，小程序提交 `POST /checkin`，后端校验持久化 QRToken、预约、座位、设备与服务端时间后提交状态流转；设备离线期间 token 过期后，恢复在线只会下发当前有效 QRToken，不会重放过期 token。未实现排行榜、管理员页面、传感器持续时间判断或异常事件引擎。 |
+| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`apps/api/src/modules/mqtt/mqtt-device-state.service.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。 |
 | 可分配给编码智能体的提示 | 在 reservations 模块内实现 token 生成/校验/签到；不要实现排行榜或管理员页面；同步 contracts 与 OpenAPI。 |
 
 ### API-IOT-02 传感器接入与持续时间判断
@@ -574,7 +574,7 @@ stateDiagram-v2
 | 监控与告警 | 管理员敏感操作日志；异常处理失败日志。 |
 | 验收标准 | 管理员可查看和处理座位/设备/异常/no-show；手动释放同步终端；关键操作留痕。 |
 | 可分配给编码智能体的提示 | 只做管理员接口与审计；确保全部走管理员鉴权；补齐 release、handle anomaly、maintenance 测试。 |
-| 当前状态 | Done；已实现管理员 dashboard、座位/设备/no-show/异常查询、手动释放、座位维护、设备绑定座位派生维护、异常确认/处理/忽略/关闭、脱敏系统配置读取、AdminActionLog 审计和 api-client/OpenAPI DTO。所有新增 `/admin/*` 接口走 ADMIN 权限；MQTT 不可用时释放/维护安全降级并记录审计 detail。未实现小程序管理员页面、排行榜、固件逻辑、新自动规则或独立设备维护持久字段。 |
+| 当前状态 | Done；已实现管理员 dashboard、座位/设备/no-show/异常查询、手动释放、座位维护、设备绑定座位派生维护、异常确认/处理/忽略/关闭、脱敏系统配置读取、AdminActionLog 审计和 api-client/OpenAPI DTO。当前“设备维护”语义明确为“通过已绑定座位维护表达”，`/admin/devices/maintenance` 只是设备入口下的座位维护操作；未绑定设备返回 `STATE_CONFLICT`，不新增独立 Device maintenance 持久字段。所有新增 `/admin/*` 接口走 ADMIN 权限；MQTT 不可用时释放/维护安全降级并记录审计 detail。未实现小程序管理员页面、排行榜、固件逻辑、新自动规则或独立设备维护持久字段。 |
 
 ### API-STAT-01 学习记录、个人统计与匿名排行榜
 

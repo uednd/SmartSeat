@@ -278,7 +278,7 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
       }
 
       generated += 1;
-      await this.publishReservedDisplay(reservation, result, now);
+      await this.publishReservedDeviceState(reservation, result, now);
     }
 
     if (expired.count > 0 || generated > 0 || skippedOffline > 0) {
@@ -297,6 +297,78 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
       generated,
       skipped_offline: skippedOffline
     };
+  }
+
+  async syncReservedCheckinStateForDevice(deviceId: string, now = new Date()): Promise<boolean> {
+    const device = await this.prisma.device.findUnique({
+      where: {
+        deviceId
+      }
+    });
+
+    if (
+      device === null ||
+      device.seatId === null ||
+      device.onlineStatus !== DeviceOnlineStatus.ONLINE
+    ) {
+      return false;
+    }
+
+    const reservation = await this.prisma.reservation.findFirst({
+      where: {
+        seatId: device.seatId,
+        status: ReservationStatus.WAITING_CHECKIN,
+        checkinStartTime: {
+          lte: now
+        },
+        checkinDeadline: {
+          gte: now
+        }
+      },
+      orderBy: [{ checkinDeadline: 'asc' }]
+    });
+
+    if (reservation === null) {
+      return false;
+    }
+
+    await this.prisma.qRToken.updateMany({
+      where: {
+        reservationId: reservation.reservationId,
+        status: QRTokenStatus.UNUSED,
+        expiredAt: {
+          lte: now
+        }
+      },
+      data: {
+        status: QRTokenStatus.EXPIRED
+      }
+    });
+
+    const existing = await this.prisma.qRToken.findFirst({
+      where: {
+        reservationId: reservation.reservationId,
+        seatId: reservation.seatId,
+        deviceId,
+        status: QRTokenStatus.UNUSED,
+        expiredAt: {
+          gt: now
+        }
+      },
+      orderBy: [{ generatedAt: 'desc' }]
+    });
+    const token =
+      existing ??
+      (await this.createQrTokenForReservation(reservation, now).then((result) =>
+        result === 'OFFLINE_OR_UNBOUND' ? null : result
+      ));
+
+    if (token === null) {
+      return false;
+    }
+
+    await this.publishReservedDeviceState(reservation, token, now);
+    return true;
   }
 
   async checkin(
@@ -929,12 +1001,12 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async publishReservedDisplay(
+  private async publishReservedDeviceState(
     reservation: Reservation,
     token: QRToken,
     now: Date
   ): Promise<void> {
-    const payload: MqttDisplayPayload = {
+    const display: MqttDisplayPayload = {
       device_id: token.deviceId,
       seat_id: token.seatId,
       timestamp: now.toISOString(),
@@ -949,8 +1021,19 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
       qr_token: token.token,
       prompt: 'Scan QR code to check in'
     };
+    const light: MqttLightPayload = {
+      device_id: token.deviceId,
+      seat_id: token.seatId,
+      timestamp: now.toISOString(),
+      light_status: LightStatus.RESERVED,
+      color: 'blue',
+      mode: LightMode.SOLID
+    };
 
-    await this.commandBus.publishDisplay(payload);
+    await Promise.all([
+      this.commandBus.publishDisplay(display),
+      this.commandBus.publishLight(light)
+    ]);
   }
 
   private async applyQrCheckin(

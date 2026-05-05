@@ -165,6 +165,18 @@ model AuthConfig {
   @@map("auth_configs")
 }
 
+model OidcAuthState {
+  stateId    String    @id @default(cuid()) @map("state_id")
+  stateHash  String    @unique @map("state_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@index([consumedAt])
+  @@map("oidc_auth_states")
+}
+
 model Seat {
   seatId             String                 @id @default(cuid()) @map("seat_id")
   seatNo             String                 @unique @map("seat_no")

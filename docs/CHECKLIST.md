@@ -17,8 +17,8 @@
 
 | 编号 | 核查项 | 结果 | 证据/备注 |
 |---|---|---|---|
-| G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [x] | 当前已完成任务证据见 `CL-SHR-01`、`CL-API-PLT-01`；变更集中在 shared packages、`apps/api` 与任务文档。 |
-| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02、SHR-01、API-PLT-01 为 Done，并保留后续任务依赖。 |
+| G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [x] | 当前已完成任务证据覆盖后端已交付范围至 `CL-API-STAT-01`；变更集中在 shared packages、`apps/api`、迁移与任务文档。 |
+| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02 与后端实现任务至 `API-STAT-01` 为 Done，并保留 MINI/FW/SIM/OPS/QA 后续依赖。 |
 | G-03 | contracts / DTO / 错误码 / MQTT payload / OpenAPI 已按需同步 | [x] | SHR-01 已同步 contracts/API client；API-PLT-01 已提供 `/docs` 与 `/openapi.json`。 |
 | G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [x] | API-DB-01 已补 Prisma schema、migration 与 seed；Docker/PostgreSQL 可用后已完成实库 migration、seed 幂等和数据库集成测试核验，详见 `CL-API-DB-01`。 |
 | G-05 | 单元测试、集成测试或 E2E 测试已覆盖至少一个正向场景和一个失败/边界场景 | [x] | contracts/api-client 类型样例覆盖正反向；API 平台测试覆盖 health/OpenAPI 正向与配置/错误边界。 |
@@ -27,7 +27,7 @@
 | G-08 | 新增环境变量已写入 `.env.example`，未提交真实 secret | [x] | API-PLT-01 未新增环境变量；启动校验使用 `.env.example` 既有占位变量，未提交真实 secret。 |
 | G-09 | 回滚或降级步骤已记录 | [x] | SHR-01 与 API-PLT-01 的回滚要求保留在 `docs/PLAN.md` 对应任务说明中。 |
 | G-10 | 日志、监控、告警或至少可诊断日志已按需补齐 | [x] | API-PLT-01 请求日志包含 request id、method、path、status、duration；health 暴露依赖状态占位。 |
-| G-11 | 权限、安全、隐私、匿名化检查已完成 | [x] | API-AUTH-01/02/03 已实现登录模式、用户角色、`/me`、微信/OIDC mock 闭环和 token 守卫；secret 只使用占位值且接口脱敏，未知异常不向客户端暴露 stack；小程序页面、座位/预约/MQTT 业务仍未实现。 |
+| G-11 | 权限、安全、隐私、匿名化检查已完成 | [x] | API-AUTH/SEAT/RES/IOT/ADM/STAT 已实现鉴权、角色、二维码一次性消费、secret 脱敏、管理员审计、排行榜匿名化和错误响应约束；未知异常不向客户端暴露 stack。当前仍未完成的是 miniapp 页面、设备模拟器闭环和固件业务。 |
 | G-12 | 高风险任务的处理结论与处理意见已记录 | [x] | 高风险业务仍在后续任务；当前风险与处理方式保留在 `docs/PLAN.md` 风险清单和 ADR 中。 |
 
 ## 3. 证据记录格式
@@ -177,6 +177,8 @@
 - [x] `GET /auth/oidc/authorize-url` 可生成授权地址并返回小程序可处理的 `state`。
 - [x] `POST /auth/oidc/callback` 可完成 mock code 换 subject、用户绑定和系统 token 签发。
 - [x] OIDC state/nonce 或等价防重放机制已实现。
+- [x] 同一个 `state` 只能成功使用一次。
+- [x] callback 成功后 state/nonce 已被消费，重复 callback 失败。
 - [x] `client_secret` 仅后端使用，不出现在小程序代码、接口返回、普通日志中。
 - [x] OIDC 模式下无前端注册入口和后端注册接口。
 - [x] 已存在 subject 可映射到用户；新用户按首个管理员规则创建。
@@ -184,10 +186,10 @@
 - [x] `.env.example` 已记录 issuer、client id、client secret、redirect uri、provider mode 等配置项。
 - [x] 证据路径已填写：
 
-  - 代码路径：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/common/config/api-env.ts`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`
+  - 代码路径：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260505010000_api_auth_03_oidc_state_replay_protection/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`
   - 测试路径：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`
   - 文档路径：`docs/PLAN.md`、`docs/CHECKLIST.md`
-  - 已通过命令：`pnpm add openid-client@^6.8.4 --filter @smartseat/api`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`
+  - 已通过命令：`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api lint`
   - 阻塞命令：无。本任务未启动真实学校 OIDC Provider 外网联调，未实现小程序页面或 OIDC 管理员组映射。
   - 结论：通过；API-AUTH-03 状态已更新为 Done。
 
@@ -244,10 +246,11 @@
 - [x] 心跳可更新 Device 最后在线时间和在线状态。
 - [x] 超过 75 秒或配置阈值未收到心跳时可判定离线。
 - [x] 设备恢复在线后可重新同步最新座位显示/灯光状态。
+- [x] 等待签到座位在设备恢复在线后不会重放过期 QR token，display payload 与当前有效 QRToken 一致。
 - [x] 后端可发布 display、light、command payload。
 - [x] 非法 device_id、非法 payload、broker 断连均有日志和错误处理。
 - [x] MQTT 配置项已写入 `.env.example`。
-- [x] 证据路径已填写：代码 `apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试 `apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；已通过 `pnpm install --frozen-lockfile`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm typecheck`、`pnpm format`、`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config`、本地 `mqtt://localhost:1883` smoke 连接与 heartbeat 订阅。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/modules/reservations/reservations.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试 `apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；已通过 `pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`、`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config`、本地 `mqtt://localhost:1883` smoke 连接与 heartbeat 订阅。
 
 ### CL-API-RES-03 动态二维码与扫码签到
 
@@ -257,9 +260,10 @@
 - [x] `POST /checkin` 校验用户、预约、座位、签到窗口、token 状态。
 - [x] token 一次性使用，重复签到失败。
 - [x] 过期 token、非本人签到、已取消预约、超出签到窗口均失败并返回明确错误码。
+- [x] 设备离线期间 token 过期后，恢复在线只下发当前有效 QRToken，不会重放旧 token。
 - [x] 签到成功后预约进入 `OCCUPIED`，并触发终端状态同步。
 - [x] OpenAPI 与错误码文档已更新。
-- [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档 `packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。
+- [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/modules/mqtt/mqtt-device-state.service.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档 `packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。
 
 ### CL-API-IOT-02 传感器接入与持续时间判断
 
@@ -303,6 +307,7 @@
 - [x] 管理员手动释放必须填写原因。
 - [x] 手动释放后座位/预约/终端状态同步正确。
 - [x] 管理员可切换座位或设备维护状态，并可恢复。
+- [x] 当前设备维护语义已明确为“通过绑定座位维护表达”；未绑定设备维护请求返回 `STATE_CONFLICT`，未新增独立 Device maintenance 持久字段。
 - [x] 关键操作写入 AdminActionLog，包含 admin、action、target、reason、detail、timestamp。
 - [x] 系统配置接口不暴露 secret 明文。
 - [x] 证据路径已填写：`apps/api/src/__tests__/api-admin.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`。
@@ -318,7 +323,7 @@
 - [x] 学生可退出/参与榜单，退出后不出现在公共榜单中：复用 `/me/leaderboard-preference`，opt-out 用户被排行榜聚合过滤。
 - [x] 当前学生可看到自己的匿名排名或个人位置：`current_user_entry` 覆盖当前学生匿名排名。
 - [x] 统计跨天、跨周边界测试已覆盖：Asia/Shanghai 周一边界、跨天连续学习、上一周记录过滤均在 `api-stat.spec.ts` 中验证。
-- [x] 证据路径已填写：`apps/api/src/__tests__/api-stat.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；验证命令 `pnpm --filter @smartseat/api test` 通过，输出 `120 passed | 5 skipped`。
+- [x] 证据路径已填写：`apps/api/src/__tests__/api-stat.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；验证命令 `pnpm --filter @smartseat/api test` 通过，当前输出 `122 passed | 5 skipped`。
 
 ### CL-MINI-01 小程序公共壳层、登录页与角色路由
 

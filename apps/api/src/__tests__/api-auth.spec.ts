@@ -52,11 +52,21 @@ interface FakeAdminActionLog {
   detail?: unknown;
 }
 
+interface FakeOidcAuthState {
+  stateId: string;
+  stateHash: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  createdAt: Date;
+}
+
 class FakePrismaService {
   users: FakeUser[] = [];
   authConfigs: FakeAuthConfig[] = [];
   adminActionLogs: FakeAdminActionLog[] = [];
+  oidcAuthStates: FakeOidcAuthState[] = [];
   private userSequence = 0;
+  private oidcStateSequence = 0;
 
   user = {
     findUnique: async ({ where }: { where: { userId: string } }) =>
@@ -160,6 +170,50 @@ class FakePrismaService {
         createdAt: new Date('2026-05-02T08:20:00.000Z'),
         ...data
       };
+    }
+  };
+
+  oidcAuthState = {
+    create: async ({ data }: { data: Pick<FakeOidcAuthState, 'stateHash' | 'expiresAt'> }) => {
+      this.oidcStateSequence += 1;
+      const record: FakeOidcAuthState = {
+        stateId: `oidc_state_${this.oidcStateSequence}`,
+        stateHash: data.stateHash,
+        expiresAt: data.expiresAt,
+        consumedAt: null,
+        createdAt: new Date('2026-05-02T08:05:00.000Z')
+      };
+
+      this.oidcAuthStates.push(record);
+      return record;
+    },
+    updateMany: async ({
+      where,
+      data
+    }: {
+      where: {
+        stateHash: string;
+        consumedAt: null;
+        expiresAt: {
+          gt: Date;
+        };
+      };
+      data: {
+        consumedAt: Date;
+      };
+    }) => {
+      const matched = this.oidcAuthStates.filter(
+        (record) =>
+          record.stateHash === where.stateHash &&
+          record.consumedAt === where.consumedAt &&
+          record.expiresAt > where.expiresAt.gt
+      );
+
+      for (const record of matched) {
+        record.consumedAt = data.consumedAt;
+      }
+
+      return { count: matched.length };
     }
   };
 
@@ -639,6 +693,10 @@ describe('API-AUTH-01 auth and users module', () => {
     expect(authorizationUrl.searchParams.get('state')).toBe(response.body.state);
     expect(JSON.stringify(response.body)).not.toContain('oidc-client-secret-plain');
     expect(JSON.stringify(response.body)).not.toContain('mock_subject');
+    expect(prisma.oidcAuthStates).toHaveLength(1);
+    expect(prisma.oidcAuthStates[0]).toMatchObject({
+      consumedAt: null
+    });
   });
 
   it('logs in with mock OIDC provider and keeps /me route data consistent', async () => {
@@ -750,6 +808,34 @@ describe('API-AUTH-01 auth and users module', () => {
       code: ApiErrorCode.VALIDATION_FAILED
     });
     expect(prisma.users).toHaveLength(0);
+  });
+
+  it('consumes OIDC state after a successful callback and rejects callback replay', async () => {
+    seedOidcAuthConfig();
+    const state = await getOidcState();
+
+    await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-replay-once',
+        state
+      })
+      .expect(200);
+
+    const replayResponse = await request(app.getHttpServer())
+      .post('/auth/oidc/callback')
+      .send({
+        code: 'mock-oidc-code-replay-once',
+        state
+      })
+      .expect(400);
+
+    expect(replayResponse.body).toMatchObject({
+      code: ApiErrorCode.VALIDATION_FAILED
+    });
+    expect(prisma.users).toHaveLength(1);
+    expect(prisma.oidcAuthStates).toHaveLength(1);
+    expect(prisma.oidcAuthStates[0]?.consumedAt).not.toBeNull();
   });
 
   it('rejects OIDC authorize and callback when the current auth mode is WeChat', async () => {

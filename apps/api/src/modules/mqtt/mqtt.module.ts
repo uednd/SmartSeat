@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { AnomaliesModule } from '../anomalies/anomalies.module.js';
 import { DevicesModule } from '../devices/devices.module.js';
+import { ReservationsModule } from '../reservations/reservations.module.js';
 import { SensorsModule } from '../sensors/sensors.module.js';
 import {
   defaultMqttConnectFactory,
@@ -13,7 +14,7 @@ import { MqttDeviceStateService } from './mqtt-device-state.service.js';
 import { MqttPresenceService } from './mqtt-presence.service.js';
 
 @Module({
-  imports: [DevicesModule, SensorsModule, AnomaliesModule],
+  imports: [DevicesModule, SensorsModule, AnomaliesModule, forwardRef(() => ReservationsModule)],
   providers: [
     MqttBrokerService,
     MqttCommandBusService,

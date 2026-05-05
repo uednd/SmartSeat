@@ -1,12 +1,13 @@
 import { Buffer } from 'node:buffer';
 
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AnomalyType } from '@prisma/client';
 import {
   DisplayLayout,
   MQTT_TOPIC_ROOT,
   MQTT_TOPIC_SEGMENTS,
+  SeatStatus,
   SensorHealthStatus,
   type MqttHeartbeatPayload
 } from '@smartseat/contracts';
@@ -14,6 +15,7 @@ import {
 import { getConfigNumber } from '../../common/config/config-reader.js';
 import { AnomaliesService } from '../anomalies/anomalies.service.js';
 import { DevicesService } from '../devices/devices.service.js';
+import { ReservationsService } from '../reservations/reservations.service.js';
 import { MqttBrokerService } from './mqtt-broker.service.js';
 import { MqttCommandBusService } from './mqtt-command-bus.service.js';
 
@@ -26,7 +28,9 @@ export class MqttDeviceStateService implements OnModuleInit {
     @Inject(MqttBrokerService) private readonly broker: MqttBrokerService,
     @Inject(DevicesService) private readonly devicesService: DevicesService,
     @Inject(MqttCommandBusService) private readonly commandBus: MqttCommandBusService,
-    @Inject(AnomaliesService) private readonly anomaliesService: AnomaliesService
+    @Inject(AnomaliesService) private readonly anomaliesService: AnomaliesService,
+    @Inject(forwardRef(() => ReservationsService))
+    private readonly reservationsService: ReservationsService
   ) {}
 
   onModuleInit(): void {
@@ -65,7 +69,13 @@ export class MqttDeviceStateService implements OnModuleInit {
     }
 
     if (result.wasOffline === true) {
-      const synced = await this.commandBus.syncLatestDeviceState(payload.device_id);
+      const synced =
+        result.seat?.businessStatus === SeatStatus.RESERVED
+          ? await this.reservationsService.syncReservedCheckinStateForDevice(
+              payload.device_id,
+              observedAt
+            )
+          : await this.commandBus.syncLatestDeviceState(payload.device_id);
 
       if (!synced) {
         this.logger.warn(`MQTT state sync degraded after heartbeat for ${payload.device_id}.`);

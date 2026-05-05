@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 
 import { DatabaseModule } from '../../common/database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
@@ -14,7 +14,13 @@ import {
 import { ReservationsService } from './reservations.service.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, UsersModule, MqttModule, StudyRecordsModule],
+  imports: [
+    DatabaseModule,
+    AuthModule,
+    UsersModule,
+    forwardRef(() => MqttModule),
+    StudyRecordsModule
+  ],
   controllers: [
     ReservationsController,
     CurrentUsageController,

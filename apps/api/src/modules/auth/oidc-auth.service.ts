@@ -70,8 +70,10 @@ export class OidcAuthService {
   async callback(request: OidcCallbackRequest): Promise<AuthSessionResponse> {
     const normalizedRequest = this.normalizeCallbackRequest(request);
     await this.assertOidcMode();
-    const state = await this.oidcStateService.verifyState(normalizedRequest.state);
     const config = await this.resolveRuntimeConfig();
+    const state = await this.oidcStateService.consumeState(normalizedRequest.state, {
+      expectedRedirectUri: config.redirectUri
+    });
     const identity = await this.exchangeCode({
       code: normalizedRequest.code,
       state: normalizedRequest.state,
