@@ -16,6 +16,7 @@ import {
   type LoginModeResponse,
   type OidcAuthorizeUrlResponse,
   type OidcCallbackRequest,
+  type PasswordLoginRequest,
   type UpdateAuthConfigRequest,
   type WechatLoginRequest
 } from '@smartseat/contracts';
@@ -30,11 +31,13 @@ import {
   loginModeResponseSchema,
   oidcAuthorizeUrlResponseSchema,
   oidcCallbackRequestSchema,
+  passwordLoginRequestSchema,
   updateAuthConfigRequestSchema,
   wechatLoginRequestSchema
 } from '../../common/openapi/schemas.js';
 import { AuthConfigService } from './auth-config.service.js';
 import { OidcAuthService } from './oidc-auth.service.js';
+import { PasswordAuthService } from './password-auth.service.js';
 import { WeChatAuthService } from './wechat-auth.service.js';
 
 @ApiTags('auth')
@@ -43,6 +46,7 @@ export class AuthController {
   constructor(
     @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
     @Inject(OidcAuthService) private readonly oidcAuthService: OidcAuthService,
+    @Inject(PasswordAuthService) private readonly passwordAuthService: PasswordAuthService,
     @Inject(WeChatAuthService) private readonly weChatAuthService: WeChatAuthService
   ) {}
 
@@ -76,6 +80,15 @@ export class AuthController {
   @ApiOkResponse({ schema: authSessionResponseSchema })
   async oidcCallback(@Body() request: OidcCallbackRequest): Promise<AuthSessionResponse> {
     return await this.oidcAuthService.callback(request);
+  }
+
+  @Post('password/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Log in with username and password (development only)' })
+  @ApiBody({ schema: passwordLoginRequestSchema })
+  @ApiOkResponse({ schema: authSessionResponseSchema })
+  async loginWithPassword(@Body() request: PasswordLoginRequest): Promise<AuthSessionResponse> {
+    return await this.passwordAuthService.login(request);
   }
 }
 

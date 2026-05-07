@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm db:migrate:dev)",
+      "Bash(pnpm dev:api)",
+      "Bash(pnpm --filter @smartseat/web dev)",
+      "Bash(pnpm db:generate)",
+      "Bash(curl -s -X POST http://localhost:3001/auth/password/login -H \"Content-Type: application/json\" -d '{\"username\":\"test\",\"password\":\"123\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
+      "Bash(curl -s http://localhost:3000/login)",
+      "Bash(taskkill /PID 30136 /F)"
+    ]
+  }
+}

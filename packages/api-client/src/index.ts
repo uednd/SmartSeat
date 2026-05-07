@@ -32,6 +32,7 @@ import {
   type NoShowRecordDto,
   type OidcCallbackRequest,
   type OidcAuthorizeUrlResponse,
+  type PasswordLoginRequest,
   type PageRequest,
   type PageResponse,
   type ReservationDto,
@@ -335,6 +336,7 @@ export interface AuthApi {
   getOidcAuthorizeUrl(): Promise<OidcAuthorizeUrlResponse>;
   startOidc(): Promise<OidcAuthorizeUrlResponse>;
   completeOidc(request: OidcCallbackRequest): Promise<AuthSessionResponse>;
+  loginPassword(request: PasswordLoginRequest): Promise<AuthSessionResponse>;
 }
 
 export interface MeApi {
@@ -483,6 +485,13 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           operation_id: 'auth.completeOidc',
           method: 'POST',
           path: '/auth/oidc/callback',
+          body: request
+        }),
+      loginPassword: (request) =>
+        transport.request({
+          operation_id: 'auth.loginPassword',
+          method: 'POST',
+          path: '/auth/password/login',
           body: request
         })
     },

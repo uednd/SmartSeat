@@ -14,6 +14,8 @@ import {
 } from './oidc-auth.provider.js';
 import { OidcAuthService } from './oidc-auth.service.js';
 import { OidcStateService } from './oidc-state.service.js';
+import { MockPasswordAuthProvider } from './password-auth.provider.js';
+import { PasswordAuthService } from './password-auth.service.js';
 import { TokenService } from './token.service.js';
 import {
   MockWeChatAuthProvider,
@@ -30,6 +32,8 @@ import { WeChatAuthService } from './wechat-auth.service.js';
     TokenService,
     OidcAuthService,
     OidcStateService,
+    PasswordAuthService,
+    MockPasswordAuthProvider,
     MockOidcAuthProvider,
     RealOidcAuthProvider,
     OidcAuthProviderSelector,

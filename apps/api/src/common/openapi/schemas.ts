@@ -75,6 +75,15 @@ export const oidcCallbackRequestSchema: SchemaObject = {
   }
 };
 
+export const passwordLoginRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['username', 'password'],
+  properties: {
+    username: text(),
+    password: text()
+  }
+};
+
 export const updateAuthConfigRequestSchema: SchemaObject = {
   type: 'object',
   required: ['auth_mode'],

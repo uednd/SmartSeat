@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install *)",
+      "Bash(pnpm --filter @smartseat/web typecheck)",
+      "Bash(pnpm --filter @smartseat/web lint)",
+      "Bash(pnpm --filter @smartseat/api typecheck)",
+      "Bash(pnpm --filter @smartseat/contracts typecheck)",
+      "Bash(pnpm --filter @smartseat/api-client typecheck)",
+      "Bash(cmd.exe /c \"taskkill /PID 30136 /F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 30136 -Force\")",
+      "Bash(cmd.exe //c \"netstat -ano | findstr :3000\")",
+      "Bash(curl -s -o /dev/null -w \"Redirect: %{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"Login Page: %{http_code}\\\\n\" http://localhost:3000/login)"
+    ]
+  }
+}

@@ -133,6 +133,11 @@ export interface OidcCallbackRequest {
   state: string;
 }
 
+export interface PasswordLoginRequest {
+  username: string;
+  password: string;
+}
+
 export interface AuthSessionResponse {
   token: string;
   token_type: 'Bearer';

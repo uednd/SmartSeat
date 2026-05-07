@@ -32,6 +32,10 @@ const bootstrap = async (): Promise<void> => {
   const port = getConfigNumber(configService, 'API_PORT');
   const host = getConfigString(configService, 'API_HOST');
 
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
   app.enableShutdownHooks();
   setupApiPlatform(app);
   registerShutdownHandlers(app);
