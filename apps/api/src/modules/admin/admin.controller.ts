@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AdminActionLogDto,
@@ -42,7 +42,7 @@ import { AdminService } from './admin.service.js';
 @Controller('admin')
 @UseGuards(BearerAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(@Inject(AdminService) private readonly adminService: AdminService) {}
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get administrator dashboard summary' })

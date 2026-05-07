@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Post,
   Query,
@@ -47,7 +48,7 @@ import { ReservationsService } from './reservations.service.js';
 @Controller('reservations')
 @UseGuards(BearerAuthGuard)
 export class ReservationsController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(@Inject(ReservationsService) private readonly reservationsService: ReservationsService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a student reservation' })
@@ -110,7 +111,7 @@ export class ReservationsController {
 @Controller('current-usage')
 @UseGuards(BearerAuthGuard)
 export class CurrentUsageController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(@Inject(ReservationsService) private readonly reservationsService: ReservationsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get the current checked-in usage for a student' })
@@ -138,7 +139,7 @@ export class CurrentUsageController {
 @Controller('checkin')
 @UseGuards(BearerAuthGuard)
 export class CheckinController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(@Inject(ReservationsService) private readonly reservationsService: ReservationsService) {}
 
   @Post()
   @ApiOperation({ summary: 'Check in to a reservation with a dynamic QR token' })
@@ -157,7 +158,7 @@ export class CheckinController {
 @Controller('admin/reservations')
 @UseGuards(BearerAuthGuard, AdminGuard)
 export class AdminReservationsController {
-  constructor(private readonly reservationsService: ReservationsService) {}
+  constructor(@Inject(ReservationsService) private readonly reservationsService: ReservationsService) {}
 
   @Get('current')
   @ApiOperation({ summary: 'List current reservations for administrators' })

@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
@@ -41,7 +42,7 @@ import { DevicesService } from './devices.service.js';
 @Controller('devices')
 @UseGuards(BearerAuthGuard)
 export class DevicesController {
-  constructor(private readonly devicesService: DevicesService) {}
+  constructor(@Inject(DevicesService) private readonly devicesService: DevicesService) {}
 
   @Get()
   @ApiOperation({ summary: 'List devices for authenticated users' })
@@ -63,7 +64,7 @@ export class DevicesController {
 @Controller('admin/devices')
 @UseGuards(BearerAuthGuard, AdminGuard)
 export class AdminDevicesController {
-  constructor(private readonly devicesService: DevicesService) {}
+  constructor(@Inject(DevicesService) private readonly devicesService: DevicesService) {}
 
   @Get()
   @ApiOperation({ summary: 'List devices with administrator fields' })

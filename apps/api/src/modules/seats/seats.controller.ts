@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AdminSeatDetailDto,
@@ -29,7 +29,7 @@ import { SeatsService } from './seats.service.js';
 @ApiTags('seats')
 @Controller('seats')
 export class SeatsController {
-  constructor(private readonly seatsService: SeatsService) {}
+  constructor(@Inject(SeatsService) private readonly seatsService: SeatsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List seats for miniapp home display' })
@@ -51,7 +51,7 @@ export class SeatsController {
 @Controller('admin/seats')
 @UseGuards(BearerAuthGuard, AdminGuard)
 export class AdminSeatsController {
-  constructor(private readonly seatsService: SeatsService) {}
+  constructor(@Inject(SeatsService) private readonly seatsService: SeatsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List seats with administrator fields' })

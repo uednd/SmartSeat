@@ -117,6 +117,9 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         category: 'unhandled_exception'
       })
     );
+    this.logger.error(
+      exception instanceof Error ? exception.stack ?? exception.message : String(exception)
+    );
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
       this.withRequestId(

@@ -32,10 +32,13 @@ const demoIds = {
   student: 'user_demo_student_001',
   studentTwo: 'user_demo_student_002',
   studentThree: 'user_demo_student_003',
-  seat: 'seat_demo_001',
-  device: 'device_demo_esp32p4_001',
-  binding: 'binding_demo_001'
+  seats: Array.from({ length: 8 }, (_, i) => `seat_demo_${String(i + 1).padStart(3, '0')}`),
+  devices: Array.from({ length: 8 }, (_, i) => `device_demo_esp32p4_${String(i + 1).padStart(3, '0')}`),
+  bindings: Array.from({ length: 8 }, (_, i) => `binding_demo_${String(i + 1).padStart(3, '0')}`)
 } as const;
+
+const SEAT_AREAS = ['一楼 A 区', '一楼 B 区', '二楼 自习区'] as const;
+const SEAT_NOS = ['A-101', 'A-102', 'A-103', 'B-201', 'B-202', 'C-301', 'C-302', 'C-303'] as const;
 
 const date = (value: string): Date => new Date(value);
 
@@ -165,7 +168,7 @@ async function seedAuthConfig(): Promise<void> {
   await prisma.authConfig.upsert({
     where: { configId: 'auth_config_default' },
     update: {
-      authMode: AuthMode.WECHAT,
+      authMode: AuthMode.LOCAL,
       oidcIssuer: 'https://placeholder-idp.example.test',
       oidcClientId: 'placeholder-oidc-client-id',
       oidcClientSecret: null,
@@ -177,7 +180,7 @@ async function seedAuthConfig(): Promise<void> {
     },
     create: {
       configId: 'auth_config_default',
-      authMode: AuthMode.WECHAT,
+      authMode: AuthMode.LOCAL,
       oidcIssuer: 'https://placeholder-idp.example.test',
       oidcClientId: 'placeholder-oidc-client-id',
       oidcClientSecret: null,
@@ -191,78 +194,83 @@ async function seedAuthConfig(): Promise<void> {
 }
 
 async function seedSeatAndDevice(): Promise<void> {
-  await prisma.seat.upsert({
-    where: { seatId: demoIds.seat },
-    update: {
-      seatNo: 'DEMO-A-001',
-      area: '初赛演示区',
-      businessStatus: SeatStatus.FREE,
-      availabilityStatus: SeatAvailability.AVAILABLE,
-      unavailableReason: null,
-      deviceId: null,
-      presenceStatus: PresenceStatus.ABSENT,
-      maintenance: false
-    },
-    create: {
-      seatId: demoIds.seat,
-      seatNo: 'DEMO-A-001',
-      area: '初赛演示区',
-      businessStatus: SeatStatus.FREE,
-      availabilityStatus: SeatAvailability.AVAILABLE,
-      presenceStatus: PresenceStatus.ABSENT,
-      maintenance: false
-    }
-  });
+  for (let i = 0; i < 8; i++) {
+    const seatId = demoIds.seats[i];
+    const deviceId = demoIds.devices[i];
+    const bindingId = demoIds.bindings[i];
+    const seatNo = SEAT_NOS[i];
+    const area = SEAT_AREAS[i < 3 ? 0 : i < 5 ? 1 : 2];
+    const mqttClientId = `smartseat-demo-esp32p4-${String(i + 1).padStart(3, '0')}`;
 
-  await prisma.device.upsert({
-    where: { deviceId: demoIds.device },
-    update: {
-      seatId: demoIds.seat,
-      mqttClientId: 'smartseat-demo-esp32p4-001',
-      onlineStatus: DeviceOnlineStatus.ONLINE,
-      lastHeartbeatAt: date('2026-05-02T07:00:00.000Z'),
-      sensorStatus: SensorHealthStatus.OK,
-      sensorModel: 'placeholder-mmwave-adapter',
-      firmwareVersion: 'demo-firmware-0.1.0',
-      hardwareVersion: 'esp32-p4-demo',
-      networkStatus: 'demo-seed-online'
-    },
-    create: {
-      deviceId: demoIds.device,
-      seatId: demoIds.seat,
-      mqttClientId: 'smartseat-demo-esp32p4-001',
-      onlineStatus: DeviceOnlineStatus.ONLINE,
-      lastHeartbeatAt: date('2026-05-02T07:00:00.000Z'),
-      sensorStatus: SensorHealthStatus.OK,
-      sensorModel: 'placeholder-mmwave-adapter',
-      firmwareVersion: 'demo-firmware-0.1.0',
-      hardwareVersion: 'esp32-p4-demo',
-      networkStatus: 'demo-seed-online'
-    }
-  });
+    await prisma.seat.upsert({
+      where: { seatId },
+      update: {
+        seatNo,
+        area,
+        businessStatus: SeatStatus.FREE,
+        availabilityStatus: SeatAvailability.AVAILABLE,
+        unavailableReason: null,
+        deviceId,
+        presenceStatus: PresenceStatus.ABSENT,
+        maintenance: false
+      },
+      create: {
+        seatId,
+        seatNo,
+        area,
+        businessStatus: SeatStatus.FREE,
+        availabilityStatus: SeatAvailability.AVAILABLE,
+        deviceId,
+        presenceStatus: PresenceStatus.ABSENT,
+        maintenance: false
+      }
+    });
 
-  await prisma.seat.update({
-    where: { seatId: demoIds.seat },
-    data: { deviceId: demoIds.device }
-  });
+    await prisma.device.upsert({
+      where: { deviceId },
+      update: {
+        seatId,
+        mqttClientId,
+        onlineStatus: DeviceOnlineStatus.ONLINE,
+        lastHeartbeatAt: date('2026-05-07T00:00:00.000Z'),
+        sensorStatus: SensorHealthStatus.OK,
+        sensorModel: 'placeholder-mmwave-adapter',
+        firmwareVersion: 'demo-firmware-0.2.0',
+        hardwareVersion: 'esp32-p4-demo',
+        networkStatus: 'demo-seed-online'
+      },
+      create: {
+        deviceId,
+        seatId,
+        mqttClientId,
+        onlineStatus: DeviceOnlineStatus.ONLINE,
+        lastHeartbeatAt: date('2026-05-07T00:00:00.000Z'),
+        sensorStatus: SensorHealthStatus.OK,
+        sensorModel: 'placeholder-mmwave-adapter',
+        firmwareVersion: 'demo-firmware-0.2.0',
+        hardwareVersion: 'esp32-p4-demo',
+        networkStatus: 'demo-seed-online'
+      }
+    });
 
-  await prisma.deviceSeatBinding.upsert({
-    where: { bindingId: demoIds.binding },
-    update: {
-      deviceId: demoIds.device,
-      seatId: demoIds.seat,
-      boundAt: date('2026-05-02T06:30:00.000Z'),
-      unboundAt: null,
-      reason: 'API-DB-01 demo seed binding'
-    },
-    create: {
-      bindingId: demoIds.binding,
-      deviceId: demoIds.device,
-      seatId: demoIds.seat,
-      boundAt: date('2026-05-02T06:30:00.000Z'),
-      reason: 'API-DB-01 demo seed binding'
-    }
-  });
+    await prisma.deviceSeatBinding.upsert({
+      where: { bindingId },
+      update: {
+        deviceId,
+        seatId,
+        boundAt: date('2026-05-07T00:00:00.000Z'),
+        unboundAt: null,
+        reason: 'API-DB-01 demo seed binding'
+      },
+      create: {
+        bindingId,
+        deviceId,
+        seatId,
+        boundAt: date('2026-05-07T00:00:00.000Z'),
+        reason: 'API-DB-01 demo seed binding'
+      }
+    });
+  }
 }
 
 async function seedHistoricalUsage(): Promise<void> {
@@ -271,7 +279,7 @@ async function seedHistoricalUsage(): Promise<void> {
       where: { reservationId: item.reservationId },
       update: {
         userId: item.userId,
-        seatId: demoIds.seat,
+        seatId: demoIds.seats[0],
         startTime: item.startTime,
         endTime: item.endTime,
         checkinStartTime: new Date(item.startTime.getTime() - 5 * 60 * 1000),
@@ -284,7 +292,7 @@ async function seedHistoricalUsage(): Promise<void> {
       create: {
         reservationId: item.reservationId,
         userId: item.userId,
-        seatId: demoIds.seat,
+        seatId: demoIds.seats[0],
         startTime: item.startTime,
         endTime: item.endTime,
         checkinStartTime: new Date(item.startTime.getTime() - 5 * 60 * 1000),
@@ -301,8 +309,8 @@ async function seedHistoricalUsage(): Promise<void> {
       update: {
         token: item.token,
         reservationId: item.reservationId,
-        seatId: demoIds.seat,
-        deviceId: demoIds.device,
+        seatId: demoIds.seats[0],
+        deviceId: demoIds.devices[0],
         generatedAt: new Date(item.startTime.getTime() - 3 * 60 * 1000),
         expiredAt: new Date(item.startTime.getTime() + 10 * 60 * 1000),
         usedAt: item.startTime,
@@ -312,8 +320,8 @@ async function seedHistoricalUsage(): Promise<void> {
         tokenId: item.tokenId,
         token: item.token,
         reservationId: item.reservationId,
-        seatId: demoIds.seat,
-        deviceId: demoIds.device,
+        seatId: demoIds.seats[0],
+        deviceId: demoIds.devices[0],
         generatedAt: new Date(item.startTime.getTime() - 3 * 60 * 1000),
         expiredAt: new Date(item.startTime.getTime() + 10 * 60 * 1000),
         usedAt: item.startTime,
@@ -326,8 +334,8 @@ async function seedHistoricalUsage(): Promise<void> {
       update: {
         reservationId: item.reservationId,
         userId: item.userId,
-        seatId: demoIds.seat,
-        deviceId: demoIds.device,
+        seatId: demoIds.seats[0],
+        deviceId: demoIds.devices[0],
         qrTokenId: item.tokenId,
         checkedInAt: item.startTime,
         presenceStatus: PresenceStatus.PRESENT,
@@ -337,8 +345,8 @@ async function seedHistoricalUsage(): Promise<void> {
         checkInId: item.checkInId,
         reservationId: item.reservationId,
         userId: item.userId,
-        seatId: demoIds.seat,
-        deviceId: demoIds.device,
+        seatId: demoIds.seats[0],
+        deviceId: demoIds.devices[0],
         qrTokenId: item.tokenId,
         checkedInAt: item.startTime,
         presenceStatus: PresenceStatus.PRESENT,
@@ -351,7 +359,7 @@ async function seedHistoricalUsage(): Promise<void> {
       update: {
         userId: item.userId,
         reservationId: item.reservationId,
-        seatId: demoIds.seat,
+        seatId: demoIds.seats[0],
         startTime: item.startTime,
         endTime: item.endTime,
         durationMinutes: item.durationMinutes,
@@ -363,7 +371,7 @@ async function seedHistoricalUsage(): Promise<void> {
         recordId: item.studyRecordId,
         userId: item.userId,
         reservationId: item.reservationId,
-        seatId: demoIds.seat,
+        seatId: demoIds.seats[0],
         startTime: item.startTime,
         endTime: item.endTime,
         durationMinutes: item.durationMinutes,
@@ -378,8 +386,8 @@ async function seedOperationalRecords(): Promise<void> {
   await prisma.sensorReading.upsert({
     where: { readingId: 'sensor_reading_demo_001' },
     update: {
-      deviceId: demoIds.device,
-      seatId: demoIds.seat,
+      deviceId: demoIds.devices[0],
+      seatId: demoIds.seats[0],
       presenceStatus: PresenceStatus.ABSENT,
       sensorStatus: SensorHealthStatus.OK,
       rawValue: { source: 'demo-seed', value: 'absent' },
@@ -387,8 +395,8 @@ async function seedOperationalRecords(): Promise<void> {
     },
     create: {
       readingId: 'sensor_reading_demo_001',
-      deviceId: demoIds.device,
-      seatId: demoIds.seat,
+      deviceId: demoIds.devices[0],
+      seatId: demoIds.seats[0],
       presenceStatus: PresenceStatus.ABSENT,
       sensorStatus: SensorHealthStatus.OK,
       rawValue: { source: 'demo-seed', value: 'absent' },
@@ -400,9 +408,9 @@ async function seedOperationalRecords(): Promise<void> {
     where: { eventId: 'anomaly_demo_handled_001' },
     update: {
       eventType: AnomalyType.CHECKIN_FAILED,
-      seatId: demoIds.seat,
+      seatId: demoIds.seats[0],
       userId: demoIds.student,
-      deviceId: demoIds.device,
+      deviceId: demoIds.devices[0],
       reservationId: null,
       description: 'Demo handled anomaly record for API-DB-01 schema verification.',
       status: AnomalyStatus.HANDLED,
@@ -413,9 +421,9 @@ async function seedOperationalRecords(): Promise<void> {
     create: {
       eventId: 'anomaly_demo_handled_001',
       eventType: AnomalyType.CHECKIN_FAILED,
-      seatId: demoIds.seat,
+      seatId: demoIds.seats[0],
       userId: demoIds.student,
-      deviceId: demoIds.device,
+      deviceId: demoIds.devices[0],
       description: 'Demo handled anomaly record for API-DB-01 schema verification.',
       status: AnomalyStatus.HANDLED,
       handledById: demoIds.admin,
@@ -427,7 +435,7 @@ async function seedOperationalRecords(): Promise<void> {
   await prisma.maintenanceRecord.upsert({
     where: { maintenanceId: 'maintenance_demo_closed_001' },
     update: {
-      seatId: demoIds.seat,
+      seatId: demoIds.seats[0],
       startedById: demoIds.admin,
       endedById: demoIds.admin,
       reason: 'demo maintenance verification',
@@ -437,7 +445,7 @@ async function seedOperationalRecords(): Promise<void> {
     },
     create: {
       maintenanceId: 'maintenance_demo_closed_001',
-      seatId: demoIds.seat,
+      seatId: demoIds.seats[0],
       startedById: demoIds.admin,
       endedById: demoIds.admin,
       reason: 'demo maintenance verification',
@@ -453,7 +461,7 @@ async function seedOperationalRecords(): Promise<void> {
       adminId: demoIds.admin,
       actionType: AdminActionType.RESTORE_AVAILABLE,
       targetType: 'seat',
-      targetId: demoIds.seat,
+      targetId: demoIds.seats[0],
       reason: 'demo seed baseline',
       detail: { maintenance_record_id: 'maintenance_demo_closed_001' },
       createdAt: date('2026-05-02T05:15:00.000Z')
@@ -463,7 +471,7 @@ async function seedOperationalRecords(): Promise<void> {
       adminId: demoIds.admin,
       actionType: AdminActionType.RESTORE_AVAILABLE,
       targetType: 'seat',
-      targetId: demoIds.seat,
+      targetId: demoIds.seats[0],
       reason: 'demo seed baseline',
       detail: { maintenance_record_id: 'maintenance_demo_closed_001' },
       createdAt: date('2026-05-02T05:15:00.000Z')

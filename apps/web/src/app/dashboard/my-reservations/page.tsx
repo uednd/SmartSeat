@@ -140,7 +140,7 @@ export default function MyReservationsPage() {
 
     const trimmedToken = tokenInput.trim();
     if (!trimmedToken) {
-      setCheckinError('请输入座位终端显示的动态令牌');
+      setCheckinError('请输入座位终端 (ESP32) 显示的动态口令');
       return;
     }
 
@@ -355,8 +355,8 @@ export default function MyReservationsPage() {
                       </svg>
                     </div>
                     <div className="text-sm text-slate-600 dark:text-slate-400">
-                      <p>请查看座位终端屏幕，输入屏幕上显示的 <strong className="text-slate-800 dark:text-slate-200">6 位动态令牌</strong>。</p>
-                      <p className="text-xs mt-1 text-slate-400">令牌每 15 秒自动刷新，请及时输入。</p>
+                      <p>请输入座位终端 <strong className="text-slate-800 dark:text-slate-200">(ESP32)</strong> 屏幕上显示的动态口令。</p>
+                      <p className="text-xs mt-1 text-slate-400">口令每 15 秒自动刷新，请及时输入。</p>
                     </div>
                   </div>
                 </div>
@@ -369,14 +369,14 @@ export default function MyReservationsPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
-                    动态令牌
+                    动态口令
                   </label>
                   <input
                     type="text"
                     value={tokenInput}
-                    onChange={(e) => setTokenInput(e.target.value)}
-                    placeholder="输入 6 位数字令牌"
-                    maxLength={12}
+                    onChange={(e) => setTokenInput(e.target.value.toUpperCase())}
+                    placeholder="输入 4-6 位口令"
+                    maxLength={6}
                     autoFocus
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-lg text-center tracking-widest text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all font-mono"
                   />

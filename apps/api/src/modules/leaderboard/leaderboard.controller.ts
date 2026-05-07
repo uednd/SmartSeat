@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { LeaderboardRequest, LeaderboardResponse } from '@smartseat/contracts';
 
@@ -13,7 +13,7 @@ import { StudyRecordsService } from '../study-records/study-records.service.js';
 @Controller('leaderboard')
 @UseGuards(BearerAuthGuard)
 export class LeaderboardController {
-  constructor(private readonly studyRecordsService: StudyRecordsService) {}
+  constructor(@Inject(StudyRecordsService) private readonly studyRecordsService: StudyRecordsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get anonymous study leaderboard' })

@@ -1,13 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 import {
   SeatStatus,
   SeatAvailability,
   type SeatDto,
-  type CreateReservationRequest,
-  type CheckinRequest
+  type CreateReservationRequest
 } from '@smartseat/contracts';
 import { getApiClient } from '@/lib/api';
 
@@ -55,12 +53,6 @@ export default function DashboardPage() {
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState('');
   const [reserveSuccess, setReserveSuccess] = useState(false);
-
-  const [showScanner, setShowScanner] = useState(false);
-  const [scanResult, setScanResult] = useState('');
-  const [scanError, setScanError] = useState('');
-  const [checkingIn, setCheckingIn] = useState(false);
-
 
   useEffect(() => {
     async function loadSeats() {
@@ -143,58 +135,6 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => {
-    if (!showScanner) return;
-
-    const scanner = new Html5Qrcode('qr-reader');
-    let mounted = true;
-
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          if (!mounted) return;
-          setScanResult(decodedText);
-          scanner.stop().catch(() => {});
-        },
-        () => {}
-      )
-      .catch(() => {
-        if (mounted) setScanError('无法启动摄像头，请检查权限');
-      });
-
-    return () => {
-      mounted = false;
-      scanner.stop().catch(() => {});
-    };
-  }, [showScanner]);
-
-  async function handleCheckin() {
-    if (!scanResult) return;
-    setCheckingIn(true);
-    setScanError('');
-
-    try {
-      const parsed: CheckinRequest = JSON.parse(scanResult);
-      const api = getApiClient();
-      await api.checkin.submit(parsed);
-      setScanResult('');
-      setShowScanner(false);
-      refreshSeats();
-    } catch {
-      setScanError('签到失败，二维码内容无效或已过期');
-    } finally {
-      setCheckingIn(false);
-    }
-  }
-
-  function closeScanner() {
-    setShowScanner(false);
-    setScanResult('');
-    setScanError('');
-  }
-
   const freeCount = seats.filter(
     (s) => s.business_status === SeatStatus.FREE && s.availability_status === SeatAvailability.AVAILABLE
   ).length;
@@ -206,32 +146,19 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Stats bar */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 grid grid-cols-3 gap-3 min-w-0">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-            <p className="text-2xl font-bold text-slate-800 dark:text-white">{seats.length}</p>
-            <p className="text-xs text-slate-500 mt-0.5">总座位</p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-            <p className="text-2xl font-bold text-emerald-600">{freeCount}</p>
-            <p className="text-xs text-slate-500 mt-0.5">空闲</p>
-          </div>
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-            <p className="text-2xl font-bold text-rose-600">{occupiedCount}</p>
-            <p className="text-xs text-slate-500 mt-0.5">使用中</p>
-          </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
+          <p className="text-2xl font-bold text-slate-800 dark:text-white">{seats.length}</p>
+          <p className="text-xs text-slate-500 mt-0.5">总座位</p>
         </div>
-
-        <button
-          onClick={() => setShowScanner(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-xl transition-colors shadow-sm"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zM13.5 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z" />
-          </svg>
-          扫一扫
-        </button>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
+          <p className="text-2xl font-bold text-emerald-600">{freeCount}</p>
+          <p className="text-xs text-slate-500 mt-0.5">空闲</p>
+        </div>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
+          <p className="text-2xl font-bold text-rose-600">{occupiedCount}</p>
+          <p className="text-xs text-slate-500 mt-0.5">使用中</p>
+        </div>
       </div>
 
       {error && (
@@ -372,48 +299,6 @@ export default function DashboardPage() {
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* QR Scanner modal */}
-      {showScanner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={closeScanner} />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="font-semibold text-slate-800 dark:text-white">扫一扫签到</h3>
-              <button onClick={closeScanner} className="p-1 text-slate-400 hover:text-slate-600">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="p-4">
-              {scanError && (
-                <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2 text-red-600 dark:text-red-400 text-sm mb-3">
-                  {scanError}
-                </div>
-              )}
-
-              <div id="qr-reader" className="w-full rounded-lg overflow-hidden" />
-
-              {scanResult && (
-                <div className="mt-4 space-y-3">
-                  <div className="bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-900 rounded-lg px-3 py-2 text-emerald-700 dark:text-emerald-400 text-sm break-all">
-                    已识别: {scanResult}
-                  </div>
-                  <button
-                    onClick={handleCheckin}
-                    disabled={checkingIn}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    {checkingIn ? '签到中...' : '确认签到'}
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}

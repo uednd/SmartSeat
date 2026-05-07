@@ -240,8 +240,6 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
 
   async refreshActiveQrTokens(now = new Date()): Promise<{
     expired: number;
-    generated: number;
-    skipped_offline: number;
   }> {
     const expired = await this.prisma.qRToken.updateMany({
       where: {
@@ -254,48 +252,21 @@ export class ReservationsService implements OnModuleInit, OnModuleDestroy {
         status: QRTokenStatus.EXPIRED
       }
     });
-    const reservations = await this.prisma.reservation.findMany({
-      where: {
-        status: ReservationStatus.WAITING_CHECKIN,
-        checkinStartTime: {
-          lte: now
-        },
-        checkinDeadline: {
-          gte: now
-        }
-      },
-      orderBy: [{ checkinDeadline: 'asc' }]
-    });
-    let generated = 0;
-    let skippedOffline = 0;
 
-    for (const reservation of reservations) {
-      const result = await this.createQrTokenForReservation(reservation, now);
+    // Token generation is now handled by ESP32 devices via MQTT token_report.
+    // This method only expires stale tokens.
 
-      if (result === 'OFFLINE_OR_UNBOUND') {
-        skippedOffline += 1;
-        continue;
-      }
-
-      generated += 1;
-      await this.publishReservedDeviceState(reservation, result, now);
-    }
-
-    if (expired.count > 0 || generated > 0 || skippedOffline > 0) {
+    if (expired.count > 0) {
       this.logger.log(
         JSON.stringify({
-          category: 'qr_tokens_refreshed',
-          expired: expired.count,
-          generated,
-          skipped_offline: skippedOffline
+          category: 'qr_tokens_expired',
+          expired: expired.count
         })
       );
     }
 
     return {
-      expired: expired.count,
-      generated,
-      skipped_offline: skippedOffline
+      expired: expired.count
     };
   }
 

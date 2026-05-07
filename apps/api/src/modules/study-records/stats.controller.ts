@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { StudyStatsDto } from '@smartseat/contracts';
 
@@ -13,7 +13,7 @@ import { StudyRecordsService } from './study-records.service.js';
 @Controller('stats')
 @UseGuards(BearerAuthGuard)
 export class StatsController {
-  constructor(private readonly studyRecordsService: StudyRecordsService) {}
+  constructor(@Inject(StudyRecordsService) private readonly studyRecordsService: StudyRecordsService) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current student study statistics' })

@@ -9,7 +9,27 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/login)",
       "Bash(curl -s http://localhost:3000/login)",
-      "Bash(taskkill /PID 30136 /F)"
+      "Bash(taskkill /PID 30136 /F)",
+      "Bash(taskkill //PID 29212 //F)",
+      "Bash(npx tsx -e ' *)",
+      "Bash(pnpm --filter @smartseat/api db:seed)",
+      "Bash(taskkill //PID 26424 //F)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2, ensure_ascii=False\\)[:500]\\)\")",
+      "Bash(curl -s -X POST http://localhost:3001/auth/password/login -H \"Content-Type: application/json\" -d '{\"username\":\"newuser\",\"password\":\"pass123\"}')",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('ok' if 'entries' in d else d.get\\('code','?'\\)\\)\")",
+      "Bash(awk '{print $5}')",
+      "Bash(taskkill //PID 26900 //F)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); items=d.get\\('items',[]\\); print\\(f'Total: {len\\(items\\)} seats'\\); [print\\(f'  {s[\\\\\"seat_no\\\\\"]} \\({s[\\\\\"area\\\\\"]}\\) - {s[\\\\\"business_status\\\\\"]}'\\) for s in items[:5]]; print\\(f'  ... and {len\\(items\\)-5} more' if len\\(items\\)>5 else ''\\)\")",
+      "Bash(python3 -c \"import json,sys; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)[:300]\\)\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs -r taskkill //F //PID)",
+      "Bash(curl -s http://localhost:3001/auth/mode)",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(timeout 15 npx tsx src/main.ts)",
+      "Bash(npx tsx *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); items=d.get\\('items',[]\\); print\\(f'Seats: {len\\(items\\)}'\\) if items else print\\(json.dumps\\(d, ensure_ascii=False\\)[:200]\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); items=d.get\\('items',[]\\); print\\(f'OK: {len\\(items\\)} devices'\\) if items or 'items' in d else print\\(d.get\\('code','?'\\)\\)\")"
     ]
   }
 }

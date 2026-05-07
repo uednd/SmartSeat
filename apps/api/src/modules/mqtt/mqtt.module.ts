@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 
+import { DatabaseModule } from '../../common/database/database.module.js';
 import { AnomaliesModule } from '../anomalies/anomalies.module.js';
 import { DevicesModule } from '../devices/devices.module.js';
 import { ReservationsModule } from '../reservations/reservations.module.js';
@@ -12,14 +13,22 @@ import {
 import { MqttCommandBusService } from './mqtt-command-bus.service.js';
 import { MqttDeviceStateService } from './mqtt-device-state.service.js';
 import { MqttPresenceService } from './mqtt-presence.service.js';
+import { MqttTokenReportService } from './mqtt-token-report.service.js';
 
 @Module({
-  imports: [DevicesModule, SensorsModule, AnomaliesModule, forwardRef(() => ReservationsModule)],
+  imports: [
+    DatabaseModule,
+    DevicesModule,
+    SensorsModule,
+    AnomaliesModule,
+    forwardRef(() => ReservationsModule)
+  ],
   providers: [
     MqttBrokerService,
     MqttCommandBusService,
     MqttDeviceStateService,
     MqttPresenceService,
+    MqttTokenReportService,
     {
       provide: MQTT_CONNECT_FACTORY,
       useValue: defaultMqttConnectFactory

@@ -15,6 +15,7 @@ export const MQTT_TOPIC_SEGMENTS = {
   heartbeat: 'heartbeat',
   presence: 'presence',
   event: 'event',
+  token_report: 'token_report',
   display: 'display',
   light: 'light',
   command: 'command'
@@ -29,6 +30,7 @@ export const MQTT_TOPIC_PATTERNS = {
   heartbeat: 'seat/{device_id}/heartbeat',
   presence: 'seat/{device_id}/presence',
   event: 'seat/{device_id}/event',
+  token_report: 'seat/{device_id}/token_report',
   display: 'seat/{device_id}/display',
   light: 'seat/{device_id}/light',
   command: 'seat/{device_id}/command'
@@ -83,6 +85,10 @@ export interface MqttLightPayload extends MqttBasePayload {
   blink_hz?: number;
 }
 
+export interface MqttTokenReportPayload extends MqttBasePayload {
+  token: string;
+}
+
 export interface MqttCommandPayload extends MqttBasePayload {
   command_id: string;
   command_type: DeviceCommandType;
@@ -94,6 +100,7 @@ export interface MqttPayloadBySegment {
   heartbeat: MqttHeartbeatPayload;
   presence: MqttPresencePayload;
   event: MqttEventPayload;
+  token_report: MqttTokenReportPayload;
   display: MqttDisplayPayload;
   light: MqttLightPayload;
   command: MqttCommandPayload;

@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { ApiErrorCode } from '@smartseat/contracts';
 
 import { RequestWithContext } from '../request/request-context.js';
@@ -9,8 +9,8 @@ import { UsersService } from '../../modules/users/users.service.js';
 @Injectable()
 export class BearerAuthGuard implements CanActivate {
   constructor(
-    private readonly tokenService: TokenService,
-    private readonly usersService: UsersService
+    @Inject(TokenService) private readonly tokenService: TokenService,
+    @Inject(UsersService) private readonly usersService: UsersService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
