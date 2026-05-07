@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { LeaderboardRequest, LeaderboardResponse } from '@smartseat/contracts';
+import { LeaderboardMetric, LeaderboardTimePeriod } from '@smartseat/contracts';
 
 import { BearerAuthGuard } from '../../common/auth/bearer-auth.guard.js';
 import { CurrentUser } from '../../common/auth/current-user.decorator.js';
@@ -17,8 +18,8 @@ export class LeaderboardController {
 
   @Get()
   @ApiOperation({ summary: 'Get anonymous study leaderboard' })
-  @ApiQuery({ name: 'metric', required: true })
-  @ApiQuery({ name: 'week_start', required: false })
+  @ApiQuery({ name: 'metric', required: true, enum: LeaderboardMetric })
+  @ApiQuery({ name: 'time_period', required: true, enum: LeaderboardTimePeriod })
   @ApiOkResponse({ schema: leaderboardResponseSchema })
   async getLeaderboard(
     @CurrentUser() user: RequestUser,

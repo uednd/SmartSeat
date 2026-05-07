@@ -7,6 +7,7 @@ import type {
   AuthProvider,
   DeviceOnlineStatus,
   LeaderboardMetric,
+  LeaderboardTimePeriod,
   PresenceStatus,
   QRTokenStatus,
   ReservationStatus,
@@ -370,7 +371,9 @@ export interface StudyStatsDto {
 
 export interface LeaderboardEntryDto {
   rank: number;
+  user_id: EntityId;
   anonymous_name: string;
+  avatar_url?: string;
   metric: LeaderboardMetric;
   value: number;
   is_current_user: boolean;
@@ -378,12 +381,14 @@ export interface LeaderboardEntryDto {
 
 export interface LeaderboardRequest {
   metric: LeaderboardMetric;
-  week_start?: IsoDateTimeString;
+  time_period: LeaderboardTimePeriod;
 }
 
 export interface LeaderboardResponse {
   metric: LeaderboardMetric;
-  week_start: IsoDateTimeString;
+  time_period: LeaderboardTimePeriod;
+  period_start: IsoDateTimeString;
+  period_end: IsoDateTimeString;
   entries: LeaderboardEntryDto[];
   current_user_entry?: LeaderboardEntryDto;
 }

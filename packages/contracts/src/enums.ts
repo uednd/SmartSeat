@@ -95,9 +95,14 @@ export enum AnomalySource {
 }
 
 export enum LeaderboardMetric {
-  WEEKLY_DURATION = 'WEEKLY_DURATION',
-  WEEKLY_VISITS = 'WEEKLY_VISITS',
-  STREAK_DAYS = 'STREAK_DAYS'
+  BOOKING_COUNT = 'BOOKING_COUNT',
+  STUDY_DURATION = 'STUDY_DURATION'
+}
+
+export enum LeaderboardTimePeriod {
+  TODAY = 'TODAY',
+  THIS_WEEK = 'THIS_WEEK',
+  THIS_MONTH = 'THIS_MONTH'
 }
 
 export enum StudyRecordSource {

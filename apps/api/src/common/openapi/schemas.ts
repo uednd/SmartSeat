@@ -494,10 +494,12 @@ export const studyStatsSchema: SchemaObject = {
 
 export const leaderboardEntrySchema: SchemaObject = {
   type: 'object',
-  required: ['rank', 'anonymous_name', 'metric', 'value', 'is_current_user'],
+  required: ['rank', 'user_id', 'anonymous_name', 'metric', 'value', 'is_current_user'],
   properties: {
     rank: integer(),
+    user_id: text(),
     anonymous_name: text(),
+    avatar_url: { type: 'string', nullable: true },
     metric: text(),
     value: integer(),
     is_current_user: bool()
@@ -506,10 +508,12 @@ export const leaderboardEntrySchema: SchemaObject = {
 
 export const leaderboardResponseSchema: SchemaObject = {
   type: 'object',
-  required: ['metric', 'week_start', 'entries'],
+  required: ['metric', 'time_period', 'period_start', 'period_end', 'entries'],
   properties: {
     metric: text(),
-    week_start: dateTime(),
+    time_period: text(),
+    period_start: dateTime(),
+    period_end: dateTime(),
     entries: {
       type: 'array',
       items: leaderboardEntrySchema

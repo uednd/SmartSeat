@@ -11,7 +11,22 @@
       "Bash(powershell -Command \"Stop-Process -Id 30136 -Force\")",
       "Bash(cmd.exe //c \"netstat -ano | findstr :3000\")",
       "Bash(curl -s -o /dev/null -w \"Redirect: %{http_code}\\\\n\" http://localhost:3000)",
-      "Bash(curl -s -o /dev/null -w \"Login Page: %{http_code}\\\\n\" http://localhost:3000/login)"
+      "Bash(curl -s -o /dev/null -w \"Login Page: %{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(pnpm run *)",
+      "Bash(npx prisma *)",
+      "Bash(start http://localhost:3001/login)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(netstat -nao)",
+      "Bash(findstr :3000)",
+      "Bash(taskkill //PID 29036 //F)",
+      "Bash(curl -s http://localhost:3000/auth/mode)",
+      "Bash(curl -s -X POST http://localhost:3000/auth/password/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"admin\\\\\",\\\\\"password\\\\\":\\\\\"admin123\\\\\"}\")",
+      "Bash(curl -s -X POST http://localhost:3000/auth/password/login -H \"Content-Type: application/json\" -d \"{\\\\\"username\\\\\":\\\\\"student\\\\\",\\\\\"password\\\\\":\\\\\"student123\\\\\"}\")",
+      "Bash(curl -s \"http://localhost:3000/leaderboard?metric=BOOKING_COUNT&time_period=THIS_WEEK\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJTVFVERU5UIl0sInN1YiI6ImNtb3ZvbXdoZDAwMDF1MGI3ZXl3aXF1azIiLCJpYXQiOjE3NzgxNzAyMTYsImV4cCI6MTc3ODE3MzgxNn0.GkhpLsdI0pGDm7MqXyQ9S_bRyYYVpVu2DQL-s0817Tg\")",
+      "Bash(python -m json.tool)",
+      "Bash(start http://localhost:3001/dashboard/leaderboard)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
+      "Bash(curl -s http://localhost:3000/seats -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJTVFVERU5UIl0sInN1YiI6ImNtb3ZvbXdoZDAwMDF1MGI3ZXl3aXF1azIiLCJpYXQiOjE3NzgxNzAyMTYsImV4cCI6MTc3ODE3MzgxNn0.GkhpLsdI0pGDm7MqXyQ9S_bRyYYVpVu2DQL-s0817Tg\")"
     ]
   }
 }

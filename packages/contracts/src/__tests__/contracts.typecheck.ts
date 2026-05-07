@@ -9,6 +9,7 @@ import {
   DeviceOnlineStatus,
   DisplayLayout,
   LeaderboardMetric,
+  LeaderboardTimePeriod,
   LightMode,
   LightStatus,
   MqttDeviceEventType,
@@ -216,26 +217,32 @@ const studyStats = {
 } satisfies StudyStatsDto;
 
 const leaderboardRequest = {
-  metric: LeaderboardMetric.WEEKLY_DURATION,
-  week_start: '2026-04-27T16:00:00.000Z'
+  metric: LeaderboardMetric.STUDY_DURATION,
+  time_period: LeaderboardTimePeriod.THIS_WEEK
 } satisfies LeaderboardRequest;
 
 const leaderboard = {
-  metric: LeaderboardMetric.WEEKLY_DURATION,
-  week_start: '2026-04-27T16:00:00.000Z',
+  metric: LeaderboardMetric.STUDY_DURATION,
+  time_period: LeaderboardTimePeriod.THIS_WEEK,
+  period_start: '2026-04-27T16:00:00.000Z',
+  period_end: '2026-05-04T16:00:00.000Z',
   entries: [
     {
       rank: 1,
+      user_id: 'user_1',
       anonymous_name: '匿名用户 08',
-      metric: LeaderboardMetric.WEEKLY_DURATION,
+      avatar_url: null,
+      metric: LeaderboardMetric.STUDY_DURATION,
       value: 59,
       is_current_user: true
     }
   ],
   current_user_entry: {
     rank: 1,
+    user_id: 'user_1',
     anonymous_name: '匿名用户 08',
-    metric: LeaderboardMetric.WEEKLY_DURATION,
+    avatar_url: null,
+    metric: LeaderboardMetric.STUDY_DURATION,
     value: 59,
     is_current_user: true
   }

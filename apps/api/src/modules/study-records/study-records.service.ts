@@ -10,6 +10,7 @@ import {
 import {
   ApiErrorCode,
   LeaderboardMetric,
+  LeaderboardTimePeriod,
   UserRole as ContractUserRole,
   type LeaderboardEntryDto,
   type LeaderboardRequest,
@@ -129,71 +130,15 @@ export class StudyRecordsService {
   ): Promise<LeaderboardResponse> {
     const startedAt = Date.now();
     const metric = this.parseMetric(request.metric);
-    const weekStart =
-      request.week_start === undefined
-        ? startOfWeekAsiaShanghai(now)
-        : startOfWeekAsiaShanghai(this.parseDateTime(request.week_start, 'week_start'));
-    const weekEnd = new Date(weekStart.getTime() + 7 * DAY_MS);
-    const weekRecords = await this.prisma.studyRecord.findMany({
-      where: {
-        validFlag: true,
-        startTime: {
-          gte: weekStart,
-          lt: weekEnd
-        }
-      },
-      include: {
-        user: true
-      }
-    });
-    const eligibleRecords = (weekRecords as StudyRecordWithUser[]).filter((record) =>
-      isLeaderboardEligible(record.user)
-    );
-    const recordsForMetric =
-      metric === LeaderboardMetric.STREAK_DAYS
-        ? await this.findStreakRecordsForEligibleUsers(eligibleRecords, weekEnd, now)
-        : eligibleRecords;
-    const ranked = this.rankLeaderboard(metric, recordsForMetric, user.user_id);
-    const entries = ranked.slice(0, LEADERBOARD_ENTRY_LIMIT).map((entry) => entry.dto);
-    const current = ranked.find((entry) => entry.userId === user.user_id);
-    const response: LeaderboardResponse = {
-      metric,
-      week_start: weekStart.toISOString(),
-      entries
-    };
+    const timePeriod = this.parseTimePeriod(request.time_period);
+    const { start, end } = getPeriodRange(timePeriod, now);
 
-    if (current !== undefined) {
-      response.current_user_entry = current.dto;
-    }
-
-    this.logIfSlow('leaderboard', startedAt, { metric, week_start: response.week_start });
-    return response;
-  }
-
-  getAdminMarkedInvalidReason(): string {
-    return ADMIN_MARKED_INVALID_REASON;
-  }
-
-  private async findStreakRecordsForEligibleUsers(
-    weekRecords: StudyRecordWithUser[],
-    weekEnd: Date,
-    now: Date
-  ): Promise<StudyRecordWithUser[]> {
-    const users = uniqueUsers(weekRecords.map((record) => record.user));
-
-    if (users.length === 0) {
-      return [];
-    }
-
-    const userIds = users.map((eligibleUser) => eligibleUser.userId);
     const records = (await this.prisma.studyRecord.findMany({
       where: {
         validFlag: true,
-        userId: {
-          in: userIds
-        },
         startTime: {
-          lt: new Date(Math.min(weekEnd.getTime(), now.getTime() + 1))
+          gte: start,
+          lt: end
         }
       },
       include: {
@@ -201,7 +146,31 @@ export class StudyRecordsService {
       }
     })) as StudyRecordWithUser[];
 
-    return records.filter((record) => isLeaderboardEligible(record.user));
+    const eligibleRecords = records.filter((record) =>
+      isLeaderboardEligible(record.user)
+    );
+
+    const ranked = this.rankLeaderboard(metric, eligibleRecords, user.user_id);
+    const entries = ranked.slice(0, LEADERBOARD_ENTRY_LIMIT).map((entry) => entry.dto);
+    const current = ranked.find((entry) => entry.userId === user.user_id);
+    const response: LeaderboardResponse = {
+      metric,
+      time_period: timePeriod,
+      period_start: start.toISOString(),
+      period_end: end.toISOString(),
+      entries
+    };
+
+    if (current !== undefined) {
+      response.current_user_entry = current.dto;
+    }
+
+    this.logIfSlow('leaderboard', startedAt, { metric, time_period: timePeriod });
+    return response;
+  }
+
+  getAdminMarkedInvalidReason(): string {
+    return ADMIN_MARKED_INVALID_REASON;
   }
 
   private rankLeaderboard(
@@ -237,7 +206,9 @@ export class StudyRecordsService {
         userId: entry.user.userId,
         dto: {
           rank: index + 1,
+          user_id: entry.user.userId,
           anonymous_name: entry.user.anonymousName,
+          avatar_url: entry.user.avatarUrl ?? undefined,
           metric,
           value: entry.value,
           is_current_user: entry.user.userId === currentUserId
@@ -256,6 +227,19 @@ export class StudyRecordsService {
     }
 
     return metric;
+  }
+
+  private parseTimePeriod(timePeriod: LeaderboardTimePeriod): LeaderboardTimePeriod {
+    if (!Object.values(LeaderboardTimePeriod).includes(timePeriod)) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'leaderboard time_period is invalid.',
+        { time_period: timePeriod }
+      );
+    }
+
+    return timePeriod;
   }
 
   private parseDateTime(value: string, field: string): Date {
@@ -318,12 +302,10 @@ const calculateMetricValue = (
   records: StudyRecordWithUser[]
 ): number => {
   switch (metric) {
-    case LeaderboardMetric.WEEKLY_DURATION:
+    case LeaderboardMetric.STUDY_DURATION:
       return sumDurationMinutes(records);
-    case LeaderboardMetric.WEEKLY_VISITS:
+    case LeaderboardMetric.BOOKING_COUNT:
       return records.length;
-    case LeaderboardMetric.STREAK_DAYS:
-      return calculateStreakDays(records);
   }
 };
 
@@ -363,20 +345,51 @@ const startOfWeekAsiaShanghai = (date: Date): Date => {
   return new Date(localMidnightUtcMs - daysSinceMonday * DAY_MS - ASIA_SHANGHAI_OFFSET_MS);
 };
 
+const startOfTodayAsiaShanghai = (date: Date): Date => {
+  const local = new Date(date.getTime() + ASIA_SHANGHAI_OFFSET_MS);
+  const localMidnightUtcMs = Date.UTC(
+    local.getUTCFullYear(),
+    local.getUTCMonth(),
+    local.getUTCDate()
+  );
+
+  return new Date(localMidnightUtcMs - ASIA_SHANGHAI_OFFSET_MS);
+};
+
+const startOfMonthAsiaShanghai = (date: Date): Date => {
+  const local = new Date(date.getTime() + ASIA_SHANGHAI_OFFSET_MS);
+  const localMidnightUtcMs = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), 1);
+
+  return new Date(localMidnightUtcMs - ASIA_SHANGHAI_OFFSET_MS);
+};
+
+const getPeriodRange = (
+  timePeriod: LeaderboardTimePeriod,
+  now: Date
+): { start: Date; end: Date } => {
+  switch (timePeriod) {
+    case LeaderboardTimePeriod.TODAY: {
+      const start = startOfTodayAsiaShanghai(now);
+      return { start, end: new Date(start.getTime() + DAY_MS) };
+    }
+    case LeaderboardTimePeriod.THIS_WEEK: {
+      const start = startOfWeekAsiaShanghai(now);
+      return { start, end: new Date(start.getTime() + 7 * DAY_MS) };
+    }
+    case LeaderboardTimePeriod.THIS_MONTH: {
+      const start = startOfMonthAsiaShanghai(now);
+      const local = new Date(now.getTime() + ASIA_SHANGHAI_OFFSET_MS);
+      const nextMonthFirst = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth() + 1, 1));
+      const end = new Date(nextMonthFirst.getTime() - ASIA_SHANGHAI_OFFSET_MS);
+      return { start, end };
+    }
+  }
+};
+
 const toAsiaShanghaiDateKey = (date: Date): number => {
   const local = new Date(date.getTime() + ASIA_SHANGHAI_OFFSET_MS);
   return (
     Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) -
     ASIA_SHANGHAI_OFFSET_MS
   );
-};
-
-const uniqueUsers = (users: User[]): User[] => {
-  const byId = new Map<string, User>();
-
-  for (const user of users) {
-    byId.set(user.userId, user);
-  }
-
-  return [...byId.values()];
 };

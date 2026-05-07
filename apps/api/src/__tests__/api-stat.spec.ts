@@ -1,7 +1,7 @@
 import { type INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { AuthProvider, ReservationStatus, StudyRecordSource } from '@prisma/client';
-import { LeaderboardMetric, UserRole } from '@smartseat/contracts';
+import { LeaderboardMetric, LeaderboardTimePeriod, UserRole } from '@smartseat/contracts';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -365,22 +365,26 @@ describe('API-STAT-01 study records, personal stats, and anonymous leaderboard',
 
     const leaderboard = await service.getLeaderboard(
       { user_id: 'user_current', roles: [UserRole.STUDENT] },
-      { metric: LeaderboardMetric.WEEKLY_DURATION, week_start: weekStart.toISOString() },
+      { metric: LeaderboardMetric.STUDY_DURATION, time_period: LeaderboardTimePeriod.THIS_WEEK },
       now
     );
 
     expect(leaderboard.entries).toEqual([
       {
         rank: 1,
+        user_id: 'user_other',
         anonymous_name: '匿名用户 16',
-        metric: LeaderboardMetric.WEEKLY_DURATION,
+        avatar_url: null,
+        metric: LeaderboardMetric.STUDY_DURATION,
         value: 120,
         is_current_user: false
       },
       {
         rank: 2,
+        user_id: 'user_current',
         anonymous_name: '匿名用户 08',
-        metric: LeaderboardMetric.WEEKLY_DURATION,
+        avatar_url: null,
+        metric: LeaderboardMetric.STUDY_DURATION,
         value: 80,
         is_current_user: true
       }
@@ -394,24 +398,29 @@ describe('API-STAT-01 study records, personal stats, and anonymous leaderboard',
     expect(JSON.stringify(leaderboard)).not.toContain('school-no');
   });
 
-  it('serves /leaderboard without identity fields in public entries', async () => {
+  it('serves /leaderboard without sensitive identity fields in public entries', async () => {
     seedRecord(prisma, 'user_current', 'http_current', new Date(Date.now() - 2 * 60 * 60_000), 30);
     seedRecord(prisma, 'user_other', 'http_other', new Date(Date.now() - 3 * 60 * 60_000), 45);
 
     const response = await request(app.getHttpServer())
       .get('/leaderboard')
-      .query({ metric: LeaderboardMetric.WEEKLY_VISITS })
+      .query({ metric: LeaderboardMetric.BOOKING_COUNT, time_period: LeaderboardTimePeriod.THIS_WEEK })
       .set('Authorization', `Bearer ${studentToken}`)
       .expect(200);
 
     expect(response.body.entries.length).toBeGreaterThan(0);
     expect(response.body.entries[0]).toEqual(
       expect.not.objectContaining({
-        user_id: expect.any(String),
         display_name: expect.any(String),
         openid: expect.any(String),
         external_user_no: expect.any(String),
         oidc_sub: expect.any(String)
+      })
+    );
+    expect(response.body.entries[0]).toEqual(
+      expect.objectContaining({
+        user_id: expect.any(String),
+        anonymous_name: expect.any(String)
       })
     );
     expect(response.body.current_user_entry).toMatchObject({
@@ -420,7 +429,7 @@ describe('API-STAT-01 study records, personal stats, and anonymous leaderboard',
     });
   });
 
-  it('supports visit-count and streak leaderboards across week and day boundaries', async () => {
+  it('supports booking-count and study-duration leaderboards across time periods', async () => {
     const now = new Date('2026-05-08T04:00:00.000Z');
     const weekStart = startOfWeekAsiaShanghai(now);
     seedRecord(prisma, 'user_current', 'visit_current_1', weekStart, 30);
@@ -450,12 +459,12 @@ describe('API-STAT-01 study records, personal stats, and anonymous leaderboard',
 
     const visits = await service.getLeaderboard(
       { user_id: 'user_current', roles: [UserRole.STUDENT] },
-      { metric: LeaderboardMetric.WEEKLY_VISITS, week_start: weekStart.toISOString() },
+      { metric: LeaderboardMetric.BOOKING_COUNT, time_period: LeaderboardTimePeriod.THIS_WEEK },
       now
     );
-    const streak = await service.getLeaderboard(
+    const duration = await service.getLeaderboard(
       { user_id: 'user_current', roles: [UserRole.STUDENT] },
-      { metric: LeaderboardMetric.STREAK_DAYS, week_start: weekStart.toISOString() },
+      { metric: LeaderboardMetric.STUDY_DURATION, time_period: LeaderboardTimePeriod.THIS_WEEK },
       now
     );
 
@@ -463,10 +472,39 @@ describe('API-STAT-01 study records, personal stats, and anonymous leaderboard',
       anonymous_name: '匿名用户 16',
       value: 3
     });
-    expect(streak.current_user_entry).toMatchObject({
+    expect(visits.metric).toBe(LeaderboardMetric.BOOKING_COUNT);
+    expect(visits.time_period).toBe(LeaderboardTimePeriod.THIS_WEEK);
+    expect(duration.current_user_entry).toMatchObject({
       anonymous_name: '匿名用户 08',
-      value: 3
+      value: 60
     });
+  });
+
+  it('filters records correctly for TODAY and THIS_MONTH time periods', async () => {
+    const now = new Date('2026-05-08T04:00:00.000Z');
+    const todayStart = new Date(Date.UTC(2026, 4, 7, 16, 0, 0)); // 2026-05-08 00:00 CST
+    seedRecord(prisma, 'user_current', 'today_1', todayStart, 30);
+    seedRecord(prisma, 'user_other', 'today_2', todayStart, 45);
+    seedRecord(prisma, 'user_current', 'yesterday', new Date(todayStart.getTime() - DAY_MS), 60);
+
+    const todayResult = await service.getLeaderboard(
+      { user_id: 'user_current', roles: [UserRole.STUDENT] },
+      { metric: LeaderboardMetric.BOOKING_COUNT, time_period: LeaderboardTimePeriod.TODAY },
+      now
+    );
+
+    expect(todayResult.entries).toHaveLength(2);
+    expect(todayResult.time_period).toBe(LeaderboardTimePeriod.TODAY);
+    expect(todayResult.entries[0]).toMatchObject({ value: 1 });
+
+    const monthResult = await service.getLeaderboard(
+      { user_id: 'user_current', roles: [UserRole.STUDENT] },
+      { metric: LeaderboardMetric.STUDY_DURATION, time_period: LeaderboardTimePeriod.THIS_MONTH },
+      now
+    );
+
+    expect(monthResult.time_period).toBe(LeaderboardTimePeriod.THIS_MONTH);
+    expect(monthResult.entries.length).toBeGreaterThan(0);
   });
 });
 

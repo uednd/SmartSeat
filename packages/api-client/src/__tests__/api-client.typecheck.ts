@@ -8,7 +8,7 @@ import {
   type ApiTransportRequest,
   type SmartSeatApiClient
 } from '../index.js';
-import { AnomalyStatus, AuthMode, LeaderboardMetric } from '@smartseat/contracts';
+import { AnomalyStatus, AuthMode, LeaderboardMetric, LeaderboardTimePeriod } from '@smartseat/contracts';
 
 const transport: ApiTransport = {
   async request<TResponse>(request: ApiTransportRequest) {
@@ -94,7 +94,8 @@ const handledAnomaly = await client.anomalies.handle({
 });
 const myStats = await client.stats.getMe();
 const weeklyDurationLeaderboard = await client.leaderboard.get({
-  metric: LeaderboardMetric.WEEKLY_DURATION
+  metric: LeaderboardMetric.STUDY_DURATION,
+  time_period: LeaderboardTimePeriod.THIS_WEEK
 });
 const adminReservations = await client.admin.listCurrentReservations({ page: 1 });
 const adminSeatReservation = await client.admin.getSeatReservation('seat-1');
