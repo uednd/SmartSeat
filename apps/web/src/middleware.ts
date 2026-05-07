@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const PUBLIC_PATHS = ['/login'];
+const STATIC_PREFIXES = ['/_next', '/api', '/favicon.ico'];
 
-export function proxy(request: NextRequest) {
+function isStaticAsset(pathname: string): boolean {
+  return STATIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth_token');
 
-  const isPublicPath = PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith('/_next') || pathname.startsWith('/api')
-  );
+  if (isStaticAsset(pathname)) {
+    return NextResponse.next();
+  }
 
-  if (isPublicPath || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname === '/favicon.ico') {
-    if (pathname === '/login' && token) {
+  if (pathname === '/login') {
+    if (token) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();

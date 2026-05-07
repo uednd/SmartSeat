@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   LeaderboardMetric,
   type LeaderboardEntryDto,
@@ -14,46 +14,37 @@ const metricLabels: Record<LeaderboardMetric, string> = {
   [LeaderboardMetric.STREAK_DAYS]: '连续天数'
 };
 
-const metricUnits: Record<LeaderboardMetric, string> = {
-  [LeaderboardMetric.WEEKLY_VISITS]: '次',
-  [LeaderboardMetric.WEEKLY_DURATION]: '分钟',
-  [LeaderboardMetric.STREAK_DAYS]: '天'
+const metricIcons: Record<LeaderboardMetric, string> = {
+  [LeaderboardMetric.WEEKLY_VISITS]: '🏃',
+  [LeaderboardMetric.WEEKLY_DURATION]: '⏱️',
+  [LeaderboardMetric.STREAK_DAYS]: '🔥'
 };
 
+function formatValue(value: number, metric: LeaderboardMetric): string {
+  switch (metric) {
+    case LeaderboardMetric.WEEKLY_DURATION: {
+      const hours = Math.floor(value / 60);
+      const mins = value % 60;
+      if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+      if (hours > 0) return `${hours} 小时`;
+      return `${mins} 分钟`;
+    }
+    case LeaderboardMetric.WEEKLY_VISITS:
+      return `${value} 次`;
+    case LeaderboardMetric.STREAK_DAYS:
+      return `${value} 天`;
+  }
+}
+
 function rankBadge(rank: number) {
-  if (rank === 1) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-bold text-sm">
-        1
-      </span>
-    );
-  }
-  if (rank === 2) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-sm">
-        2
-      </span>
-    );
-  }
-  if (rank === 3) {
-    return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 font-bold text-sm">
-        3
-      </span>
-    );
-  }
+  if (rank === 1) return <span className="text-xl">🥇</span>;
+  if (rank === 2) return <span className="text-xl">🥈</span>;
+  if (rank === 3) return <span className="text-xl">🥉</span>;
   return (
-    <span className="inline-flex items-center justify-center w-8 h-8 text-sm text-slate-400 dark:text-slate-500">
+    <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-medium text-slate-400">
       {rank}
     </span>
   );
-}
-
-function Medal({ rank }: { rank: number }) {
-  if (rank === 1) return <span className="text-2xl">🥇</span>;
-  if (rank === 2) return <span className="text-2xl">🥈</span>;
-  if (rank === 3) return <span className="text-2xl">🥉</span>;
-  return null;
 }
 
 export default function LeaderboardPage() {
@@ -62,41 +53,35 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const api = getApiClient();
-        const result = await api.leaderboard.get({ metric });
-        setData(result);
-      } catch {
-        setError('无法加载排行榜数据');
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async (m: LeaderboardMetric) => {
+    setLoading(true);
+    setError('');
+    try {
+      const api = getApiClient();
+      const result = await api.leaderboard.get({ metric: m });
+      setData(result);
+    } catch {
+      setError('无法加载排行榜数据');
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, [metric]);
+  }, []);
+
+  useEffect(() => {
+    load(metric);
+  }, [metric, load]);
 
   const top3 = data?.entries.slice(0, 3) ?? [];
   const rest = data?.entries.slice(3) ?? [];
   const currentUser = data?.current_user_entry;
-
-  const isCurrentInTop =
-    currentUser && data?.entries.some((e) => e.rank === currentUser.rank);
+  const isCurrentInList = currentUser && data?.entries.some((e) => e.rank === currentUser.rank);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Week info */}
       {data?.week_start && (
         <p className="text-sm text-slate-500 text-center">
-          {new Date(data.week_start).toLocaleDateString('zh-CN', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}{' '}
-          起一周
+          📅 {new Date(data.week_start).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} 起 · 本周统计
         </p>
       )}
 
@@ -107,12 +92,13 @@ export default function LeaderboardPage() {
             <button
               key={key}
               onClick={() => setMetric(key)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 metric === key
                   ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
+              <span className="mr-1.5">{metricIcons[key]}</span>
               {label}
             </button>
           ))}
@@ -130,21 +116,22 @@ export default function LeaderboardPage() {
       {error && !loading && (
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-xl px-4 py-3 text-red-600 dark:text-red-400 text-sm text-center">
           {error}
+          <button onClick={() => load(metric)} className="ml-3 underline">重试</button>
         </div>
       )}
 
       {/* Podium - Top 3 */}
       {!loading && top3.length > 0 && (
-        <div className="flex items-end justify-center gap-3 sm:gap-4 pt-4">
+        <div className="flex items-end justify-center gap-2 sm:gap-4 pt-4">
           {/* 2nd place */}
           {top3[1] && (
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mb-2">
+              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mb-2 ring-2 ring-slate-300">
                 <span className="text-lg font-bold text-slate-500 dark:text-slate-300">
                   {top3[1].anonymous_name.slice(0, 2)}
                 </span>
               </div>
-              <Medal rank={2} />
+              <span className="text-2xl">🥈</span>
               <p className="text-xs text-slate-500 mt-1 truncate max-w-[60px] text-center">
                 {top3[1].anonymous_name}
               </p>
@@ -152,7 +139,7 @@ export default function LeaderboardPage() {
                 <span className="text-lg font-bold text-slate-700 dark:text-slate-300">
                   {top3[1].value}
                 </span>
-                <span className="text-xs text-slate-500">{metricUnits[metric]}</span>
+                <span className="text-xs text-slate-500">{formatValue(top3[1].value, metric).replace(/^\d+\s*/, '')}</span>
               </div>
             </div>
           )}
@@ -165,15 +152,15 @@ export default function LeaderboardPage() {
                   {top3[0].anonymous_name.slice(0, 2)}
                 </span>
               </div>
-              <Medal rank={1} />
-              <p className="text-xs text-slate-500 mt-1 truncate max-w-[60px] text-center">
-                {top3[0].anonymous_name}
+              <span className="text-3xl">👑</span>
+              <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mt-1 truncate max-w-[70px] text-center">
+                {top3[0].is_current_user ? '你' : top3[0].anonymous_name}
               </p>
               <div className="bg-amber-100 dark:bg-amber-900/50 rounded-t-lg w-20 h-24 flex flex-col items-center justify-center mt-2">
                 <span className="text-xl font-bold text-amber-700 dark:text-amber-400">
                   {top3[0].value}
                 </span>
-                <span className="text-xs text-amber-600 dark:text-amber-500">{metricUnits[metric]}</span>
+                <span className="text-xs text-amber-600 dark:text-amber-500">{formatValue(top3[0].value, metric).replace(/^\d+\s*/, '')}</span>
               </div>
             </div>
           )}
@@ -181,12 +168,12 @@ export default function LeaderboardPage() {
           {/* 3rd place */}
           {top3[2] && (
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center mb-2">
+              <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center mb-2 ring-2 ring-orange-300">
                 <span className="text-lg font-bold text-orange-700 dark:text-orange-400">
                   {top3[2].anonymous_name.slice(0, 2)}
                 </span>
               </div>
-              <Medal rank={3} />
+              <span className="text-2xl">🥉</span>
               <p className="text-xs text-slate-500 mt-1 truncate max-w-[60px] text-center">
                 {top3[2].anonymous_name}
               </p>
@@ -194,39 +181,48 @@ export default function LeaderboardPage() {
                 <span className="text-lg font-bold text-orange-700 dark:text-orange-400">
                   {top3[2].value}
                 </span>
-                <span className="text-xs text-slate-500">{metricUnits[metric]}</span>
+                <span className="text-xs text-slate-500">{formatValue(top3[2].value, metric).replace(/^\d+\s*/, '')}</span>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Rest of the list */}
+      {/* Ranking list (4th and beyond) */}
       {!loading && rest.length > 0 && (
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">完整排名</p>
+          </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {rest.map((entry) => (
-              <LeaderboardRow key={entry.rank} entry={entry} unit={metricUnits[metric]} />
+              <LeaderboardRow key={entry.rank} entry={entry} metric={metric} />
             ))}
           </div>
         </div>
       )}
 
-      {/* Current user card (if not in displayed list) */}
-      {!loading && currentUser && isCurrentInTop === false && (
-        <div className="mt-4">
+      {/* Current user outside list */}
+      {!loading && currentUser && isCurrentInList === false && (
+        <div>
           <p className="text-xs text-slate-400 mb-2 text-center">你的排名</p>
-          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl">
-            <LeaderboardRow entry={currentUser} unit={metricUnits[metric]} highlight />
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl overflow-hidden">
+            <LeaderboardRow entry={currentUser} metric={metric} />
           </div>
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty */}
       {!loading && !error && data?.entries.length === 0 && (
-        <div className="text-center py-16 text-slate-500">
-          <p className="text-lg">暂无排名数据</p>
-          <p className="text-sm mt-1">本周还没有学习记录</p>
+        <div className="text-center py-20 text-slate-500">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <p className="font-medium">暂无排名数据</p>
+          <p className="text-sm mt-1">本周还没有学习记录，快去图书馆打卡吧！</p>
         </div>
       )}
     </div>
@@ -235,35 +231,32 @@ export default function LeaderboardPage() {
 
 function LeaderboardRow({
   entry,
-  unit,
-  highlight
+  metric
 }: {
   entry: LeaderboardEntryDto;
-  unit: string;
-  highlight?: boolean;
+  metric: LeaderboardMetric;
 }) {
   return (
     <div
       className={`flex items-center gap-3 px-4 py-3 ${
-        highlight || entry.is_current_user
+        entry.is_current_user
           ? 'bg-blue-50/50 dark:bg-blue-950/30'
           : ''
       }`}
     >
-      {rankBadge(entry.rank)}
+      <div className="w-7 flex justify-center">{rankBadge(entry.rank)}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
           {entry.anonymous_name}
           {entry.is_current_user && (
-            <span className="ml-2 text-xs text-blue-500 font-normal">你</span>
+            <span className="ml-2 text-xs text-blue-500 font-medium bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 rounded">你</span>
           )}
         </p>
       </div>
       <div className="text-right">
         <p className="text-sm font-semibold text-slate-800 dark:text-white">
-          {entry.value}
+          {formatValue(entry.value, metric)}
         </p>
-        <p className="text-xs text-slate-500">{unit}</p>
       </div>
     </div>
   );

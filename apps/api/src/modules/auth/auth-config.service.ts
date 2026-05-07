@@ -14,7 +14,7 @@ import { PrismaService } from '../../common/database/prisma.service.js';
 import { AppHttpException } from '../../common/errors/app-http.exception.js';
 
 const AUTH_CONFIG_ID = 'auth_config_default';
-const AUTH_MODES = new Set<string>([AuthMode.WECHAT, AuthMode.OIDC]);
+const AUTH_MODES = new Set<string>([AuthMode.WECHAT, AuthMode.OIDC, AuthMode.LOCAL]);
 
 type AuthConfigRecord = Awaited<ReturnType<PrismaService['authConfig']['findUnique']>>;
 

@@ -15,7 +15,7 @@ import {
 import { AuthConfigService } from './auth-config.service.js';
 import { TokenService } from './token.service.js';
 import {
-  MockPasswordAuthProvider,
+  PasswordAuthProviderSelector,
   PasswordAuthInvalidCredentialsError
 } from './password-auth.provider.js';
 
@@ -25,7 +25,7 @@ export class PasswordAuthService {
     @Inject(AuthConfigService) private readonly authConfigService: AuthConfigService,
     @Inject(TokenService) private readonly tokenService: TokenService,
     @Inject(UsersService) private readonly usersService: UsersService,
-    @Inject(MockPasswordAuthProvider) private readonly provider: MockPasswordAuthProvider
+    @Inject(PasswordAuthProviderSelector) private readonly provider: PasswordAuthProviderSelector
   ) {}
 
   async login(request: PasswordLoginRequest): Promise<AuthSessionResponse> {
@@ -53,12 +53,14 @@ export class PasswordAuthService {
       );
     }
 
+    await this.assertLocalMode();
+
     try {
       const identity = await this.provider.authenticate(request.username, request.password);
 
       const userInput: InitializeUserFromIdentityInput = {
-        authProvider: AuthProvider.OIDC,
-        oidcSub: `password:${identity.username}`
+        authProvider: AuthProvider.LOCAL,
+        localSub: identity.username
       };
 
       const user = await this.usersService.initializeUserFromIdentity(userInput);
@@ -86,6 +88,18 @@ export class PasswordAuthService {
         );
       }
       throw error;
+    }
+  }
+
+  private async assertLocalMode(): Promise<void> {
+    const { auth_mode } = await this.authConfigService.getLoginMode();
+
+    if (auth_mode !== AuthMode.LOCAL) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.AUTH_LOGIN_MODE_MISMATCH,
+        'Password login is not available in the current authentication mode.'
+      );
     }
   }
 }

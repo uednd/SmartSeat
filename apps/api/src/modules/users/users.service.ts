@@ -19,6 +19,7 @@ export interface InitializeUserFromIdentityInput {
   openid?: string;
   unionid?: string;
   oidcSub?: string;
+  localSub?: string;
   externalUserNo?: string;
   anonymousName?: string;
   displayName?: string;
@@ -106,6 +107,10 @@ export class UsersService {
 
         if (input.oidcSub !== undefined) {
           data.oidcSub = input.oidcSub;
+        }
+
+        if (input.localSub !== undefined) {
+          data.localSub = input.localSub;
         }
 
         if (input.externalUserNo !== undefined) {
@@ -228,6 +233,10 @@ export class UsersService {
 
     if (input.oidcSub !== undefined) {
       identityWhere.push({ oidcSub: input.oidcSub });
+    }
+
+    if (input.localSub !== undefined) {
+      identityWhere.push({ localSub: input.localSub });
     }
 
     if (input.externalUserNo !== undefined) {

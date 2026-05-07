@@ -1,83 +1,40 @@
+import { createOpenAI } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+const deepseek = createOpenAI({
+  baseURL: 'https://api.deepseek.com/v1',
+  apiKey: process.env.DEEPSEEK_API_KEY,
+});
+
+const SYSTEM_PROMPT = `你是 SmartSeat 智能图书馆助手。你可以帮助用户解决以下问题：
+- 座位预约流程和规则
+- 图书馆开放时间和使用指南
+- 学习效率提升建议
+- 排行榜和打卡规则说明
+- 设备使用和技术支持
+
+请用中文回答，保持友好、专业的语气。回答简洁明了。`;
+
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+    ?? req.headers.get('cookie')?.match(/(?:^|;\s*)auth_token=([^;]*)/)?.[1];
 
-  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [
-        {
-          role: 'system',
-          content:
-            '你是 SmartSeat 智能图书馆助手。你帮助用户了解座位预约、图书馆使用规则、学习效率提升等问题。请用中文回答，保持友好、专业的语气。回答简洁明了，不超过 500 字。',
-        },
-        ...messages,
-      ],
-      stream: true,
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text();
-    return Response.json({ error: body }, { status: response.status });
+  if (!token) {
+    return Response.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
+  try {
+    const { messages } = await req.json();
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const reader = response.body?.getReader();
-      if (!reader) {
-        controller.close();
-        return;
-      }
+    const result = streamText({
+      model: deepseek('deepseek-chat'),
+      system: SYSTEM_PROMPT,
+      messages,
+    });
 
-      let buffer = '';
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data: ')) continue;
-            const data = trimmed.slice(6);
-            if (data === '[DONE]') {
-              controller.close();
-              return;
-            }
-
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                controller.enqueue(encoder.encode(content));
-              }
-            } catch {
-              // skip invalid JSON
-            }
-          }
-        }
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  });
+    return result.toTextStreamResponse();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'AI request failed';
+    return Response.json({ error: message }, { status: 500 });
+  }
 }

@@ -1,11 +1,13 @@
 export enum AuthMode {
   WECHAT = 'WECHAT',
-  OIDC = 'OIDC'
+  OIDC = 'OIDC',
+  LOCAL = 'LOCAL'
 }
 
 export enum AuthProvider {
   WECHAT = 'WECHAT',
-  OIDC = 'OIDC'
+  OIDC = 'OIDC',
+  LOCAL = 'LOCAL'
 }
 
 export enum UserRole {
