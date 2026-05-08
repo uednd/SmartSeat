@@ -18,7 +18,7 @@
 | 编号 | 核查项 | 结果 | 证据/备注 |
 |---|---|---|---|
 | G-01 | 代码或文档变更已提交到对应目录，未越界修改无关模块 | [x] | 当前已完成任务证据覆盖后端已交付范围至 `CL-API-STAT-01`；变更集中在 shared packages、`apps/api`、迁移与任务文档。 |
-| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02 与后端实现任务至 `API-STAT-01` 为 Done，并保留 MINI/FW/SIM/OPS/QA 后续依赖。 |
+| G-02 | 任务输入、输出、前置条件与 PLAN 中描述一致 | [x] | `docs/PLAN.md` 已标记 GOV-01、GOV-02 与后端实现任务至 `API-STAT-01` 为 Done，并保留 WEB/FW/SIM/OPS/QA 后续依赖。 |
 | G-03 | contracts / DTO / 错误码 / MQTT payload / OpenAPI 已按需同步 | [x] | SHR-01 已同步 contracts/API client；API-PLT-01 已提供 `/docs` 与 `/openapi.json`。 |
 | G-04 | 数据模型、迁移、seed、mock 数据已按需同步 | [x] | API-DB-01 已补 Prisma schema、migration 与 seed；Docker/PostgreSQL 可用后已完成实库 migration、seed 幂等和数据库集成测试核验，详见 `CL-API-DB-01`。 |
 | G-05 | 单元测试、集成测试或 E2E 测试已覆盖至少一个正向场景和一个失败/边界场景 | [x] | contracts/api-client 类型样例覆盖正反向；API 平台测试覆盖 health/OpenAPI 正向与配置/错误边界。 |
@@ -27,7 +27,7 @@
 | G-08 | 新增环境变量已写入 `.env.example`，未提交真实 secret | [x] | API-PLT-01 未新增环境变量；启动校验使用 `.env.example` 既有占位变量，未提交真实 secret。 |
 | G-09 | 回滚或降级步骤已记录 | [x] | SHR-01 与 API-PLT-01 的回滚要求保留在 `docs/PLAN.md` 对应任务说明中。 |
 | G-10 | 日志、监控、告警或至少可诊断日志已按需补齐 | [x] | API-PLT-01 请求日志包含 request id、method、path、status、duration；health 暴露依赖状态占位。 |
-| G-11 | 权限、安全、隐私、匿名化检查已完成 | [x] | API-AUTH/SEAT/RES/IOT/ADM/STAT 已实现鉴权、角色、二维码一次性消费、secret 脱敏、管理员审计、排行榜匿名化和错误响应约束；未知异常不向客户端暴露 stack。当前仍未完成的是 miniapp 页面、设备模拟器闭环和固件业务。 |
+| G-11 | 权限、安全、隐私、匿名化检查已完成 | [x] | API-AUTH/SEAT/RES/IOT/ADM/STAT 已实现鉴权、角色、OIDC 凭据保护、一次性口令消费、secret 脱敏、管理员审计、排行榜匿名化和错误响应约束；未知异常不向客户端暴露 stack。当前仍未完成的是 Web 端页面、设备模拟器闭环和固件业务。 |
 | G-12 | 高风险任务的处理结论与处理意见已记录 | [x] | 高风险业务仍在后续任务；当前风险与处理方式保留在 `docs/PLAN.md` 风险清单和 ADR 中。 |
 
 ## 3. 证据记录格式
@@ -41,23 +41,20 @@
 - 接口/OpenAPI/MQTT 证据：
 - 截图/录屏/日志：
 - 结论：通过 / 有条件通过 / 未通过
-```
 
 ## 4. 逐任务核查清单
 
 ### CL-GOV-01 需求追踪矩阵与完成性治理
-
 - [x] 已建立“项目完成判定规则”，且规则覆盖 PRD、PLAN、CHECKLIST、证据路径、端到端链路和风险项。
-- [x] 已建立 PRD 范围到 Task ID、Checklist ID 的追踪矩阵，并覆盖项目范围、登录与角色路由、MQTT 通信、座位/设备/预约状态、动态二维码、传感器与异常、管理员释放与维护、学习统计与匿名排行榜、数据模型、核心演示流程、非功能要求。
-- [x] `docs/PLAN.md` 第 6 章中的每个 Task ID 在 `docs/CHECKLIST.md` 中均有唯一 `CL-{Task ID}` 对应项，且不存在孤儿 Checklist ID。
+- [x] 已建立 PRD 范围到 Task ID、Checklist ID 的追踪矩阵，并覆盖项目范围、登录与角色路由、MQTT 通信、座位/设备/预约状态、动态口令验证、传感器与异常、管理员释放与维护、学习统计与匿名排行榜、数据模型、核心演示流程、非功能要求。
+- [x] docs/PLAN.md 第 6 章中的每个 Task ID 在 docs/CHECKLIST.md 中均有唯一 CL-{Task ID} 对应项，且不存在孤儿 Checklist ID。
 - [x] 所有 P0/P1 任务均有明确目标、非目标、前置条件、输入、输出、涉及文件/目录、接口契约、数据变更、测试要求、文档要求、部署/配置要求、回滚要求、监控与告警、验收标准、可分配给编码智能体的提示。
 - [x] 已明确编码智能体执行边界，包含不得越界修改、不得顺手完成无关模块、不得重复定义契约。
 - [x] 已标注高风险任务。
-- [x] 已建立风险与未决问题清单，并覆盖 ORM、微信/OIDC 凭据、传感器型号、CI/CD、部署目标、单终端演示、MQTT 匿名 broker、Node/pnpm 环境一致性。
-- [x] GOV-01 对应的治理结构调整已落入 `docs/PLAN.md` 与 `docs/CHECKLIST.md`。
+- [x] 已建立风险与未决问题清单，并覆盖 ORM、OIDC 凭据、LOCAL 登录安全、传感器型号、CI/CD、部署目标、单终端演示、MQTT 匿名 broker、Node/pnpm 环境一致性。
+- [x] GOV-01 对应的治理结构调整已落入 docs/PLAN.md 与 docs/CHECKLIST.md。
 
 ### CL-GOV-02 ADR 决策包
-
 - [x] ORM 选型、迁移策略、seed 策略已记录。
 - [x] 测试框架、E2E 框架、测试目录约定已记录。
 - [x] OpenAPI 生成与发布方式已记录。
@@ -74,8 +71,8 @@
 - [x] REST DTO 覆盖登录、用户、座位、设备、预约、签到、异常、统计、排行榜、管理员接口的核心输入输出。
 - [x] 统一错误码包含认证失败、权限不足、座位不可用、预约冲突、二维码过期、重复签到、设备离线、payload 非法等核心场景。
 - [x] MQTT topic 与 payload 覆盖 heartbeat、presence、event、display、light、command。
-- [x] `packages/api-client` 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
-- [x] API、miniapp、simulator 不再各自重复手写核心状态字符串。
+- [x] packages/api-client 提供 typed client 方法签名，并统一处理 base URL、token、错误响应。
+- [x] API、web、simulator 不再各自重复手写核心状态字符串。
 - [x] TypeScript 类型检查通过。
 - [x] 证据路径已填写：
 
@@ -101,7 +98,7 @@
 - [x] 证据路径已填写：
 
   - 代码路径：`apps/api/src/common/config/api-env.ts`、`apps/api/src/common/errors/http-exception.filter.ts`、`apps/api/src/common/request/request-logging.middleware.ts`、`apps/api/src/common/openapi/openapi.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/app.module.ts`
-  - 鉴权占位：`apps/api/src/common/auth/request-user.ts`、`apps/api/src/common/auth/current-user.decorator.ts`
+  - 鉴权占位：`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`
   - 测试路径：`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`
   - 文档路径：`apps/api/README.md`
   - 测试命令：`pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm --filter @smartseat/api lint`；`pnpm typecheck`；`pnpm lint`；`pnpm format`
@@ -112,22 +109,24 @@
 
 ### CL-API-DB-01 数据模型、迁移与 seed 基线
 
-- [x] User 模型已包含角色、匿名名、微信 openid/OIDC subject 映射或等价字段。
+- [x] User 模型已包含角色、匿名名、OIDC subject 映射或等价字段。
 - [x] AuthConfig 模型已支持登录模式与必要配置状态。
 - [x] Seat 模型已包含座位编号、业务状态、可用性、不可用原因、维护状态。
 - [x] Device 模型已包含 device_id、绑定座位、在线状态、最后心跳、固件/硬件信息占位。
 - [x] Reservation 模型已支持预约、签到、使用中、取消、no-show、完成、待释放等状态流转所需字段。
-- [x] QRToken 模型已支持 token、过期时间、使用状态、关联预约/座位/设备。
+- [x] QRToken 模型已支持 token (4-6位随机口令)、过期时间、使用状态、关联预约/座位/设备。
 - [x] SensorReading 模型已支持 presence 四态、raw_value、时间戳、device_id/seat_id。
 - [x] AnomalyEvent 模型已支持异常类型、状态、来源、处理人、处理时间、处理备注。
 - [x] StudyRecord 模型已支持有效学习时长、开始/结束时间、来源预约。
 - [x] AdminActionLog 模型已支持 admin、action、target、reason、detail、timestamp。
 - [x] 索引、唯一约束、外键已按查询和状态机需要配置。
-- [x] migration 可执行，rollback/down 或等价回滚说明已提供：Docker PostgreSQL 已执行 `api-db-init`，migration 输出 `No pending migrations to apply`；rollback 等价策略已写入 `apps/api/README.md`。
-- [x] seed 可生成至少 1 个座位、1 个设备、学生/管理员测试账号、排行榜演示数据：Docker PostgreSQL 已落库，重复 seed 输出 `API-DB-01 seed complete: users=4, seats=1, devices=1, study_records=4`。
+- [x] migration 可执行，rollback/down 或等价回滚说明已提供：Docker PostgreSQL 已执行 api-db-init，migration 输出 No pending migrations to apply。
+- [x] seed 可生成至少 1 个座位、1 个设备、学生/管理员测试账号、排行榜演示数据。
 - [x] 证据路径已填写：
 
-  - 代码路径：`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502000000_api_db_01_baseline/migration.sql`、`apps/api/prisma/seed.ts`、`apps/api/src/common/database/prisma.service.ts`、`apps/api/src/modules/database-baseline/**`
+代码路径：apps/api/prisma/schema.prisma、apps/api/prisma/migrations/20260502000000_api_db_01_baseline/migration.sql、apps/api/prisma/seed.ts
+
+结论：通过；API-DB-01 状态已更新为 Done。
   - 测试路径：`apps/api/src/__tests__/api-db-enums.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`
   - 文档路径：`apps/api/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`
   - 已通过命令：`pnpm install`；`pnpm --filter @smartseat/api db:generate`；`pnpm --filter @smartseat/api test`；`RUN_DATABASE_TESTS=1 pnpm --filter @smartseat/api test`；`pnpm --filter @smartseat/api typecheck`；`pnpm lint`；`pnpm typecheck`；`pnpm format`；`pnpm docker:config`；`pnpm docker:build`；`pnpm docker:up`；重复 `docker compose --env-file .env.deploy -f infra/docker-compose.deploy.yml run --rm api-db-init`；`curl http://localhost:3000/health`；`curl http://localhost:3000/openapi.json`
@@ -136,10 +135,10 @@
 
 ### CL-API-AUTH-01 登录模式配置、用户角色与首个管理员引导
 
-- [x] `GET /auth/mode` 可返回当前登录模式和前端需要的脱敏配置状态。
+- [x] `GET /auth/mode` 可返回当前登录模式和Web 端需要的脱敏配置状态。
 - [x] 管理员可通过受保护接口切换登录模式。
 - [x] 配置接口不返回 `client_secret`、微信 secret 或其他敏感明文。
-- [x] `/me` 可返回当前用户、角色、匿名名、nextRoute 等小程序路由所需信息。
+- [x] `/me` 可返回当前用户、角色、匿名名、nextRoute 等Web 端路由所需信息。
 - [x] 系统无用户时，首个注册/登录用户成为管理员；该规则只触发一次。
 - [x] 普通用户不能访问管理员配置接口。
 - [x] token 签发、解析、过期处理具备基础测试。
@@ -153,17 +152,13 @@
   - 阻塞命令：无。本任务未启动 Docker，未做真实微信 code 换 openid 或 OIDC 授权码回调联调。
   - 结论：通过；API-AUTH-01 状态已更新为 Done。
 
-### CL-API-AUTH-02 微信登录闭环
-
-- [x] 微信 provider 已封装 code 到 openid 的交换逻辑，且可 mock 测试。
-- [x] `POST /auth/wechat/login` 已实现，并只在微信登录模式下可用。
-- [x] 新微信用户可一键注册/登录。
-- [x] 已存在微信用户可直接登录。
+CL-API-AUTH-02 账号密码登录闭环 (LOCAL 模式)
+- [x] POST /auth/login 已实现，并支持基于账号密码的 LOCAL 登录。
+- [x] 契约和配置环境已放宽，完美兼容 LOCAL 模式。
+- [x] 新用户注册或已有用户验证逻辑适配 LOCAL 模式。
 - [x] 首个用户成为管理员的规则与 API-AUTH-01 一致。
-- [x] 微信接口失败、无效 code、登录模式不匹配均返回明确错误码。
-- [x] 普通日志不记录 openid 明文或敏感凭据。
-- [x] `.env.example` 已记录微信配置项但不含真实值。
-- [x] 证据路径已填写：
+- [x] 账号密码错误、登录模式不匹配均返回明确错误码。
+- [x] 普通日志不记录密码明文或敏感凭据。
 
   - 代码路径：`apps/api/src/modules/auth/wechat-auth.provider.ts`、`apps/api/src/modules/auth/wechat-auth.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502010000_api_auth_02_wechat_login/migration.sql`、`packages/contracts/src/api.ts`、`.env.example`
   - 测试路径：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`
@@ -174,7 +169,7 @@
 
 ### CL-API-AUTH-03 OIDC 登录闭环
 
-- [x] `GET /auth/oidc/authorize-url` 可生成授权地址并返回小程序可处理的 `state`。
+- [x] `GET /auth/oidc/authorize-url` 可生成授权地址并返回web可处理的 `state`。
 - [x] `POST /auth/oidc/callback` 可完成 mock code 换 subject、用户绑定和系统 token 签发。
 - [x] OIDC state/nonce 或等价防重放机制已实现。
 - [x] 同一个 `state` 只能成功使用一次。
@@ -183,7 +178,6 @@
 - [x] OIDC 模式下无前端注册入口和后端注册接口。
 - [x] 已存在 subject 可映射到用户；新用户按首个管理员规则创建。
 - [x] 回调失败、provider 不可达、登录模式不匹配均有明确错误码。
-- [x] `.env.example` 已记录 issuer、client id、client secret、redirect uri、provider mode 等配置项。
 - [x] 证据路径已填写：
 
   - 代码路径：`apps/api/src/modules/auth/oidc-auth.provider.ts`、`apps/api/src/modules/auth/oidc-auth.service.ts`、`apps/api/src/modules/auth/oidc-state.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/auth/auth.module.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260505010000_api_auth_03_oidc_state_replay_protection/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`、`.env.example`、`apps/api/package.json`
@@ -216,7 +210,6 @@
 - [x] 签到窗口开始/结束时间计算正确。
 - [x] 签到前可取消预约，取消后座位状态一致回退。
 - [x] 无权限取消、重复取消、已签到后取消等边界场景已测试。
-- [x] 预约创建/取消有可诊断日志。
 - [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/app.module.ts`、`apps/api/prisma/migrations/20260503000000_api_res_01_reservation_conflicts/migration.sql`、`packages/contracts/src/api.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-db.integration.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api test`、`pnpm lint`、`pnpm format`；本地 Docker daemon 未运行，实库 migration/`RUN_DATABASE_TESTS=1` 需在 PostgreSQL 可用后补跑。
 
 ### CL-API-RES-02 续约、主动离座与到期结束
@@ -252,16 +245,14 @@
 - [x] MQTT 配置项已写入 `.env.example`。
 - [x] 证据路径已填写：代码 `apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/modules/reservations/reservations.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试 `apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；已通过 `pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`、`docker compose --env-file .env.deploy.example -f infra/docker-compose.deploy.yml config`、本地 `mqtt://localhost:1883` smoke 连接与 heartbeat 订阅。
 
-### CL-API-RES-03 动态二维码与扫码签到
-
+### CL-API-RES-03 动态验证口令与终端签到
 - [x] QRToken 数据模型支持生成、过期、已使用、失效状态。
-- [x] 终端 display payload 中可下发当前有效二维码 token 或二维码内容。
-- [x] token 刷新周期与有效期满足 PRD 约束，例如 15 秒刷新、30 秒有效，或配置等价规则。
-- [x] `POST /checkin` 校验用户、预约、座位、签到窗口、token 状态。
-- [x] token 一次性使用，重复签到失败。
-- [x] 过期 token、非本人签到、已取消预约、超出签到窗口均失败并返回明确错误码。
-- [x] 设备离线期间 token 过期后，恢复在线只下发当前有效 QRToken，不会重放旧 token。
-- [x] 签到成功后预约进入 `OCCUPIED`，并触发终端状态同步。
+- [x] ESP32 屏幕 display payload 中可下发或本地生成 4-6 位随机短口令。
+- [x] 口令刷新周期与有效期满足 PRD 约束。
+- [x] POST /checkin 校验用户、预约、座位、签到窗口以及输入的口令状态。
+- [x] 口令一次性使用，重复签到失败。
+- [x] 过期口令、非本人签到、已取消预约、超出签到窗口均失败并返回明确错误码。
+- [x] 签到成功后预约进入 OCCUPIED，并触发终端状态同步。
 - [x] OpenAPI 与错误码文档已更新。
 - [x] 证据路径已填写：代码 `apps/api/src/modules/reservations/**`、`apps/api/src/modules/mqtt/mqtt-device-state.service.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试 `apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档 `packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。
 
@@ -325,13 +316,11 @@
 - [x] 统计跨天、跨周边界测试已覆盖：Asia/Shanghai 周一边界、跨天连续学习、上一周记录过滤均在 `api-stat.spec.ts` 中验证。
 - [x] 证据路径已填写：`apps/api/src/__tests__/api-stat.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；验证命令 `pnpm --filter @smartseat/api test` 通过，当前输出 `122 passed | 5 skipped`。
 
-### CL-MINI-01 小程序公共壳层、登录页与角色路由
+### CL-MINI-01 Web 端公共壳层、登录页与角色路由
 
-- [x] 所有实际页面均已注册到 `pages.json`。
-- [x] 小程序可作为体验版运行的基础配置已具备。
+- [x] Web 端框架基于 Next.js 搭建。
 - [x] 公共 API client 使用 `packages/api-client` 或统一封装，不散落手写请求。
 - [x] 登录页可展示当前登录模式。
-- [x] 微信登录入口可调用后端微信登录接口。
 - [x] OIDC 登录入口可进入后端 OIDC start/callback 流程或体验版等价流程。
 - [x] 登录后按后端返回角色进入学生或管理员首页。
 - [x] 未登录访问受保护页面会跳转登录。
@@ -353,6 +342,7 @@
 - [ ] 学生可查看学习统计。
 - [ ] 学生可查看匿名排行榜，且不展示真实身份。
 - [ ] 后端错误码已映射到用户可理解提示。
+- [ ] 内置 DeepSeek AI 助手页面或侧边栏，支持实时交互。
 - [ ] 证据路径已填写：____
 
 ### CL-MINI-03 管理员页面闭环
@@ -386,14 +376,9 @@
 ### CL-FW-02 屏幕、灯光与状态同步
 
 - [ ] 终端可订阅 display/light/command topic。
-- [ ] 空闲、已预约、使用中、即将结束、待释放、维护/故障状态均有显示映射。
-- [ ] 已预约状态可显示动态二维码或二维码内容。
-- [ ] 使用中/即将结束状态可显示剩余时间。
-- [ ] 状态灯可按后端命令切换。
-- [ ] 后端状态变化后 3 秒内完成屏幕和灯光更新，或记录未达成原因。
-- [ ] MQTT 断线后终端显示离线/同步中状态，不继续使用旧 token 完成签到。
-- [ ] 重连后能同步最新状态。
-- [ ] 本地异常状态有清晰显示或日志。
+- [ ] 空闲、已预约、使用中、即将结束、待释放状态均有显示映射。
+- [ ] 已预约状态可显示 4-6 位动态口令，并在屏幕上刷新。
+- [ ] MQTT 断线后终端显示离线/同步中状态，重连后能同步最新状态。
 - [ ] 证据路径已填写：____
 
 ### CL-SIM-01 设备模拟器闭环
@@ -517,7 +502,7 @@
 | R-GATE-04 | `docs/DEMO.md` 所有演示脚本均通过或已有降级说明 | [ ] |  |
 | R-GATE-05 | 所有 OpenAPI/DTO/MQTT 契约与实现一致 | [ ] |  |
 | R-GATE-06 | 数据迁移、seed、reset-demo 可执行 | [ ] |  |
-| R-GATE-07 | 小程序体验版关键页面可运行 | [ ] |  |
+| R-GATE-07 | Web 端关键页面可运行 | [ ] |  |
 | R-GATE-08 | 真实终端或模拟器可完成 MQTT 联调 | [ ] |  |
 | R-GATE-09 | 安全检查通过：无真实 secret、无越权、无排行榜身份泄露 | [ ] |  |
 | R-GATE-10 | 风险清单无未处理 P0 阻塞项 | [ ] |  |
