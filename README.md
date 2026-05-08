@@ -1,12 +1,12 @@
 # SmartSeat
 
-SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/扫码签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则、管理员释放/维护/审计接口、学习统计和匿名排行榜后端接口，并已补齐 uni-app 微信小程序的 Vue3/Vite 依赖基线与 initialized-only 占位页。后续继续落地 ESP32-P4 终端、小程序业务页面、设备模拟器等业务能力。
+SmartSeat 是一个校园图书馆智能座位管理原型项目。本仓库采用 pnpm monorepo，当前已完成共享契约/API client 基线、NestJS 后端平台基础、PostgreSQL 数据库基线、后端认证/用户、座位/设备查询、预约/动态口令签到链路、MQTT 设备在线/命令总线、传感器状态接入、异常自动规则、管理员释放/维护/审计接口、学习统计和匿名排行榜后端接口，并已将前端迁移至基于 Next.js 的 Web 端工程基线。后续继续落地 ESP32-P4 终端、Web 端业务页面、设备模拟器等业务能力。
 
 ## 仓库结构
 
 ```text
-apps/miniapp              uni-app 微信小程序 Vue3/Vite 基线与 initialized-only 占位页，业务页面和角色路由尚未实现
-apps/api                  NestJS API，包含平台层、数据库基线、认证、座位/设备、预约/签到、MQTT、异常和管理员接口
+apps/web                  Next.js Web 端工程（替代了原有的 miniapp），包含账号密码登录、预                           约大厅、口令落座、排行榜及 AI 助手等页面基线
+apps/api                  NestJS API，包含平台层、数据库基线、认证、座位/设备、预约/签到、                            MQTT、异常和管理员接口
 apps/device-simulator     TypeScript CLI 占位程序
 firmware/smart-seat-terminal
                           ESP32-P4 固件工程骨架
@@ -24,7 +24,6 @@ scripts                   开发辅助脚本占位
 - pnpm 10 或更高版本
 - Docker 和 Docker Compose，用于本地 PostgreSQL 与 Mosquitto
 - ESP-IDF，用于后续固件开发
-- 微信开发者工具，用于后续小程序开发
 
 ## 常用命令
 
@@ -73,9 +72,9 @@ pnpm docker:down
 
 已完成：
 
-- `packages/contracts`：共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload。
+- `packages/contracts`：共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload，并已扩展 LOCAL (账号密码) 登录契约。。
 - `packages/api-client`：typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化。
-- `apps/api`：配置校验、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 `/health`、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、`/me`、微信/OIDC 登录、座位/设备查询、预约创建/取消、续约/离座/到期推进、动态二维码扫码签到、MQTT 心跳与 display/light/command 命令总线、presence 持续时间判断、异常自动规则、管理员 dashboard/no-show/异常查询、手动释放、维护切换、脱敏配置读取、AdminActionLog 审计、`/stats/me` 和匿名 `/leaderboard`。
+- `apps/api`：配置校验（已放宽OIDC强制校验以支持 LOCAL 模式）、统一错误响应、request id 与请求日志、OpenAPI、ScheduleModule、增强版 /health、Prisma 数据库基线、migration 与 seed、登录模式配置、用户角色、/me、账号密码/OIDC 登录、座位/设备查询、预约创建/取消、续约/离座/到期推进、基于 ESP32 屏幕显示的动态随机口令落座验证、MQTT 与 display/light/command 命令总线、presence 持续时间判断、异常自动规则、管理员 dashboard/no-show/异常查询、手动释放、维护切换、脱敏配置读取、AdminActionLog 审计、/stats/me 和匿名 /leaderboard。
 - 准生产单机 Docker 部署包：NestJS API、PostgreSQL、Mosquitto、一次性 migrate + seed 初始化服务。
 
 后端平台接口：
@@ -89,15 +88,16 @@ pnpm docker:down
 - `GET /auth/mode`
 - `GET /admin/auth/mode`
 - `PUT /admin/auth/mode`
+- `POST /auth/login`
 - `POST /auth/wechat/login`
 - `GET /auth/oidc/authorize-url`
 - `POST /auth/oidc/callback`
 - `GET /me`
 - `PATCH /me/leaderboard-preference`
 
-后端座位、设备、预约、扫码签到、异常、统计、排行榜和管理员接口已在 OpenAPI 中暴露，包括 `/seats`、`/devices`、`/reservations`、`/current-usage`、`/checkin`、`/stats/me`、`/leaderboard`、`/admin/dashboard`、`/admin/no-shows`、`/admin/anomalies`、`/admin/seats/release`、`/admin/seats/maintenance`、`/admin/devices/maintenance`、`/admin/config` 和管理员审计日志接口。
+后端座位、设备、预约、动态口令签到、异常、统计、排行榜和管理员接口已在 OpenAPI 中暴露，包括 /seats、/devices、/reservations、/current-usage、/checkin（口令校验）、/stats/me、/leaderboard、/admin/dashboard、/admin/no-shows、/admin/anomalies、/admin/seats/release、/admin/seats/maintenance、/admin/devices/maintenance、/admin/config 和管理员审计日志接口。
 
-仍未实现：小程序真实页面与角色路由、设备模拟器业务流、固件业务逻辑、独立设备维护持久字段、异常刷时长自动识别。真实微信和学校 OIDC 外网联调需要按部署环境另行配置，不使用仓库占位 secret。
+仍未实现：Web 端真实页面与角色路由联调、设备模拟器业务流、ESP32 固件业务逻辑（屏幕随机口令生成与 MQTT 上报）、独立设备维护持久字段、异常刷时长自动识别。学校 OIDC 和 AI 助手外网联调需要按部署环境另行配置，不使用仓库占位 secret。
 
 ## 本地基础设施
 
@@ -118,7 +118,7 @@ pnpm docker:down
 cp .env.deploy.example .env.deploy
 ```
 
-然后编辑 `.env.deploy`，替换数据库密码、MQTT 凭据、认证 token secret、微信/OIDC 占位配置和当前登录模式。`.env.deploy` 已被 git 忽略，不要提交真实 secret。
+然后编辑 .env.deploy，替换数据库密码、MQTT 凭据、认证 token secret、OIDC 占位配置和当前登录模式（推荐设为 LOCAL）。.env.deploy 已被 git 忽略，不要提交真实 secret。
 
 启动与验证：
 
