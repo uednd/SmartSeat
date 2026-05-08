@@ -26,7 +26,11 @@
       "Bash(python -m json.tool)",
       "Bash(start http://localhost:3001/dashboard/leaderboard)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001)",
-      "Bash(curl -s http://localhost:3000/seats -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJTVFVERU5UIl0sInN1YiI6ImNtb3ZvbXdoZDAwMDF1MGI3ZXl3aXF1azIiLCJpYXQiOjE3NzgxNzAyMTYsImV4cCI6MTc3ODE3MzgxNn0.GkhpLsdI0pGDm7MqXyQ9S_bRyYYVpVu2DQL-s0817Tg\")"
+      "Bash(curl -s http://localhost:3000/seats -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJyb2xlcyI6WyJTVFVERU5UIl0sInN1YiI6ImNtb3ZvbXdoZDAwMDF1MGI3ZXl3aXF1azIiLCJpYXQiOjE3NzgxNzAyMTYsImV4cCI6MTc3ODE3MzgxNn0.GkhpLsdI0pGDm7MqXyQ9S_bRyYYVpVu2DQL-s0817Tg\")",
+      "Bash(npx next *)",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \":300\")",
+      "Bash(taskkill //PID 26716 //F)"
     ]
   }
 }

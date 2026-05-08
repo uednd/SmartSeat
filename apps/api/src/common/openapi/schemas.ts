@@ -84,6 +84,17 @@ export const passwordLoginRequestSchema: SchemaObject = {
   }
 };
 
+export const registerRequestSchema: SchemaObject = {
+  type: 'object',
+  required: ['username', 'password', 'display_name', 'gender'],
+  properties: {
+    username: text(),
+    password: text(),
+    display_name: text(),
+    gender: text()
+  }
+};
+
 export const updateAuthConfigRequestSchema: SchemaObject = {
   type: 'object',
   required: ['auth_mode'],

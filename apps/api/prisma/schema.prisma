@@ -131,6 +131,7 @@ model User {
   roles              UserRole[]          @default([STUDENT])
   anonymousName      String              @map("anonymous_name")
   displayName        String?             @map("display_name")
+  gender             String?             @map("gender")
   avatarUrl          String?             @map("avatar_url")
   leaderboardEnabled Boolean             @default(true) @map("leaderboard_enabled")
   noShowCountWeek    Int                 @default(0) @map("no_show_count_week")

@@ -1,15 +1,48 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { login } from '@/lib/auth';
+import { login, userRegister } from '@/lib/auth';
+
+type Mode = 'login' | 'register';
+
+const GENDER_OPTIONS = [
+  { value: 'MALE', label: '男' },
+  { value: 'FEMALE', label: '女' },
+  { value: 'OTHER', label: '其他' }
+] as const;
 
 export default function LoginPage() {
+  const [mode, setMode] = useState<Mode>('login');
+
+  // Login fields
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+
+  // Register fields
+  const [regUsername, setRegUsername] = useState('');
+  const [regNickname, setRegNickname] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regGender, setRegGender] = useState('MALE');
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  function reset() {
+    setUsername('');
+    setPassword('');
+    setRegUsername('');
+    setRegNickname('');
+    setRegPassword('');
+    setRegGender('MALE');
+    setError('');
+  }
+
+  function switchMode(m: Mode) {
+    setMode(m);
+    setError('');
+  }
+
+  async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setError('');
 
@@ -27,8 +60,53 @@ export default function LoginPage() {
       const result = await login(username, password);
       if (result.success) {
         window.location.href = '/dashboard';
+      } else if (result.notRegistered) {
+        setError('该账号尚未注册，请先注册。');
+        setRegUsername(username);
+        switchMode('register');
       } else {
         setError(result.error ?? '登录失败，请重试');
+      }
+    } catch {
+      setError('网络错误，请检查连接');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRegister(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+
+    if (!regUsername.trim()) {
+      setError('请输入账号');
+      return;
+    }
+    if (!regNickname.trim()) {
+      setError('请输入昵称');
+      return;
+    }
+    if (!regPassword.trim()) {
+      setError('请输入密码');
+      return;
+    }
+    if (regPassword.trim().length < 4) {
+      setError('密码至少 4 位');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await userRegister({
+        username: regUsername.trim(),
+        password: regPassword,
+        display_name: regNickname.trim(),
+        gender: regGender
+      });
+      if (result.success) {
+        window.location.href = '/dashboard';
+      } else {
+        setError(result.error ?? '注册失败，请重试');
       }
     } catch {
       setError('网络错误，请检查连接');
@@ -43,7 +121,8 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-md px-4">
         <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
-          <div className="text-center mb-8">
+          {/* Header */}
+          <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-500/20 mb-4">
               <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -54,55 +133,182 @@ export default function LoginPage() {
             <p className="text-slate-400 mt-2 text-sm">智能图书馆座位管理系统</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
-                {error}
+          {/* Mode tabs */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex bg-white/5 rounded-xl p-1">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`px-6 py-2 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'login'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                登 录
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('register')}
+                className={`px-6 py-2 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'register'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                注 册
+              </button>
+            </div>
+          </div>
+
+          {/* Login form */}
+          {mode === 'login' && (
+            <form onSubmit={handleLogin} className="space-y-5">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  账号
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="输入账号"
+                  autoComplete="username"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
               </div>
-            )}
 
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1.5">
-                账号
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="输入账号"
-                autoComplete="username"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-              />
-            </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  密码
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="输入密码"
+                  autoComplete="current-password"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1.5">
-                密码
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="输入密码"
-                autoComplete="current-password"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                {loading ? '登录中...' : '登 录'}
+              </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              {loading ? '登录中...' : '登 录'}
-            </button>
-          </form>
+              <p className="text-center text-slate-500 text-xs">
+                还没有账号？
+                <button type="button" onClick={() => switchMode('register')} className="text-blue-400 hover:text-blue-300 ml-1">
+                  去注册
+                </button>
+              </p>
+            </form>
+          )}
 
-          <p className="text-center text-slate-500 text-xs mt-6">
-            开发模式 — 输入任意账号密码即可登录
-          </p>
+          {/* Register form */}
+          {mode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="reg-username" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  账号
+                </label>
+                <input
+                  id="reg-username"
+                  type="text"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value)}
+                  placeholder="输入账号"
+                  autoComplete="username"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="reg-nickname" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  昵称
+                </label>
+                <input
+                  id="reg-nickname"
+                  type="text"
+                  value={regNickname}
+                  onChange={(e) => setRegNickname(e.target.value)}
+                  placeholder="输入昵称"
+                  autoComplete="name"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="reg-password" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  密码
+                </label>
+                <input
+                  id="reg-password"
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="输入密码（至少4位）"
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  性别
+                </label>
+                <div className="flex gap-2">
+                  {GENDER_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRegGender(opt.value)}
+                      className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all border ${
+                        regGender === opt.value
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                {loading ? '注册中...' : '注 册'}
+              </button>
+
+              <p className="text-center text-slate-500 text-xs">
+                已有账号？
+                <button type="button" onClick={() => switchMode('login')} className="text-blue-400 hover:text-blue-300 ml-1">
+                  去登录
+                </button>
+              </p>
+            </form>
+          )}
         </div>
       </div>
     </div>

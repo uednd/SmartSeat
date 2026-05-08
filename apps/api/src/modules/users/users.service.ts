@@ -24,6 +24,8 @@ export interface InitializeUserFromIdentityInput {
   anonymousName?: string;
   displayName?: string;
   avatarUrl?: string;
+  passwordHash?: string;
+  gender?: string;
 }
 
 export interface UpdateUserProfileInput {
@@ -55,6 +57,12 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async findByLocalSub(localSub: string): Promise<User | null> {
+    return await this.prisma.user.findUnique({
+      where: { localSub }
+    });
   }
 
   async getMe(userId: string, authMode: AuthMode): Promise<MeResponse> {
@@ -123,6 +131,14 @@ export class UsersService {
 
         if (input.avatarUrl !== undefined) {
           data.avatarUrl = input.avatarUrl;
+        }
+
+        if (input.passwordHash !== undefined) {
+          data.passwordHash = input.passwordHash;
+        }
+
+        if (input.gender !== undefined) {
+          data.gender = input.gender;
         }
 
         const user = await tx.user.create({
@@ -215,6 +231,10 @@ export class UsersService {
 
     if (user.avatarUrl !== null) {
       dto.avatar_url = user.avatarUrl;
+    }
+
+    if (user.gender !== null) {
+      dto.gender = user.gender;
     }
 
     return dto;
