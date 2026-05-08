@@ -79,6 +79,13 @@ export class UsersService {
     const existing = await this.findExistingIdentity(input);
 
     if (existing !== null) {
+      // Dev mode: promote "admin" user if they somehow got created as STUDENT
+      if (input.localSub === 'admin' && !existing.roles.includes(PrismaUserRole.ADMIN)) {
+        return await this.prisma.user.update({
+          where: { userId: existing.userId },
+          data: { roles: [PrismaUserRole.ADMIN] }
+        });
+      }
       return existing;
     }
 
@@ -86,11 +93,12 @@ export class UsersService {
       async (tx) => {
         const userCount = await tx.user.count();
         const isFirstUser = userCount === 0;
-        const role = isFirstUser ? PrismaUserRole.ADMIN : PrismaUserRole.STUDENT;
+        const isDevAdmin = input.localSub === 'admin';
+        const role = isFirstUser || isDevAdmin ? PrismaUserRole.ADMIN : PrismaUserRole.STUDENT;
         const data: Prisma.UserCreateInput = {
           authProvider: input.authProvider,
           roles: [role],
-          anonymousName: input.anonymousName ?? this.createAnonymousName(isFirstUser, userCount + 1)
+          anonymousName: input.anonymousName ?? this.createAnonymousName(isFirstUser || isDevAdmin, userCount + 1)
         };
 
         if (input.userId !== undefined) {

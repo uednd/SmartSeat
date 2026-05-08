@@ -26,7 +26,8 @@ export default function LoginPage() {
     try {
       const result = await login(username, password);
       if (result.success) {
-        window.location.href = '/dashboard';
+        const nextRoute = result.data?.next_route === 'admin' ? '/dashboard/admin' : '/dashboard';
+        window.location.href = nextRoute;
       } else {
         setError(result.error ?? '登录失败，请重试');
       }
