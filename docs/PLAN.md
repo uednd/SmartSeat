@@ -11,23 +11,23 @@
 3. 每个任务均有唯一对应的 `docs/CHECKLIST.md` 核查条目。
 4. 每个任务的核查条目均完成“通用完成宏”和“任务专属核查项”。
 5. 每个任务均填写证据路径，包括代码路径、测试命令、测试结果、截图/日志/API 文档/演示记录。
-6. 登录、预约、扫码签到、设备状态同步、传感器异常、管理员释放、学习统计、匿名排行榜、演示重置等端到端链路均通过发布闸门。
+6. 登录、预约、输入口令签到、设备状态同步、传感器异常、管理员释放、学习统计、匿名排行榜、演示重置等端到端链路均通过发布闸门。
 7. 所有明确列入风险清单的开放项均已关闭、降级、延期或已记录处理结论。
 
 任何单个任务完成，不等价于功能完成。任务完成必须以对应 Checklist 通过为准；功能完成必须以相关任务、端到端链路与发布闸门共同通过为准。
 
 ## 2. 当前仓库基线
 
-当前仓库已完成 monorepo 与目录骨架、GOV-01/GOV-02 治理文档、共享契约/API client、NestJS 后端平台、Prisma 数据模型与 seed、认证、座位/设备聚合、预约与当前使用、动态二维码签到、MQTT 在线状态与命令总线、presence 持续时间判断、自动规则与异常事件、管理员接口/审计，以及学习记录/个人统计/匿名排行榜，已实现到 `API-STAT-01`。尚未完成的是小程序页面闭环、设备模拟器闭环、固件业务、完整演示脚本与发布闸门。后续任务必须以此事实为基线，不得假设已有隐藏实现。
+当前仓库已完成 monorepo 与目录骨架、GOV-01/GOV-02 治理文档、共享契约/API client、NestJS 后端平台、Prisma 数据模型与 seed、认证、座位/设备聚合、预约与当前使用、动态口令验证、MQTT 在线状态与命令总线、presence 持续时间判断、自动规则与异常事件、管理员接口/审计，以及学习记录/个人统计/匿名排行榜，已实现到 `API-STAT-01`。尚未完成的是 Web 端页面闭环、设备模拟器闭环、固件业务、完整演示脚本与发布闸门。后续任务必须以此事实为基线，不得假设已有隐藏实现。
 
 | 区域 | 当前状态 | 后续计划含义 |
 |---|---|---|
 | 根工程 | 已有 pnpm workspace、根 `package.json`、基础 lint/format 配置 | 可继续保持 TypeScript monorepo 组织方式 |
-| `docs/PRD.md` | 已定义角色、登录、状态机、MQTT、终端、小程序、后端、数据模型、流程、非功能需求 | 作为唯一需求基线 |
+| `docs/PRD.md` | 已定义角色、登录、状态机、MQTT、终端、Web端、后端、数据模型、流程、非功能需求 | 作为唯一需求基线 |
 | `docs/PLAN.md` | 已作为任务真源维护到 `API-STAT-01`，P0 后端任务与 `API-STAT-01` 已标记 Done；OPS-01 仍为 In Progress | 后续任务按依赖继续推进；OPS-01 仍需 SIM-01、完整 reset-demo 和端到端演示证据后才能标记 Done |
 | `docs/CHECKLIST.md` | 已建立任务级核查清单，并记录后端已完成任务证据至 `CL-API-STAT-01` | 后续任务完成时继续补证据路径，并修正跨阶段通用描述避免滞后 |
-| `apps/api` | 已实现 NestJS 平台层、Prisma 数据模型/迁移/seed、Auth、Seats/Devices、Reservations/Current Usage/Check-in、MQTT、Sensors、Jobs/Anomalies、Admin、Study Records/Leaderboard 和增强版 `/health` | 小程序端闭环、设备模拟器闭环、固件联调和完整演示脚本仍需后续任务实现 |
-| `apps/miniapp` | 已完成 uni-app Vue3/Vite 依赖、最小入口与 initialized-only 占位页；业务页面、登录和角色路由仍未实现 | 需要继续实现 SmartSeat 页面闭环、登录与角色路由 |
+| `apps/api` | 已实现 NestJS 平台层、Prisma 数据模型/迁移/seed、Auth、Seats/Devices、Reservations/Current Usage/Check-in、MQTT、Sensors、Jobs/Anomalies、Admin、Study Records/Leaderboard 和增强版 `/health` | Web 端闭环、设备模拟器闭环、固件联调和完整演示脚本仍需后续任务实现 |
+| `apps/web` | 已切换为 Next.js 工程基线（替代了原有 miniapp）；业务页面、登录和角色路由仍需完善 | 需要继续实现 SmartSeat Web 端页面闭环、登录与角色路由 |
 | `apps/device-simulator` | 仅输出初始化提示 | 需要实现 MQTT 设备模拟与演示场景驱动 |
 | `packages/contracts` | 已提供共享状态枚举、REST DTO、错误码、分页/时间模型、MQTT topic 与 payload | 后续接口、状态机或 MQTT 契约变更必须继续同步 |
 | `packages/api-client` | 已提供 typed client 方法边界、transport 注入、base URL/token 注入、统一错误归一化和当前已交付后端 endpoint 绑定 | 后续新增业务接口仍需继续同步 path、DTO 和错误码 |
@@ -72,9 +72,9 @@ flowchart LR
         Config[packages/config\nTS/ESLint/Prettier]
     end
 
-    subgraph Mini[uni-app 微信小程序]
+    subgraph Web[Next.js Web 端]
         Shell[公共壳层与登录]
-        Student[学生页面]
+        Student[学生页面与 AI 助手]
         Admin[管理员页面]
     end
 
@@ -82,7 +82,7 @@ flowchart LR
         Platform[平台基础\nConfig/Error/Log/OpenAPI/Schedule]
         Auth[Auth & Users]
         Seat[Seats & Devices]
-        Res[Reservations & QR Check-in]
+        Res[Reservations & OTP Check-in]
         IoT[MQTT & Sensors]
         Jobs[Rules & Anomalies]
         Stat[Study Records & Leaderboard]
@@ -91,7 +91,7 @@ flowchart LR
 
     subgraph Device[ESP32-P4 智能座位终端]
         MqttClient[MQTT Client]
-        Display[Display]
+        Display[Display / Token]
         Light[Light]
         Presence[Presence Adapter]
     end
@@ -100,35 +100,34 @@ flowchart LR
         PG[(PostgreSQL)]
         Broker[(Mosquitto)]
         OIDC[学校 OIDC Provider]
-        WX[微信登录接口]
+        LOCAL[账号密码认证]
     end
 
-    Mini -->|HTTPS| API
+    Web -->|HTTPS| API
     API -->|SQL| PG
     API <-->|MQTT subscribe/publish| Broker
     Device <-->|MQTT publish/subscribe| Broker
     API -->|code/token| OIDC
-    API -->|code2session| WX
-    Mini --> Client
+    API -->|LOCAL hash校验| LOCAL
+    Web --> Client
     Client --> Contracts
     API --> Contracts
     Device -.遵循 payload 约定.-> Contracts
-```
 
 ### 4.2 模块职责
 
 | 模块 | 责任 | 禁止事项 |
 |---|---|---|
-| `packages/contracts` | 定义枚举、DTO、错误码、MQTT topic 与 payload、分页模型 | 禁止依赖后端业务实现或小程序 UI |
+| `packages/contracts` | 定义枚举、DTO、错误码、MQTT topic 与 payload、分页模型 | 禁止依赖后端业务实现或 Web 端 UI |
 | `packages/api-client` | 封装 typed HTTP client 与认证头注入 | 禁止写页面状态、业务状态机 |
 | `apps/api/src/common` | 配置、错误、日志、鉴权装饰器、OpenAPI、通用工具 | 禁止塞入具体业务规则 |
-| `apps/api/src/modules/auth` | 微信/OIDC 登录、系统 token、角色、首个管理员引导 | 禁止在前端保存 secret；禁止绕过后端鉴权 |
+| `apps/api/src/modules/auth` | LOCAL/OIDC 登录、系统 token、角色、首个管理员引导 | 禁止在前端保存 secret；禁止绕过后端鉴权 |
 | `apps/api/src/modules/seats` | 座位、设备聚合查询与可用性派生 | 禁止创建预约、处理签到 |
-| `apps/api/src/modules/reservations` | 预约状态机、二维码 token、签到、续约、离座、到期 | 禁止处理传感器驱动细节 |
+| `apps/api/src/modules/reservations` |预约状态机、动态口令 (OTP)、签到、续约、离座、到期 | 禁止处理传感器驱动细节 |
 | `apps/api/src/modules/mqtt/devices/sensors/anomalies/jobs` | MQTT 接入、设备在线、传感器记录、自动规则、异常事件 | 禁止实现页面 UI |
 | `apps/api/src/modules/admin` | 管理员看板、手动释放、维护、配置、审计日志 | 禁止暴露 secret 明文 |
 | `apps/api/src/modules/study-records/leaderboard` | 学习记录、个人统计、匿名排行榜 | 禁止泄露真实身份 |
-| `apps/miniapp` | 页面、路由、交互、扫码、调用 typed client | 禁止复制后端状态机逻辑；禁止保存 secret |
+| `apps/web` | Web 页面、路由、交互、UI 组件、调用 typed client | 禁止复制后端状态机逻辑；禁止保存 secret |
 | `apps/device-simulator` | 以 MQTT 模拟终端心跳、传感器、事件、命令接收 | 禁止改变后端业务规则 |
 | `firmware/smart-seat-terminal` | 真实终端 Wi-Fi/MQTT/显示/灯光/传感器适配 | 禁止在终端裁决预约有效性 |
 | `infra` 与 `scripts` | 本地依赖、seed、reset-demo、演示启动、证据采集 | 禁止伪装为生产部署能力 |
@@ -156,28 +155,28 @@ stateDiagram-v2
 
 | 链路 | 可信判定点 | 主责模块 | 参与模块 | 必过任务 |
 |---|---|---|---|---|
-| 登录与角色路由 | 后端签发 token 与返回角色 | Auth | Miniapp、Contracts | SHR-01、API-AUTH-01/02/03、MINI-01 |
-| 座位查看与预约 | 后端座位聚合视图与预约状态机 | Seats / Reservations | Miniapp | API-SEAT-01、API-RES-01、MINI-02 |
+| 登录与角色路由 | 后端签发 token 与返回角色 | Auth | Web、Contracts | SHR-01、API-AUTH-01/02/03、MINI-01 |
+| 座位查看与预约 | 后端座位聚合视图与预约状态机 | Seats / Reservations | Web | API-SEAT-01、API-RES-01、MINI-02 |
 | 动态二维码与扫码签到 | 后端 QRToken 校验与状态流转 | Reservations | Firmware、MQTT、Miniapp | API-RES-03、API-IOT-01、FW-02、MINI-02 |
 | 设备在线与状态同步 | 后端设备状态与 MQTT 命令 | MQTT / Devices | Firmware、Simulator | API-IOT-01、FW-01/02、SIM-01 |
-| 传感器异常 | 后端传感器持续时间规则 | Sensors / Anomalies / Jobs | Admin、Miniapp | API-IOT-02、API-IOT-03、API-ADM-01、MINI-03 |
+| 传感器异常 | 后端传感器持续时间规则 | Sensors / Anomalies / Jobs | Admin、Web | API-IOT-02、API-IOT-03、API-ADM-01、MINI-03 |
 | 管理员释放与维护 | 后端管理员鉴权与审计日志 | Admin | Reservations、IoT | API-ADM-01、MINI-03 |
-| 学习统计与匿名榜 | 后端有效学习记录规则 | Study Records / Leaderboard | Miniapp | API-STAT-01、MINI-02 |
+| 学习统计与匿名榜 | 后端有效学习记录规则 | Study Records / Leaderboard | Web | API-STAT-01、MINI-02 |
 | 初赛演示 | seed/reset-demo 与脚本证据 | Ops / QA | 全模块 | OPS-01、QA-01 |
 
 ## 5. 需求—任务追踪矩阵
 
 | PRD 范围 | 功能/约束 | 主任务 | 辅助任务 | Checklist |
 |---|---|---|---|---|
-| 1.1–1.4 | 项目范围、初赛 1 个终端、小程序体验版 | GOV-01 | OPS-01、QA-01 | CL-GOV-01、CL-OPS-01、CL-QA-01 |
-| 2.1–2.6 | 用户角色、统一入口、微信/OIDC、权限 | API-AUTH-01、API-AUTH-02、API-AUTH-03、MINI-01 | SHR-01 | CL-API-AUTH-01/02/03、CL-MINI-01 |
+| 1.1–1.4 | 项目范围、初赛 1 个终端、Web 端体验版 | GOV-01 | OPS-01、QA-01 | CL-GOV-01、CL-OPS-01、CL-QA-01 |
+| 2.1–2.6 | 用户角色、统一入口、LOCAL/OIDC、权限| API-AUTH-01、API-AUTH-02、API-AUTH-03 | SHR-01 | CL-API-AUTH-03、WEB-01 |
 | 3.1–3.5 | 系统架构、通信链路、MQTT topic | SHR-01、API-IOT-01、FW-01、SIM-01 | OPS-01 | CL-SHR-01、CL-API-IOT-01、CL-FW-01、CL-SIM-01 |
 | 4.1–4.2 | 座位、设备、可用性、预约状态 | SHR-01、API-DB-01、API-SEAT-01、API-RES-01 | API-RES-02 | CL-SHR-01、CL-API-DB-01、CL-API-SEAT-01、CL-API-RES-01 |
 | 4.3–4.4 | 签到窗口、动态二维码 | API-RES-03 | MINI-02、FW-02 | CL-API-RES-03、CL-MINI-02、CL-FW-02 |
-| 4.5–4.7 | 毫米波检测、占用异常、管理员释放 | API-IOT-02、API-IOT-03、API-ADM-01 | FW-01、MINI-03 | CL-API-IOT-02/03、CL-API-ADM-01、CL-FW-01、CL-MINI-03 |
-| 4.8–4.9 | 预约未到、匿名排行榜 | API-IOT-03、API-STAT-01 | MINI-02、MINI-03 | CL-API-IOT-03、CL-API-STAT-01、CL-MINI-02/03 |
+| 4.5–4.7 | 毫米波检测、占用异常、管理员释放 | API-IOT-02、API-IOT-03、API-ADM-01 | FW-01、WEB-03 | CL-API-RES-03、CL-WEB-02、CL-FW-02 |
+| 4.8–4.9 | 预约未到、匿名排行榜 | API-IOT-03、API-STAT-01 | WEB-02、FW-02 | CL-API-IOT-02/03、CL-API-ADM-01、CL-FW-01、CL-WEB-03|
 | 5.1–5.8 | 智能座位终端、显示、灯光、MQTT、本地异常 | FW-01、FW-02 | API-IOT-01、SIM-01 | CL-FW-01、CL-FW-02、CL-API-IOT-01、CL-SIM-01 |
-| 6.1–6.14 | 小程序公共、学生、管理员、隐私 | MINI-01、MINI-02、MINI-03 | API-AUTH-*、API-RES-*、API-ADM-01 | CL-MINI-01/02/03 |
+| 6.1–6.14 | Web 端公共、学生、管理员、AI助手、隐私 | WEB-01、WEB-02、WEB-03 | API-AUTH-*、API-RES-*、API-ADM-01 | CL-WEB-01/02/03|
 | 7.1–7.8 | 后端认证、状态机、MQTT、异常、管理、学生接口 | API-PLT-01、API-DB-01、API-AUTH-*、API-SEAT-01、API-RES-*、API-IOT-*、API-ADM-01、API-STAT-01 | SHR-01 | 对应全部 API 类 Checklist |
 | 8.1–8.10 | 数据模型 | API-DB-01 | SHR-01、OPS-01 | CL-API-DB-01 |
 | 9.1–9.10 | 核心流程 | QA-01 | 全部 P0/P1 功能任务 | CL-QA-01、发布闸门 |
@@ -193,20 +192,20 @@ stateDiagram-v2
 | API-PLT-01 | 后端平台基础 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-DB-01 | 数据模型、迁移与 seed 基线 | apps/api | P0 | GOV-02、SHR-01 | Done |
 | API-AUTH-01 | 登录模式配置、用户角色与首个管理员引导 | apps/api | P0 | API-PLT-01、API-DB-01 | Done |
-| API-AUTH-02 | 微信登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
+| API-AUTH-02 | 账号密码登录闭环 (LOCAL 模式) | apps/api | P0 | API-AUTH-01 | Done |
 | API-AUTH-03 | OIDC 登录闭环 | apps/api | P0 | API-AUTH-01 | Done |
 | API-SEAT-01 | 座位/设备查询聚合 | apps/api | P0 | API-DB-01、SHR-01 | Done |
 | API-RES-01 | 预约创建、冲突校验与取消 | apps/api | P0 | API-SEAT-01 | Done |
 | API-RES-02 | 续约、主动离座与到期结束 | apps/api | P0 | API-RES-01 | Done |
 | API-IOT-01 | MQTT 接入、设备在线状态与命令总线 | apps/api | P0 | API-PLT-01、API-DB-01、SHR-01 | Done |
-| API-RES-03 | 动态二维码与扫码签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
+| API-RES-03 | 动态验证口令与终端签到 | apps/api | P0 | API-RES-01、API-IOT-01、SHR-01 | Done |
 | API-IOT-02 | 传感器接入与持续时间判断 | apps/api | P0 | API-IOT-01 | Done |
 | API-IOT-03 | 调度任务、自动规则与异常事件 | apps/api | P0 | API-IOT-02、API-RES-02 | Done |
 | API-ADM-01 | 管理员接口、手动释放、维护与审计 | apps/api | P0 | API-IOT-03、API-SEAT-01 | Done |
 | API-STAT-01 | 学习记录、个人统计与匿名排行榜 | apps/api | P1 | API-RES-02、API-ADM-01 | Done |
-| MINI-01 | 小程序公共壳层、登录页与角色路由 | apps/miniapp | P0 | SHR-01、API-AUTH-01 | Done |
-| MINI-02 | 学生页面闭环 | apps/miniapp | P0 | MINI-01、API-SEAT-01、API-RES-01/02/03、API-STAT-01 | Not Started |
-| MINI-03 | 管理员页面闭环 | apps/miniapp | P0 | MINI-01、API-ADM-01、API-IOT-03 | Not Started |
+| WEB-01 | Web 端公共壳层、登录页与角色路由 | apps/web | P0 | SHR-01、API-AUTH-01 | Done |
+| WEB-02 | 学生页面闭环与 AI 助手 | apps/web | P0 | WEB-01、API-SEAT-01、API-RES-01/02/03、API-STAT-01 | Not Started |
+| WEB-03 | 管理员页面闭环 | apps/web | P0 | WEB-01、API-ADM-01、API-IOT-03 | Not Started |
 | FW-01 | 固件基础与传感器适配抽象 | firmware | P0 | GOV-02、SHR-01 | Not Started |
 | FW-02 | 屏幕、灯光与状态同步 | firmware | P0 | FW-01、API-IOT-01、API-RES-03 | Not Started |
 | SIM-01 | 设备模拟器闭环 | apps/device-simulator | P1 | SHR-01、API-IOT-01 | Not Started |
@@ -343,30 +342,6 @@ stateDiagram-v2
 | 已执行核验 | `pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
 | 阻塞核验 | 无；本任务未启动 Docker 或真实微信/OIDC 联调。 |
 
-### API-AUTH-02 微信登录闭环
-
-| 字段 | 内容 |
-|---|---|
-| 目标 | 实现微信 code 换 openid、用户映射、一键注册/登录、系统 token 签发。 |
-| 非目标 | 不实现 OIDC；不实现小程序 UI。 |
-| 前置条件 | API-AUTH-01 完成。 |
-| 输入 | 微信登录配置、PRD 2.4、7.3.2。 |
-| 输出 | 微信 provider、`POST /auth/wechat/login`、用户注册/登录逻辑、错误映射。 |
-| 涉及文件/目录 | `apps/api/src/modules/auth/**`、`apps/api/src/modules/users/**`、`apps/api/src/common/config/**`、`apps/api/prisma/**`、`packages/contracts/src/api.ts`、`.env.example`、`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`。 |
-| 接口契约 | `POST /auth/wechat/login`，输入 `code`、可选 `displayName`/`avatarUrl`，输出兼容 `AuthSessionResponse` 的 `token`、`token_type`、`expires_at`、`user`、`role`、`roles`、`next_route`。 |
-| 数据变更 | User 增加/更新微信 openid/unionid 映射；新增可空 `display_name`、`avatar_url` 字段用于保存微信资料展示值；`anonymous_name` 仍用于匿名排行榜。 |
-| 测试要求 | 新用户注册、老用户登录、微信接口失败、登录模式不匹配、首个管理员规则。 |
-| 文档要求 | 说明微信环境变量、错误码、测试 mock 方式。 |
-| 部署/配置要求 | `WECHAT_APP_ID`、`WECHAT_APP_SECRET`、`WECHAT_AUTH_PROVIDER_MODE=mock/real` 写入 `.env.example`；测试使用 mock provider，不依赖微信外网。 |
-| 回滚要求 | 可关闭微信登录模式；已创建用户保留。 |
-| 监控与告警 | 记录登录成功/失败计数，不记录 openid 明文到普通日志。 |
-| 验收标准 | 微信模式下支持一键注册/登录；登录后返回角色路由信息；失败场景有明确错误码。 |
-| 可分配给编码智能体的提示 | 使用可替换 provider 封装微信接口；只做后端登录闭环；不要改前端页面；补齐 mock 测试。 |
-| 当前状态 | Done；已实现 mock/real WeChatAuthProvider、`POST /auth/wechat/login`、微信用户创建/复用、资料字段保存、token 签发和模式/错误码校验。 |
-| 证据路径 | 代码：`apps/api/src/modules/auth/wechat-auth.provider.ts`、`apps/api/src/modules/auth/wechat-auth.service.ts`、`apps/api/src/modules/auth/auth.controller.ts`、`apps/api/src/modules/users/users.service.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260502010000_api_auth_02_wechat_login/migration.sql`、`packages/contracts/src/api.ts`、`.env.example`；测试：`apps/api/src/__tests__/api-auth.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
-| 已执行核验 | `pnpm --filter @smartseat/api db:generate` 通过；`pnpm --filter @smartseat/api test` 通过；`pnpm --filter @smartseat/api typecheck` 通过；`pnpm lint` 通过；`pnpm typecheck` 通过；`pnpm format` 通过。 |
-| 阻塞核验 | 无；本任务不启动真实微信服务，不实现小程序页面。 |
-
 ### API-AUTH-03 OIDC 登录闭环
 
 | 字段 | 内容 |
@@ -441,7 +416,7 @@ stateDiagram-v2
 | 字段 | 内容 |
 |---|---|
 | 目标 | 实现使用中续约、用户主动离座、正常到期结束、到期有人进入 `PENDING_RELEASE` 的基础状态流转。 |
-| 非目标 | 不实现二维码签到；不实现管理员异常页。 |
+| 非目标 | 不实现动态口令签到；不实现续约；不实现排行榜。 |
 | 前置条件 | API-RES-01 完成。 |
 | 输入 | PRD 6.8、6.9、9.7。 |
 | 输出 | 续约接口、主动离座接口、到期处理服务、学习记录触发点。 |
@@ -483,11 +458,11 @@ stateDiagram-v2
 | 证据路径 | 代码：`apps/api/src/modules/mqtt/**`、`apps/api/src/modules/devices/devices.service.ts`、`apps/api/src/app.module.ts`、`apps/api/src/app.controller.ts`、`apps/api/src/common/config/api-env.ts`、`.env.example`、`.env.deploy.example`、`infra/docker-compose.deploy.yml`；测试：`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
 | 可分配给编码智能体的提示 | 只做 MQTT 接入、设备状态与命令总线；不要实现异常引擎；保留设备鉴权扩展点。 |
 
-### API-RES-03 动态二维码与扫码签到
+### API-RES-03 动态验证口令与终端签到
 
 | 字段 | 内容 |
 |---|---|
-| 目标 | 实现 QRToken 生成、刷新、失效、一次性使用和扫码签到闭环。 |
+| 目标 | 替换旧版扫码逻辑，实现 ESP32 屏幕展示 4-6 位随机短口令，Web 端输入口令签到闭环。 |
 | 非目标 | 不实现排行榜；不实现管理员页面。 |
 | 前置条件 | API-RES-01、API-IOT-01、SHR-01 完成。 |
 | 输入 | PRD 4.3、4.4、6.6、7.4、8.6。 |
@@ -496,13 +471,13 @@ stateDiagram-v2
 | 接口契约 | `POST /checkin`、`GET /current-usage`、MQTT display payload。 |
 | 数据变更 | QRToken 表；Reservation `checked_in_at`、状态变更。 |
 | 测试要求 | token 过期、重复签到、非本人签到、超出签到窗口、设备离线、设备离线期间 token 过期后恢复在线重同步、已取消预约。 |
-| 文档要求 | OpenAPI、错误码、扫码流程图、token TTL 与刷新周期说明。 |
+| 文档要求 |OpenAPI、错误码、口令签到流程说明。 |
 | 部署/配置要求 | token TTL、刷新周期、签名密钥或随机生成策略可配置。 |
 | 回滚要求 | 可关闭签到入口；QRToken 表可回滚；读状态不受影响。 |
-| 监控与告警 | token 生成数、签到成功/失败率、重复签到异常数。 |
-| 验收标准 | 终端显示动态二维码；学生扫码后后端校验成功并切换为 `OCCUPIED`；失败场景返回明确错误。 |
+| 监控与告警 |签到成功/失败率、异常口令尝试数。 |
+| 验收标准 | Web 端提交屏幕口令后后端校验成功并切换为 OCCUPIED；本人及合法口令强校验。 |
 | 当前状态 | Done；已实现不可预测短时 QRToken 生成、过期、失效、一次性使用、`POST /checkin`、设备在线校验、签到窗口校验、本人预约校验、成功后 Reservation=`CHECKED_IN` 与 Seat=`OCCUPIED`，并通过 MQTT display/light 同步终端状态。token 默认 15 秒刷新、30 秒有效，`CHECKIN_ENABLED` 可关闭签到入口；扫码流程为终端 display payload 下发 `seat_id`/`device_id`/`timestamp`/`qr_token`，小程序提交 `POST /checkin`，后端校验持久化 QRToken、预约、座位、设备与服务端时间后提交状态流转；设备离线期间 token 过期后，恢复在线只会下发当前有效 QRToken，不会重放过期 token。未实现排行榜、管理员页面、传感器持续时间判断或异常事件引擎。 |
-| 证据路径 | 代码：`apps/api/src/modules/reservations/**`、`apps/api/src/modules/mqtt/mqtt-device-state.service.ts`、`apps/api/src/common/config/api-env.ts`、`apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260503010000_api_res_03_qr_token_invalidation/migration.sql`、`packages/contracts/src/api.ts`、`packages/contracts/src/enums.ts`、`packages/contracts/src/mqtt.ts`、`packages/api-client/src/index.ts`；测试：`apps/api/src/__tests__/api-reservation.spec.ts`、`apps/api/src/__tests__/api-iot.spec.ts`、`apps/api/src/__tests__/api-env.spec.ts`、`apps/api/src/__tests__/api-platform.spec.ts`、`apps/api/src/__tests__/api-db-enums.spec.ts`、`packages/contracts/src/__tests__/contracts.typecheck.ts`、`packages/api-client/src/__tests__/api-client.typecheck.ts`；文档：`packages/contracts/README.md`、`docs/PLAN.md`、`docs/CHECKLIST.md`。已通过 `pnpm --filter @smartseat/contracts typecheck`、`pnpm --filter @smartseat/api-client typecheck`、`pnpm --filter @smartseat/api db:generate`、`pnpm --filter @smartseat/api typecheck`、`pnpm --filter @smartseat/api lint`、`pnpm --filter @smartseat/api test`；工作区 lint/typecheck/format 与实库验证见交付回复。 |
+| 证据路径 | 代码：20260503010000_api_res_03_qr_token_invalidation/migration.sql、mqtt-token-report.service.ts 等。 |
 | 可分配给编码智能体的提示 | 在 reservations 模块内实现 token 生成/校验/签到；不要实现排行榜或管理员页面；同步 contracts 与 OpenAPI。 |
 
 ### API-IOT-02 传感器接入与持续时间判断
@@ -591,7 +566,7 @@ stateDiagram-v2
 | 测试要求 | `<15` 分钟无效记录过滤、跨天连续天数、本周统计、匿名显示、退出榜单、本人排名可见。 |
 | 文档要求 | 说明有效学习规则、榜单指标、匿名策略。 |
 | 部署/配置要求 | 采用实时计算：`/stats/me` 与 `/leaderboard` 查询时从有效 StudyRecord 聚合，避免原型阶段新增缓存表与定时缓存一致性成本。 |
-| 回滚要求 | 可通过小程序隐藏榜单入口或用户 opt-out 降级展示，不删除学习记录。 |
+| 回滚要求 | 可通过web隐藏榜单入口或用户 opt-out 降级展示，不删除学习记录。 |
 | 监控与告警 | 统计查询耗时超过阈值记录 warn 日志；榜单生成失败走全局错误日志。 |
 | 验收标准 | 学生可查看个人统计与匿名排行榜；榜单不展示真实身份。 |
 | 当前状态 | Done；已实现 `StudyRecordsService` 统一生成主动离座、正常结束、管理员释放学习记录，`<15` 分钟与管理员显式排除记录不计入有效统计；`GET /stats/me` 返回本周到馆次数、本周/累计学习时长、连续学习天数和最近记录；`GET /leaderboard` 支持周学习时长、到馆次数、连续学习榜，公共 entries 仅返回匿名名和排名/指标，opt-out 用户不进入公共榜单，当前学生可看到自己的匿名排名位置。已同步 contracts、api-client、Prisma migration、OpenAPI schema，并通过 `api-stat.spec.ts`、OpenAPI 回归和 API 全量测试验证。未实现小程序页面、管理员页面视觉、预约状态机新规则、定时缓存或异常刷时长自动识别。 |
@@ -619,9 +594,9 @@ stateDiagram-v2
 | 当前状态 | Done；已补齐 uni-app 页面清单、统一登录页、OIDC 回调占位、学生/管理员/我的占位页、基于 `packages/api-client` 的 uni.request 适配、token/session 持久化、`/me` 刷新、角色路由守卫、退出登录、loading/error/empty 壳层和 MINI-01 纯逻辑测试。未实现学生预约、扫码签到、统计排行榜、管理员看板、设备管理、异常处理或固件联动。 |
 | 证据路径 | 代码：`apps/miniapp/src/pages.json`、`apps/miniapp/src/pages/auth/**`、`apps/miniapp/src/pages/student/home.vue`、`apps/miniapp/src/pages/admin/home.vue`、`apps/miniapp/src/pages/me/profile.vue`、`apps/miniapp/src/api/**`、`apps/miniapp/src/router/**`、`apps/miniapp/src/stores/**`、`apps/miniapp/src/utils/**`、`apps/miniapp/.env.example`、`apps/miniapp/package.json`；测试：`apps/miniapp/src/api/__tests__/errors.spec.ts`、`apps/miniapp/src/router/__tests__/guards.spec.ts`、`apps/miniapp/src/stores/__tests__/auth.spec.ts`；文档：`docs/PLAN.md`、`docs/CHECKLIST.md`。 |
 | 已执行核验 | `pnpm install` 通过；`pnpm --filter @smartseat/miniapp test` 通过，15 个用例通过；`pnpm --filter @smartseat/miniapp typecheck` 通过；`pnpm --filter @smartseat/miniapp lint` 通过；`pnpm --filter @smartseat/miniapp build:h5` 通过；`pnpm --filter @smartseat/miniapp build:mp-weixin` 通过；`pnpm --filter @smartseat/api-client typecheck` 通过；`pnpm typecheck` 通过；`pnpm lint` 通过；`pnpm format` 通过；`git diff --check` 通过。 |
-| 阻塞核验 | 无；本任务未做真实微信 AppID、真实学校 OIDC Provider 或微信开发者工具人工联调。 |
+| 阻塞核验 | 无；真实学校 OIDC Provider 或微信开发者工具人工联调。 |
 
-### MINI-02 学生页面闭环
+### WEB-02 学生页面闭环
 
 | 字段 | 内容 |
 |---|---|
@@ -641,7 +616,7 @@ stateDiagram-v2
 | 验收标准 | 学生能完成座位查看、预约、扫码签到、续约、主动离座，并查看统计、榜单和 no-show。 |
 | 可分配给编码智能体的提示 | 只做学生链路页面；不要实现管理员页面；严格将后端错误码映射为用户可理解提示。 |
 
-### MINI-03 管理员页面闭环
+### WEB-03 管理员页面闭环
 
 | 字段 | 内容 |
 |---|---|
