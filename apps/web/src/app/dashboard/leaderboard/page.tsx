@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import {
   LeaderboardMetric,
   LeaderboardTimePeriod,
@@ -52,9 +53,12 @@ function Avatar({
 
   if (user.avatar_url) {
     return (
-      <img
+      <Image
         src={user.avatar_url}
         alt={user.anonymous_name}
+        width={64}
+        height={64}
+        unoptimized
         className={`${sizeClass} rounded-full object-cover ${
           highlighted ? 'ring-2 ring-offset-2 ring-amber-400 dark:ring-amber-500' : ''
         }`}
@@ -105,27 +109,19 @@ export default function LeaderboardPage() {
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const load = useCallback(
-    async (m: LeaderboardMetric, tp: LeaderboardTimePeriod) => {
-      setLoading(true);
-      setError('');
-      try {
-        const api = getApiClient();
-        const result = await api.leaderboard.get({ metric: m, time_period: tp });
-        setData(result);
-      } catch {
-        setError('无法加载排行榜数据');
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    load(metric, timePeriod);
-  }, [metric, timePeriod, load]);
+    let ignore = false;
+    const api = getApiClient();
+    Promise.resolve()
+      .then(() => { if (!ignore) { setLoading(true); setError(''); } })
+      .then(() => api.leaderboard.get({ metric, time_period: timePeriod }))
+      .then((result) => { if (!ignore) setData(result); })
+      .catch(() => { if (!ignore) setError('无法加载排行榜数据'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [metric, timePeriod, retryKey]);
 
   const top3 = data?.entries.slice(0, 3) ?? [];
   const rest = data?.entries.slice(3) ?? [];
@@ -145,7 +141,7 @@ export default function LeaderboardPage() {
   const [p1, p2, p3] = podiumOrder;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex-1 flex flex-col">
       {/* Page title */}
       <h1 className="text-xl font-bold text-center text-slate-800 dark:text-slate-100">
         学习排行榜
@@ -202,7 +198,7 @@ export default function LeaderboardPage() {
       {error && !loading && (
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-xl px-4 py-3 text-red-600 dark:text-red-400 text-sm text-center">
           {error}
-          <button onClick={() => load(metric, timePeriod)} className="ml-3 underline">
+          <button onClick={() => setRetryKey((k) => k + 1)} className="ml-3 underline">
             重试
           </button>
         </div>
@@ -298,7 +294,7 @@ export default function LeaderboardPage() {
 
       {/* Ranking list (4th and beyond) */}
       {!loading && rest.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="rounded-xl border border-white/40 overflow-hidden" style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }}>
           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">完整排名</p>
           </div>

@@ -1,62 +1,38 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Layout, Menu, Button } from 'antd';
+import {
+  DashboardOutlined,
+  AppstoreOutlined,
+  AlertOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  ArrowLeftOutlined,
+  MenuOutlined,
+  SafetyOutlined
+} from '@ant-design/icons';
 import { getApiClient } from '@/lib/api';
 import { logout } from '@/lib/auth';
 import type { UserRole } from '@smartseat/contracts';
 
+const { Sider, Header, Content } = Layout;
+
 const adminNavItems = [
-  {
-    href: '/dashboard/admin',
-    label: '全局看板',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" />
-      </svg>
-    )
-  },
-  {
-    href: '/dashboard/admin/seats',
-    label: '座位与终端管理',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-      </svg>
-    )
-  },
-  {
-    href: '/dashboard/admin/anomalies',
-    label: '异常事件处理',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-      </svg>
-    )
-  },
-  {
-    href: '/dashboard/admin/settings',
-    label: '系统安全设置',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      </svg>
-    )
-  }
+  { key: '/dashboard/admin', label: '全局看板', icon: <DashboardOutlined /> },
+  { key: '/dashboard/admin/seats', label: '座位与终端管理', icon: <AppstoreOutlined /> },
+  { key: '/dashboard/admin/anomalies', label: '异常事件处理', icon: <AlertOutlined /> },
+  { key: '/dashboard/admin/settings', label: '系统安全设置', icon: <SettingOutlined /> }
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const api = getApiClient();
     api.me.get()
@@ -68,15 +44,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           router.replace('/dashboard');
         }
       })
-      .catch(() => {
-        router.replace('/login');
-      })
+      .catch(() => router.replace('/login'))
       .finally(() => setLoading(false));
   }, [router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -84,105 +58,115 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!authorized) return null;
 
-  return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar overlay for mobile */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+  const selectedKey = adminNavItems.find((i) => i.key === pathname)?.key ?? '/dashboard/admin';
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex flex-col h-full">
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-200 dark:border-slate-800">
-            <div className="w-9 h-9 rounded-xl bg-red-600 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="font-semibold text-slate-800 dark:text-white text-sm">管理后台</h2>
-              <p className="text-xs text-slate-500">系统管理控制台</p>
-            </div>
-          </div>
-
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {adminNavItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800 space-y-1">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              返回学生首页
-            </Link>
-            <button
-              onClick={() => logout()}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 w-full transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-              </svg>
-              退出登录
-            </button>
-          </div>
+  const siderMenu = (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/20 dark:border-white/10">
+        <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center shrink-0">
+          <SafetyOutlined className="text-white text-base" />
         </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between px-4 py-3">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-            </button>
-            <h1 className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {adminNavItems.find((i) => i.href === pathname)?.label ?? '管理后台'}
-            </h1>
-            <div className="w-9" />
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <div className="font-semibold text-sm whitespace-nowrap">管理后台</div>
+            <div className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">系统管理控制台</div>
           </div>
-        </header>
+        )}
+      </div>
 
-        <main className="flex-1 p-4 sm:p-6 w-full">
-          {children}
-        </main>
+      <Menu
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={adminNavItems}
+        onClick={({ key }) => router.push(key)}
+        className="flex-1 border-r-0 pt-2 bg-transparent"
+      />
+
+      <div className="border-t border-white/20 dark:border-white/10 pt-2 pb-3 px-2">
+        <Menu
+          mode="inline"
+          selectedKeys={[]}
+          items={[
+            { key: '/dashboard', label: '返回学生首页', icon: <ArrowLeftOutlined /> },
+            { key: 'logout', label: '退出登录', icon: <LogoutOutlined /> }
+          ]}
+          onClick={({ key }) => {
+            if (key === 'logout') logout();
+            else router.push(key);
+          }}
+          className="border-r-0 bg-transparent"
+        />
       </div>
     </div>
+  );
+
+  return (
+    <Layout className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        trigger={null}
+        breakpoint="lg"
+        collapsedWidth={0}
+        className="hidden lg:block"
+        width={240}
+        style={{
+          background: 'rgba(255,255,255,0.6)',
+          backdropFilter: 'blur(16px)',
+          borderRight: '1px solid rgba(255,255,255,0.4)'
+        }}
+      >
+        {siderMenu}
+      </Sider>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <div
+            className="absolute inset-y-0 left-0 w-60 shadow-2xl"
+            style={{
+              background: 'rgba(255,255,255,0.85)',
+              backdropFilter: 'blur(20px)',
+              borderRight: '1px solid rgba(255,255,255,0.5)'
+            }}
+          >
+            {siderMenu}
+          </div>
+        </div>
+      )}
+
+      <Layout className="flex-1 min-h-0 bg-transparent">
+        <Header
+          className="flex items-center gap-4 px-4 sticky top-0 z-30"
+          style={{
+            background: 'rgba(255,255,255,0.6)',
+            backdropFilter: 'blur(16px)',
+            borderBottom: '1px solid rgba(255,255,255,0.4)',
+            height: 48,
+            lineHeight: '48px'
+          }}
+        >
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden"
+          />
+          <span className="text-sm font-medium text-slate-600">
+            {adminNavItems.find((i) => i.key === pathname)?.label ?? '管理后台'}
+          </span>
+        </Header>
+
+        <Content
+          className="p-4 sm:p-6 w-full flex flex-col overflow-x-hidden"
+          style={{ minHeight: 'calc(100vh - 48px)' }}
+        >
+          <div className="flex-1 flex flex-col">
+            {children}
+          </div>
+        </Content>
+      </Layout>
+    </Layout>
   );
 }

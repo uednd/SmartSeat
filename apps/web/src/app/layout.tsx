@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClientToastProvider } from "@/lib/toast-provider";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
+import { ConfigProvider, App, theme } from "antd";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +30,19 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <ClientToastProvider>{children}</ClientToastProvider>
+        <AntdRegistry>
+          <ConfigProvider
+            theme={{
+              token: {
+                borderRadius: 6,
+                colorPrimary: "#1677ff",
+              },
+              algorithm: theme.defaultAlgorithm,
+            }}
+          >
+            <App>{children}</App>
+          </ConfigProvider>
+        </AntdRegistry>
       </body>
     </html>
   );

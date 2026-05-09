@@ -1,75 +1,25 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { getApiClient } from '@/lib/api';
-import { useToast } from '@/lib/toast';
+import { Table, Tag, Button, Modal, Input, Space, Empty, App } from 'antd';
+import { SeatStatus, DeviceOnlineStatus } from '@smartseat/contracts';
 import type { AdminSeatOverviewDto } from '@smartseat/contracts';
-import { SeatStatus, PresenceStatus, DeviceOnlineStatus } from '@smartseat/contracts';
 
-interface ReleaseModalProps {
-  seat: AdminSeatOverviewDto;
-  onClose: () => void;
-  onConfirm: (reason: string) => void;
-  loading: boolean;
-}
+const statusTagMap: Record<string, { label: string; color: string }> = {
+  FREE: { label: '空闲', color: 'success' },
+  RESERVED: { label: '已预约', color: 'warning' },
+  OCCUPIED: { label: '使用中', color: 'error' },
+  ENDING_SOON: { label: '即将结束', color: 'processing' },
+  PENDING_RELEASE: { label: '待释放', color: 'default' }
+};
 
-function ReleaseModal({ seat, onClose, onConfirm, loading }: ReleaseModalProps) {
-  const [reason, setReason] = useState('');
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">强制释放座位</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          您正在强制释放座位 <strong>{seat.seat_no}</strong>（{seat.area}）
-        </p>
-
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-            释放原因 <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-            rows={3}
-            placeholder="请输入强制释放的原因..."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
-          >
-            取消
-          </button>
-          <button
-            onClick={() => onConfirm(reason)}
-            disabled={!reason.trim() || loading}
-            className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? '处理中...' : '确认强制释放'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function statusBadge(status: SeatStatus) {
-  const map: Record<string, { label: string; cls: string }> = {
-    FREE: { label: '空闲', cls: 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' },
-    RESERVED: { label: '已预约', cls: 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400' },
-    OCCUPIED: { label: '使用中', cls: 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-400' },
-    ENDING_SOON: { label: '即将结束', cls: 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400' },
-    PENDING_RELEASE: { label: '待释放', cls: 'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400' }
-  };
-  const info = map[status] ?? { label: status, cls: 'bg-slate-100 text-slate-600' };
-  return <span className={`text-xs font-medium px-2 py-0.5 rounded ${info.cls}`}>{info.label}</span>;
-}
+const presenceTagMap: Record<string, { label: string; color: string }> = {
+  PRESENT: { label: '在位', color: 'success' },
+  ABSENT: { label: '离位', color: 'error' },
+  UNKNOWN: { label: '未知', color: 'default' },
+  ERROR: { label: '异常', color: 'error' }
+};
 
 export default function AdminSeatsPage() {
   const [seats, setSeats] = useState<AdminSeatOverviewDto[]>([]);
@@ -77,227 +27,179 @@ export default function AdminSeatsPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [maintenanceLoading, setMaintenanceLoading] = useState<Record<string, boolean>>({});
 
   const [releaseTarget, setReleaseTarget] = useState<AdminSeatOverviewDto | null>(null);
+  const [releaseReason, setReleaseReason] = useState('');
   const [releaseLoading, setReleaseLoading] = useState(false);
 
-  const [maintenanceLoading, setMaintenanceLoading] = useState<Record<string, boolean>>({});
-  const { showToast } = useToast();
-
+  const { message } = App.useApp();
   const pageSize = 20;
 
-  const fetchSeats = useCallback(async (p: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const api = getApiClient();
-      const result = await api.admin.seats({ page: p, page_size: pageSize });
-      setSeats(result.items);
-      setTotal(result.total);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load seats');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  async function fetchSeats(p: number) {
+    const api = getApiClient();
+    return api.admin.seats({ page: p, page_size: pageSize });
+  }
 
   useEffect(() => {
-    fetchSeats(page);
-  }, [page, fetchSeats]);
+    let ignore = false;
+    Promise.resolve()
+      .then(() => { if (!ignore) { setLoading(true); setError(null); } })
+      .then(() => fetchSeats(page))
+      .then((result) => { if (!ignore) { setSeats(result.items); setTotal(result.total); } })
+      .catch((err) => { if (!ignore) setError(err instanceof Error ? err.message : 'Failed to load seats'); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
+  }, [page]);
 
   const handleMaintenanceToggle = async (seat: AdminSeatOverviewDto) => {
     const newMaintenance = !seat.maintenance;
-    const reason = newMaintenance ? '管理员手动进入维护模式' : '管理员手动恢复正常';
-
     setMaintenanceLoading((prev) => ({ ...prev, [seat.seat_id]: true }));
     try {
       const api = getApiClient();
       await api.admin.setSeatMaintenance({
         seat_id: seat.seat_id,
         maintenance: newMaintenance,
-        reason
+        reason: newMaintenance ? '管理员手动进入维护模式' : '管理员手动恢复正常'
       });
-      showToast('success', newMaintenance ? `座位 ${seat.seat_no} 已进入维护模式` : `座位 ${seat.seat_no} 已恢复正常`);
+      message.success(newMaintenance ? `座位 ${seat.seat_no} 已进入维护模式` : `座位 ${seat.seat_no} 已恢复正常`);
       fetchSeats(page);
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : '操作失败');
+      message.error(err instanceof Error ? err.message : '操作失败');
     } finally {
       setMaintenanceLoading((prev) => ({ ...prev, [seat.seat_id]: false }));
     }
   };
 
-  const handleRelease = async (reason: string) => {
-    if (!releaseTarget) return;
+  const handleRelease = async () => {
+    if (!releaseTarget || !releaseReason.trim()) return;
     setReleaseLoading(true);
     try {
       const api = getApiClient();
       await api.admin.releaseSeat({
         seat_id: releaseTarget.seat_id,
-        reason,
+        reason: releaseReason,
         restore_availability: true,
         exclude_study_record: false
       });
-      showToast('success', `座位 ${releaseTarget.seat_no} 已强制释放`);
+      message.success(`座位 ${releaseTarget.seat_no} 已强制释放`);
       setReleaseTarget(null);
+      setReleaseReason('');
       fetchSeats(page);
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : '释放失败');
+      message.error(err instanceof Error ? err.message : '释放失败');
     } finally {
       setReleaseLoading(false);
     }
   };
 
-  const totalPages = Math.ceil(total / pageSize);
-
   if (error) {
-    return (
-      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl p-6 text-red-700 dark:text-red-400 text-sm">
-        {error}
-      </div>
-    );
+    return <div className="text-center py-24 text-red-500">{error}</div>;
   }
 
+  const columns = [
+    { title: '座位号', dataIndex: 'seat_no', key: 'seat_no', width: 100 },
+    { title: '区域', dataIndex: 'area', key: 'area', width: 100 },
+    {
+      title: '状态', dataIndex: 'business_status', key: 'status', width: 100,
+      render: (s: string) => {
+        const info = statusTagMap[s] ?? { label: s, color: 'default' };
+        return <Tag color={info.color}>{info.label}</Tag>;
+      }
+    },
+    {
+      title: '在位检测', dataIndex: 'presence_status', key: 'presence', width: 100,
+      render: (s: string) => {
+        const info = presenceTagMap[s] ?? { label: s, color: 'default' };
+        return <Tag color={info.color}>{info.label}</Tag>;
+      }
+    },
+    {
+      title: '绑定设备', dataIndex: 'device', key: 'device', width: 160,
+      render: (d: AdminSeatOverviewDto['device']) => {
+        if (!d) return <span className="text-slate-400 text-xs">未绑定</span>;
+        const online = d.online_status === DeviceOnlineStatus.ONLINE;
+        return (
+          <Space size={4}>
+            <span className={`inline-block w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+            <span className="text-xs">{online ? '在线' : '离线'}</span>
+            <span className="text-xs text-slate-400">{d.device_id.slice(0, 8)}...</span>
+          </Space>
+        );
+      }
+    },
+    {
+      title: '维护模式', dataIndex: 'maintenance', key: 'maintenance', width: 90,
+      render: (v: boolean) => v ? <Tag color="warning">维护中</Tag> : <span className="text-xs text-slate-400">正常</span>
+    },
+    {
+      title: '操作', key: 'actions', width: 200,
+      render: (_: unknown, record: AdminSeatOverviewDto) => {
+        const isOccupied = record.business_status === SeatStatus.OCCUPIED || record.business_status === SeatStatus.RESERVED;
+        return (
+          <Space size={4}>
+            <Button
+              size="small"
+              loading={maintenanceLoading[record.seat_id]}
+              onClick={() => handleMaintenanceToggle(record)}
+            >
+              {record.maintenance ? '恢复正常' : '维护模式'}
+            </Button>
+            {isOccupied && (
+              <Button size="small" danger onClick={() => setReleaseTarget(record)}>
+                强制释放
+              </Button>
+            )}
+          </Space>
+        );
+      }
+    }
+  ];
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900 dark:text-white">座位与终端管理</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          管理所有座位及绑定设备，执行维护与强制释放操作
-        </p>
-      </div>
+    <div className="space-y-4 flex-1 flex flex-col">
+      <h1 className="text-lg font-semibold">座位与终端管理</h1>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">座位号</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">区域</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">状态</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">在位检测</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">绑定设备</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">维护模式</th>
-                <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-400">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-24 text-center">
-                    <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                  </td>
-                </tr>
-              ) : seats.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-24 text-center text-sm text-slate-400">暂无座位数据</td>
-                </tr>
-              ) : (
-                seats.map((seat) => {
-                  const deviceOnline = seat.device?.online_status === DeviceOnlineStatus.ONLINE;
-                  const isOccupied = seat.business_status === SeatStatus.OCCUPIED || seat.business_status === SeatStatus.RESERVED;
+      <Table
+        columns={columns}
+        dataSource={seats}
+        rowKey="seat_id"
+        loading={loading}
+        scroll={{ x: 900 }}
+        locale={{ emptyText: <Empty description="暂无座位数据" /> }}
+        pagination={{
+          current: page,
+          pageSize,
+          total,
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p) => setPage(p)
+        }}
+      />
 
-                  return (
-                    <tr key={seat.seat_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{seat.seat_no}</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{seat.area}</td>
-                      <td className="px-4 py-3">{statusBadge(seat.business_status)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                          seat.presence_status === PresenceStatus.PRESENT
-                            ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400'
-                            : seat.presence_status === PresenceStatus.ABSENT
-                            ? 'bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                        }`}>
-                          {seat.presence_status === PresenceStatus.PRESENT ? '在位' : seat.presence_status === PresenceStatus.ABSENT ? '离位' : '未知'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                        {seat.device ? (
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${deviceOnline ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                            <span className="text-xs">{deviceOnline ? '在线' : '离线'}</span>
-                            <span className="text-xs text-slate-400">{seat.device.device_id.slice(0, 8)}...</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">未绑定</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {seat.maintenance ? (
-                          <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400">维护中</span>
-                        ) : (
-                          <span className="text-xs text-slate-400">正常</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleMaintenanceToggle(seat)}
-                            disabled={maintenanceLoading[seat.seat_id]}
-                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-                              seat.maintenance
-                                ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900'
-                                : 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900'
-                            }`}
-                          >
-                            {seat.maintenance ? '恢复正常' : '维护模式'}
-                          </button>
-                          {isOccupied && (
-                            <button
-                              onClick={() => setReleaseTarget(seat)}
-                              className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
-                            >
-                              强制释放
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-xs text-slate-500">共 {total} 条记录</p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
-              >
-                上一页
-              </button>
-              <span className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
-                {page} / {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
-              >
-                下一页
-              </button>
-            </div>
+      <Modal
+        title="强制释放座位"
+        open={!!releaseTarget}
+        onCancel={() => { setReleaseTarget(null); setReleaseReason(''); }}
+        onOk={handleRelease}
+        confirmLoading={releaseLoading}
+        okText="确认强制释放"
+        okButtonProps={{ danger: true, disabled: !releaseReason.trim() }}
+        cancelText="取消"
+      >
+        {releaseTarget && (
+          <div className="pt-2">
+            <p className="text-sm text-slate-500 mb-3">
+              您正在强制释放座位 <strong>{releaseTarget.seat_no}</strong>（{releaseTarget.area}）
+            </p>
+            <Input.TextArea
+              rows={3}
+              placeholder="请输入强制释放的原因（必填）"
+              value={releaseReason}
+              onChange={(e) => setReleaseReason(e.target.value)}
+            />
           </div>
         )}
-      </div>
-
-      {/* Release Modal */}
-      {releaseTarget && (
-        <ReleaseModal
-          seat={releaseTarget}
-          onClose={() => setReleaseTarget(null)}
-          onConfirm={handleRelease}
-          loading={releaseLoading}
-        />
-      )}
+      </Modal>
     </div>
   );
 }

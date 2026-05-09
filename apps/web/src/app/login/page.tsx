@@ -1,38 +1,29 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Form, Input, Button, App } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { login } from '@/lib/auth';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { message } = App.useApp();
+  const router = useRouter();
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError('');
-
-    if (!username.trim()) {
-      setError('请输入账号');
-      return;
-    }
-    if (!password.trim()) {
-      setError('请输入密码');
-      return;
-    }
-
+  async function handleSubmit(values: { username: string; password: string }) {
     setLoading(true);
     try {
-      const result = await login(username, password);
+      const result = await login(values.username, values.password);
       if (result.success) {
+        message.success('登录成功');
         const nextRoute = result.data?.next_route === 'admin' ? '/dashboard/admin' : '/dashboard';
-        window.location.href = nextRoute;
+        router.push(nextRoute);
       } else {
-        setError(result.error ?? '登录失败，请重试');
+        message.error(result.error ?? '登录失败，请重试');
       }
     } catch {
-      setError('网络错误，请检查连接');
+      message.error('网络错误，请检查连接');
     } finally {
       setLoading(false);
     }
@@ -55,51 +46,40 @@ export default function LoginPage() {
             <p className="text-slate-400 mt-2 text-sm">智能图书馆座位管理系统</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1.5">
-                账号
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+          <Form onFinish={handleSubmit} layout="vertical" size="large">
+            <Form.Item
+              name="username"
+              rules={[{ required: true, message: '请输入账号' }]}
+            >
+              <Input
+                prefix={<UserOutlined className="text-slate-400" />}
                 placeholder="输入账号"
                 autoComplete="username"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1.5">
-                密码
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+            <Form.Item
+              name="password"
+              rules={[{ required: true, message: '请输入密码' }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined className="text-slate-400" />}
                 placeholder="输入密码"
                 autoComplete="current-password"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
               />
-            </div>
+            </Form.Item>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            >
-              {loading ? '登录中...' : '登 录'}
-            </button>
-          </form>
+            <Form.Item className="mb-0">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                block
+              >
+                登 录
+              </Button>
+            </Form.Item>
+          </Form>
 
           <p className="text-center text-slate-500 text-xs mt-6">
             开发模式 — 输入任意账号密码即可登录

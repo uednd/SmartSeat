@@ -77,15 +77,16 @@ export default function AIPage() {
       if (!reader) throw new Error('No response body');
 
       const decoder = new TextDecoder();
-      let content = '';
+      let contentRef = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        content += decoder.decode(value, { stream: true });
+        contentRef += decoder.decode(value, { stream: true });
+        const currentContent = contentRef;
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantMsg.id ? { ...m, content } : m))
+          prev.map((m) => (m.id === assistantMsg.id ? { ...m, content: currentContent } : m))
         );
       }
     } catch (err) {
@@ -104,7 +105,7 @@ export default function AIPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto h-[calc(100vh-6rem)] flex flex-col">
+    <div className="w-full h-[calc(100vh-6rem)] flex flex-col overflow-x-hidden">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pr-1">
         {messages.length === 0 && (

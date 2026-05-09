@@ -8,38 +8,15 @@ import {
   type CreateReservationRequest
 } from '@smartseat/contracts';
 import { getApiClient } from '@/lib/api';
+import { Row, Col, Card, Statistic, Tag, Modal, Spin, Empty, App } from 'antd';
+import { EnvironmentOutlined } from '@ant-design/icons';
 
-const statusConfig: Record<SeatStatus, { label: string; bg: string; text: string; ring: string }> = {
-  [SeatStatus.FREE]: {
-    label: '空闲',
-    bg: 'bg-emerald-50 dark:bg-emerald-950',
-    text: 'text-emerald-700 dark:text-emerald-400',
-    ring: 'ring-emerald-400'
-  },
-  [SeatStatus.RESERVED]: {
-    label: '已预约',
-    bg: 'bg-orange-50 dark:bg-orange-950',
-    text: 'text-orange-700 dark:text-orange-400',
-    ring: 'ring-orange-400'
-  },
-  [SeatStatus.OCCUPIED]: {
-    label: '使用中',
-    bg: 'bg-rose-50 dark:bg-rose-950',
-    text: 'text-rose-700 dark:text-rose-400',
-    ring: 'ring-rose-400'
-  },
-  [SeatStatus.ENDING_SOON]: {
-    label: '即将结束',
-    bg: 'bg-amber-50 dark:bg-amber-950',
-    text: 'text-amber-700 dark:text-amber-400',
-    ring: 'ring-amber-400'
-  },
-  [SeatStatus.PENDING_RELEASE]: {
-    label: '待释放',
-    bg: 'bg-slate-100 dark:bg-slate-800',
-    text: 'text-slate-600 dark:text-slate-400',
-    ring: 'ring-slate-400'
-  }
+const statusTagMap: Record<SeatStatus, { label: string; color: string }> = {
+  [SeatStatus.FREE]: { label: '空闲', color: 'success' },
+  [SeatStatus.RESERVED]: { label: '已预约', color: 'warning' },
+  [SeatStatus.OCCUPIED]: { label: '使用中', color: 'error' },
+  [SeatStatus.ENDING_SOON]: { label: '即将结束', color: 'processing' },
+  [SeatStatus.PENDING_RELEASE]: { label: '待释放', color: 'default' }
 };
 
 export default function DashboardPage() {
@@ -51,8 +28,8 @@ export default function DashboardPage() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [reserving, setReserving] = useState(false);
-  const [reserveError, setReserveError] = useState('');
   const [reserveSuccess, setReserveSuccess] = useState(false);
+  const { message } = App.useApp();
 
   useEffect(() => {
     async function loadSeats() {
@@ -85,7 +62,6 @@ export default function DashboardPage() {
     if (seat.business_status !== SeatStatus.FREE) return;
 
     setReserveSeat(seat);
-    setReserveError('');
     setReserveSuccess(false);
 
     const now = new Date();
@@ -100,18 +76,17 @@ export default function DashboardPage() {
 
   async function handleReserve() {
     if (!reserveSeat) return;
-    setReserveError('');
 
     const start = new Date(startTime);
     const end = new Date(endTime);
 
     if (start >= end) {
-      setReserveError('结束时间必须晚于开始时间');
+      message.error('结束时间必须晚于开始时间');
       return;
     }
 
     if (start < new Date()) {
-      setReserveError('开始时间不能早于当前时间');
+      message.error('开始时间不能早于当前时间');
       return;
     }
 
@@ -127,9 +102,7 @@ export default function DashboardPage() {
       setReserveSuccess(true);
       refreshSeats();
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : '预约失败，请重试';
-      setReserveError(msg);
+      message.error(err instanceof Error ? err.message : '预约失败，请重试');
     } finally {
       setReserving(false);
     }
@@ -144,25 +117,28 @@ export default function DashboardPage() {
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 flex-1 min-h-[calc(100vh-8rem)] flex flex-col">
       {/* Stats bar */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-          <p className="text-2xl font-bold text-slate-800 dark:text-white">{seats.length}</p>
-          <p className="text-xs text-slate-500 mt-0.5">总座位</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-          <p className="text-2xl font-bold text-emerald-600">{freeCount}</p>
-          <p className="text-xs text-slate-500 mt-0.5">空闲</p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4">
-          <p className="text-2xl font-bold text-rose-600">{occupiedCount}</p>
-          <p className="text-xs text-slate-500 mt-0.5">使用中</p>
-        </div>
-      </div>
+      <Row gutter={[12, 12]}>
+        <Col span={8}>
+          <Card hoverable size="small" style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }}>
+            <Statistic title="总座位" value={seats.length} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card hoverable size="small" style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }}>
+            <Statistic title="空闲" value={freeCount} styles={{ content: { color: '#10b981' } }} />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card hoverable size="small" style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }}>
+            <Statistic title="使用中" value={occupiedCount} styles={{ content: { color: '#f43f5e' } }} />
+          </Card>
+        </Col>
+      </Row>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-xl px-4 py-3 text-red-600 dark:text-red-400 text-sm">
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-sm">
           {error}
           <button onClick={refreshSeats} className="ml-3 underline">重试</button>
         </div>
@@ -171,137 +147,99 @@ export default function DashboardPage() {
       {/* Seat grid */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <Spin size="large" />
         </div>
+      ) : seats.length === 0 ? (
+        <Empty description="暂无座位数据" />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <Row gutter={[12, 12]}>
           {seats.map((seat) => {
-            const config = statusConfig[seat.business_status];
+            const status = statusTagMap[seat.business_status];
             const isUnavailable = seat.availability_status === SeatAvailability.UNAVAILABLE;
             const canReserve =
               seat.business_status === SeatStatus.FREE &&
               seat.availability_status === SeatAvailability.AVAILABLE;
 
             return (
-              <button
-                key={seat.seat_id}
-                onClick={() => canReserve && openReserve(seat)}
-                disabled={!canReserve}
-                className={`relative text-left rounded-xl border border-slate-200 dark:border-slate-800 p-4 transition-all ${
-                  canReserve
-                    ? 'bg-white dark:bg-slate-900 hover:ring-2 hover:ring-blue-400 hover:shadow-md cursor-pointer'
-                    : 'bg-white/60 dark:bg-slate-900/60 cursor-default'
-                } ${isUnavailable ? 'opacity-50' : ''}`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <span className="font-semibold text-slate-800 dark:text-white text-sm">
-                    {seat.seat_no}
-                  </span>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
-                  >
-                    {config.label}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">{seat.area}</p>
-                {isUnavailable && (
-                  <p className="text-xs text-rose-500 mt-1">设备离线</p>
-                )}
-              </button>
+              <Col xs={12} key={seat.seat_id}>
+                <Card
+                  hoverable={canReserve}
+                  size="small"
+                  className={isUnavailable ? 'opacity-50' : ''}
+                  onClick={() => canReserve && openReserve(seat)}
+                  style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-sm">{seat.seat_no}</span>
+                    <Tag color={status.color}>{status.label}</Tag>
+                  </div>
+                  <div className="text-xs text-slate-400 flex items-center gap-1">
+                    <EnvironmentOutlined />
+                    {seat.area}
+                  </div>
+                  {isUnavailable && (
+                    <div className="text-xs text-red-500 mt-1">设备离线</div>
+                  )}
+                </Card>
+              </Col>
             );
           })}
-        </div>
-      )}
-
-      {!loading && seats.length === 0 && (
-        <div className="text-center py-20 text-slate-500">暂无座位数据</div>
+        </Row>
       )}
 
       {/* Reservation modal */}
-      {reserveSeat && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => !reserving && setReserveSeat(null)}
-          />
-          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-sm p-6">
-            {reserveSuccess ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white">预约成功</h3>
-                <p className="text-sm text-slate-500 mt-1">座位 {reserveSeat.seat_no} 已预约</p>
-                <button
-                  onClick={() => setReserveSeat(null)}
-                  className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  确定
-                </button>
-              </div>
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-1">
-                  预约座位
-                </h3>
-                <p className="text-sm text-slate-500 mb-4">
-                  {reserveSeat.seat_no} · {reserveSeat.area}
-                </p>
-
-                {reserveError && (
-                  <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2 text-red-600 dark:text-red-400 text-sm mb-4">
-                    {reserveError}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      开始时间
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                      结束时间
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => setReserveSeat(null)}
-                    disabled={reserving}
-                    className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleReserve}
-                    disabled={reserving}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    {reserving ? '提交中...' : '确认预约'}
-                  </button>
-                </div>
-              </>
-            )}
+      <Modal
+        title="预约座位"
+        open={!!reserveSeat && !reserveSuccess}
+        onCancel={() => setReserveSeat(null)}
+        onOk={handleReserve}
+        confirmLoading={reserving}
+        okText="确认预约"
+        cancelText="取消"
+      >
+        {reserveSeat && (
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-slate-500">
+              {reserveSeat.seat_no} · {reserveSeat.area}
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">开始时间</label>
+              <input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">结束时间</label>
+              <input
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Success modal */}
+      <Modal
+        open={reserveSuccess}
+        footer={null}
+        onCancel={() => setReserveSeat(null)}
+      >
+        <div className="text-center py-4">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold">预约成功</h3>
+          <p className="text-sm text-slate-500 mt-1">座位 {reserveSeat?.seat_no} 已预约</p>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
