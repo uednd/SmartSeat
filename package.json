@@ -9,6 +9,17 @@
     "node": ">=24.0.0",
     "pnpm": ">=10.0.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/engines",
+      "@scarf/scarf",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "scripts": {
     "db:generate": "pnpm --filter @smartseat/api db:generate",
     "db:migrate": "pnpm --filter @smartseat/api db:migrate",
