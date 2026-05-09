@@ -6,7 +6,8 @@ import {
   LeaderboardMetric,
   LeaderboardTimePeriod,
   type LeaderboardEntryDto,
-  type LeaderboardResponse
+  type LeaderboardResponse,
+  type StudyStatsDto
 } from '@smartseat/contracts';
 import { getApiClient } from '@/lib/api';
 
@@ -107,6 +108,7 @@ export default function LeaderboardPage() {
   const [metric, setMetric] = useState<LeaderboardMetric>(LeaderboardMetric.BOOKING_COUNT);
   const [timePeriod, setTimePeriod] = useState<LeaderboardTimePeriod>(LeaderboardTimePeriod.THIS_WEEK);
   const [data, setData] = useState<LeaderboardResponse | null>(null);
+  const [stats, setStats] = useState<StudyStatsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retryKey, setRetryKey] = useState(0);
@@ -122,6 +124,21 @@ export default function LeaderboardPage() {
       .finally(() => { if (!ignore) setLoading(false); });
     return () => { ignore = true; };
   }, [metric, timePeriod, retryKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchStats() {
+      try {
+        const api = getApiClient();
+        const result = await api.stats.getMe();
+        if (!cancelled) setStats(result);
+      } catch {
+        // silently fail — stats are optional
+      }
+    }
+    fetchStats();
+    return () => { cancelled = true; };
+  }, []);
 
   const top3 = data?.entries.slice(0, 3) ?? [];
   const rest = data?.entries.slice(3) ?? [];
@@ -186,6 +203,9 @@ export default function LeaderboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Weekly Report */}
+      {stats && <WeeklyReport stats={stats} />}
 
       {/* Loading */}
       {loading && (
@@ -352,6 +372,130 @@ function LeaderboardRow({
           {formatValue(entry.value, metric)}
         </p>
       </div>
+    </div>
+  );
+}
+
+function formatDurationMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours > 0 && mins > 0) return `${hours} 小时 ${mins} 分钟`;
+  if (hours > 0) return `${hours} 小时`;
+  return `${mins} 分钟`;
+}
+
+function WeeklyReport({ stats }: { stats: StudyStatsDto }) {
+  const weekStart = (() => {
+    const now = new Date();
+    const offset = 8 * 60 * 60 * 1000;
+    const local = new Date(now.getTime() + offset);
+    const localDay = local.getUTCDay();
+    const daysSinceMonday = (localDay + 6) % 7;
+    const localMidnightUtcMs = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+    const monday = new Date(localMidnightUtcMs - daysSinceMonday * 24 * 60 * 60 * 1000 - offset);
+    return monday;
+  })();
+
+  return (
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 rounded-2xl border border-blue-200 dark:border-blue-900/60 p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg">📊</span>
+        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          我的学习周报
+        </h2>
+        <span className="text-xs text-slate-400 ml-auto">
+          {weekStart.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} 起
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard
+          icon="🏃"
+          label="本周打卡"
+          value={String(stats.week_visit_count)}
+          unit="次"
+          color="text-emerald-600 dark:text-emerald-400"
+          bg="bg-emerald-50 dark:bg-emerald-950/40"
+        />
+        <StatCard
+          icon="⏱️"
+          label="本周时长"
+          value={formatDurationMinutes(stats.week_duration_minutes)}
+          color="text-blue-600 dark:text-blue-400"
+          bg="bg-blue-50 dark:bg-blue-950/40"
+        />
+        <StatCard
+          icon="🔥"
+          label="连续天数"
+          value={String(stats.streak_days)}
+          unit="天"
+          color="text-orange-600 dark:text-orange-400"
+          bg="bg-orange-50 dark:bg-orange-950/40"
+        />
+        <StatCard
+          icon="⚠️"
+          label="本周爽约"
+          value={String(stats.no_show_count_week)}
+          unit="次"
+          color={stats.no_show_count_week > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-400 dark:text-slate-500'}
+          bg={stats.no_show_count_week > 0 ? 'bg-red-50 dark:bg-red-950/40' : 'bg-slate-50 dark:bg-slate-800/40'}
+        />
+      </div>
+
+      {stats.recent_records.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-blue-200/60 dark:border-blue-900/40">
+          <p className="text-xs font-medium text-slate-500 mb-2">最近学习记录</p>
+          <div className="space-y-1.5">
+            {stats.recent_records.slice(0, 4).map((record) => (
+              <div
+                key={record.record_id}
+                className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400"
+              >
+                <span>
+                  {new Date(record.start_time).toLocaleDateString('zh-CN', {
+                    month: 'numeric',
+                    day: 'numeric'
+                  })}{' '}
+                  {new Date(record.start_time).toLocaleTimeString('zh-CN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {formatDurationMinutes(record.duration_minutes)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  unit,
+  color,
+  bg
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  unit?: string;
+  color: string;
+  bg: string;
+}) {
+  return (
+    <div className={`${bg} rounded-xl p-3 text-center`}>
+      <span className="text-xl">{icon}</span>
+      <p className={`text-lg font-bold mt-1 ${color}`}>
+        {value}
+        {unit && <span className="text-xs font-normal ml-0.5 opacity-70">{unit}</span>}
+      </p>
+      <p className="text-[11px] text-slate-500 mt-0.5">{label}</p>
     </div>
   );
 }

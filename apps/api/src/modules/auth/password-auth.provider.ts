@@ -20,6 +20,13 @@ export class PasswordAuthInvalidCredentialsError extends Error {
   }
 }
 
+export class PasswordAuthNotRegisteredError extends Error {
+  constructor(message = 'This account is not registered yet. Please register first.') {
+    super(message);
+    this.name = 'PasswordAuthNotRegisteredError';
+  }
+}
+
 export interface PasswordAuthProvider {
   authenticate(username: string, password: string): Promise<PasswordAuthIdentity>;
 }
@@ -39,7 +46,7 @@ export class MockPasswordAuthProvider implements PasswordAuthProvider {
   }
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   const key = await scryptAsync(password, SALT_PREFIX, 64);
   return key.toString('base64');
 }

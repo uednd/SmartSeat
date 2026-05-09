@@ -44,6 +44,7 @@ export enum ApiErrorCode {
   AUTH_INVALID_TOKEN = 'AUTH_INVALID_TOKEN',
   AUTH_LOGIN_MODE_MISMATCH = 'AUTH_LOGIN_MODE_MISMATCH',
   AUTH_PROVIDER_FAILED = 'AUTH_PROVIDER_FAILED',
+  AUTH_NOT_REGISTERED = 'AUTH_NOT_REGISTERED',
   FORBIDDEN = 'FORBIDDEN',
   RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND',
   VALIDATION_FAILED = 'VALIDATION_FAILED',
@@ -86,6 +87,7 @@ export interface UserDto {
   roles: UserRole[];
   anonymous_name: string;
   display_name?: string;
+  gender?: string;
   avatar_url?: string;
   leaderboard_enabled: boolean;
   no_show_count_week: number;
@@ -137,6 +139,13 @@ export interface OidcCallbackRequest {
 export interface PasswordLoginRequest {
   username: string;
   password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  display_name: string;
+  gender: string;
 }
 
 export interface AuthSessionResponse {

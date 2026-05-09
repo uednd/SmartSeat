@@ -17,6 +17,7 @@ import {
   type OidcAuthorizeUrlResponse,
   type OidcCallbackRequest,
   type PasswordLoginRequest,
+  type RegisterRequest,
   type UpdateAuthConfigRequest,
   type WechatLoginRequest
 } from '@smartseat/contracts';
@@ -32,6 +33,7 @@ import {
   oidcAuthorizeUrlResponseSchema,
   oidcCallbackRequestSchema,
   passwordLoginRequestSchema,
+  registerRequestSchema,
   updateAuthConfigRequestSchema,
   wechatLoginRequestSchema
 } from '../../common/openapi/schemas.js';
@@ -89,6 +91,15 @@ export class AuthController {
   @ApiOkResponse({ schema: authSessionResponseSchema })
   async loginWithPassword(@Body() request: PasswordLoginRequest): Promise<AuthSessionResponse> {
     return await this.passwordAuthService.login(request);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Register a new local account' })
+  @ApiBody({ schema: registerRequestSchema })
+  @ApiOkResponse({ schema: authSessionResponseSchema })
+  async register(@Body() request: RegisterRequest): Promise<AuthSessionResponse> {
+    return await this.passwordAuthService.register(request);
   }
 }
 
