@@ -111,6 +111,12 @@ enum AdminActionType {
   IGNORE_ANOMALY
   CLOSE_ANOMALY
   UPDATE_AUTH_CONFIG
+  UPDATE_USER
+}
+
+enum MessageType {
+  BROADCAST
+  PERSONAL
 }
 
 enum StudyRecordSource {
@@ -147,6 +153,8 @@ model User {
   authConfigUpdates  AuthConfig[]        @relation("AuthConfigUpdatedBy")
   maintenanceStarted MaintenanceRecord[] @relation("MaintenanceStartedBy")
   maintenanceEnded   MaintenanceRecord[] @relation("MaintenanceEndedBy")
+  messageDismisses   UserMessageDismiss[]
+  systemMessages     SystemMessage[]
 
   @@index([authProvider])
   @@index([roles], type: Gin)
@@ -404,6 +412,35 @@ model StudyRecord {
   @@index([seatId, startTime])
   @@index([validFlag, startTime])
   @@map("study_records")
+}
+
+model SystemMessage {
+  id        String   @id @default(cuid())
+  type      MessageType  @default(BROADCAST)
+  userId    String?  @map("user_id")
+  title     String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [userId], onDelete: Cascade, map: "fk_system_message_user")
+  dismisses UserMessageDismiss[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("system_messages")
+}
+
+model UserMessageDismiss {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  messageId String   @map("message_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User           @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  message   SystemMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([userId])
+  @@index([messageId])
+  @@map("user_message_dismisses")
 }
 
 model AdminActionLog {

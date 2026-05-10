@@ -18,6 +18,8 @@ import { SeatsModule } from './modules/seats/seats.module.js';
 import { SensorsModule } from './modules/sensors/sensors.module.js';
 import { StudyRecordsModule } from './modules/study-records/study-records.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { SystemMessagesModule } from './modules/system-messages/system-messages.module.js';
+import { SystemMessagesModule } from './modules/system-messages/system-messages.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,7 @@ import { UsersModule } from './modules/users/users.module.js';
     DatabaseModule,
     DatabaseBaselineModule,
     UsersModule,
+    SystemMessagesModule,
     AuthModule,
     AdminModule,
     AnomaliesModule,

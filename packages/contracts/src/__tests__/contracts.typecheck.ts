@@ -370,9 +370,8 @@ const updateDeviceMaintenance = {
 
 const adminSystemConfig = {
   auth: {
-    auth_mode: AuthMode.WECHAT,
-    oidc_secret_configured: false,
-    wechat_secret_configured: true
+    auth_mode: AuthMode.LOCAL,
+    oidc_secret_configured: false
   },
   mqtt: {
     enabled: true,

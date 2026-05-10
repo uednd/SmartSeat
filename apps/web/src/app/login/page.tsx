@@ -1,24 +1,9 @@
 'use client';
 
-<<<<<<< HEAD
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Form, Input, Button, App } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { login } from '@/lib/auth';
-
-export default function LoginPage() {
-=======
 import { useState, type FormEvent } from 'react';
 import { login, userRegister } from '@/lib/auth';
 
 type Mode = 'login' | 'register';
-
-const GENDER_OPTIONS = [
-  { value: 'MALE', label: '男' },
-  { value: 'FEMALE', label: '女' },
-  { value: 'OTHER', label: '其他' }
-] as const;
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('login');
@@ -31,30 +16,16 @@ export default function LoginPage() {
   const [regUsername, setRegUsername] = useState('');
   const [regNickname, setRegNickname] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regGender, setRegGender] = useState('MALE');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
   const [error, setError] = useState('');
->>>>>>> 1b8d46991fadd3af431e87a0fea6202b0bc3b985
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { message } = App.useApp();
-  const router = useRouter();
-
-<<<<<<< HEAD
-  async function handleSubmit(values: { username: string; password: string }) {
-=======
-  function reset() {
-    setUsername('');
-    setPassword('');
-    setRegUsername('');
-    setRegNickname('');
-    setRegPassword('');
-    setRegGender('MALE');
-    setError('');
-  }
 
   function switchMode(m: Mode) {
     setMode(m);
     setError('');
+    setSuccess('');
   }
 
   async function handleLogin(e: FormEvent) {
@@ -70,27 +41,20 @@ export default function LoginPage() {
       return;
     }
 
->>>>>>> 1b8d46991fadd3af431e87a0fea6202b0bc3b985
     setLoading(true);
     try {
-      const result = await login(values.username, values.password);
+      const result = await login(username.trim(), password);
       if (result.success) {
-<<<<<<< HEAD
-        message.success('登录成功');
-        const nextRoute = result.data?.next_route === 'admin' ? '/dashboard/admin' : '/dashboard';
-        router.push(nextRoute);
-=======
         window.location.href = '/dashboard';
       } else if (result.notRegistered) {
         setError('该账号尚未注册，请先注册。');
         setRegUsername(username);
         switchMode('register');
->>>>>>> 1b8d46991fadd3af431e87a0fea6202b0bc3b985
       } else {
-        message.error(result.error ?? '登录失败，请重试');
+        setError(result.error ?? '登录失败，请重试');
       }
     } catch {
-      message.error('网络错误，请检查连接');
+      setError('网络错误，请检查连接');
     } finally {
       setLoading(false);
     }
@@ -116,20 +80,35 @@ export default function LoginPage() {
       setError('密码至少 4 位');
       return;
     }
+    if (!regConfirmPassword.trim()) {
+      setError('请确认密码');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setError('两次输入的密码不一致');
+      return;
+    }
 
     setLoading(true);
     try {
       const result = await userRegister({
         username: regUsername.trim(),
         password: regPassword,
-        display_name: regNickname.trim(),
-        gender: regGender
+        display_name: regNickname.trim()
       });
-      if (result.success) {
-        window.location.href = '/dashboard';
-      } else {
+      if (!result.success) {
         setError(result.error ?? '注册失败，请重试');
+        return;
       }
+      // 注册成功后切换到登录页
+      setSuccess('注册成功，请使用新账号登录。');
+      setMode('login');
+      setUsername(regUsername);
+      setRegUsername('');
+      setRegNickname('');
+      setRegPassword('');
+      setRegConfirmPassword('');
+      setPassword('');
     } catch {
       setError('网络错误，请检查连接');
     } finally {
@@ -155,42 +134,6 @@ export default function LoginPage() {
             <p className="text-slate-400 mt-2 text-sm">智能图书馆座位管理系统</p>
           </div>
 
-<<<<<<< HEAD
-          <Form onFinish={handleSubmit} layout="vertical" size="large">
-            <Form.Item
-              name="username"
-              rules={[{ required: true, message: '请输入账号' }]}
-            >
-              <Input
-                prefix={<UserOutlined className="text-slate-400" />}
-                placeholder="输入账号"
-                autoComplete="username"
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              rules={[{ required: true, message: '请输入密码' }]}
-            >
-              <Input.Password
-                prefix={<LockOutlined className="text-slate-400" />}
-                placeholder="输入密码"
-                autoComplete="current-password"
-              />
-            </Form.Item>
-
-            <Form.Item className="mb-0">
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                block
-              >
-                登 录
-              </Button>
-            </Form.Item>
-          </Form>
-=======
           {/* Mode tabs */}
           <div className="flex justify-center mb-6">
             <div className="inline-flex bg-white/5 rounded-xl p-1">
@@ -222,6 +165,11 @@ export default function LoginPage() {
           {/* Login form */}
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-5">
+              {success && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm">
+                  {success}
+                </div>
+              )}
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
                   {error}
@@ -274,7 +222,6 @@ export default function LoginPage() {
               </p>
             </form>
           )}
->>>>>>> 1b8d46991fadd3af431e87a0fea6202b0bc3b985
 
           {/* Register form */}
           {mode === 'register' && (
@@ -331,25 +278,18 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  性别
+                <label htmlFor="reg-confirm-password" className="block text-sm font-medium text-slate-300 mb-1.5">
+                  确认密码
                 </label>
-                <div className="flex gap-2">
-                  {GENDER_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setRegGender(opt.value)}
-                      className={`flex-1 py-2.5 text-sm font-medium rounded-xl transition-all border ${
-                        regGender === opt.value
-                          ? 'bg-blue-600 border-blue-500 text-white'
-                          : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:border-white/20'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <input
+                  id="reg-confirm-password"
+                  type="password"
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  placeholder="再次输入密码"
+                  autoComplete="new-password"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                />
               </div>
 
               <button

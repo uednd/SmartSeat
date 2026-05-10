@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AdminActionLogDto,
@@ -7,6 +7,8 @@ import {
   type AdminReleaseSeatRequest,
   type AdminSeatDetailDto,
   type AdminSystemConfigDto,
+  type AdminUpdateUserRequest,
+  type AdminUserDto,
   type AnomalyEventDto,
   type AnomalyListRequest,
   type HandleAnomalyRequest,
@@ -130,5 +132,27 @@ export class AdminController {
   @ApiOkResponse({ schema: apiPageOf(adminActionLogSchema) })
   async listActionLogs(@Query() request: PageRequest): Promise<PageResponse<AdminActionLogDto>> {
     return await this.adminService.listActionLogs(request);
+  }
+
+  @Get('users')
+  @ApiOperation({ summary: 'List all users for administrator' })
+  @ApiOkResponse({ schema: apiPageOf(adminActionLogSchema) })
+  async listUsers(@Query() request: PageRequest): Promise<PageResponse<AdminUserDto>> {
+    return await this.adminService.listUsers(request);
+  }
+
+  @Patch('users/:userId')
+  @ApiOperation({ summary: 'Update user account (externalUserNo / password) by administrator' })
+  async updateUser(
+    @Param('userId') userId: string,
+    @Body() request: AdminUpdateUserRequest
+  ): Promise<void> {
+    return await this.adminService.updateUser(userId, request);
+  }
+
+  @Delete('users/:userId')
+  @ApiOperation({ summary: 'Delete a user by administrator' })
+  async deleteUser(@Param('userId') userId: string): Promise<void> {
+    return await this.adminService.deleteUser(userId);
   }
 }

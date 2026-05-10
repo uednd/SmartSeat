@@ -27,6 +27,8 @@ import {
   type AdminReleaseSeatRequest,
   type AdminSeatDetailDto,
   type AdminSystemConfigDto,
+  type AdminUpdateUserRequest,
+  type AdminUserDto,
   type AnomalyEventDto,
   type AnomalyListRequest,
   type HandleAnomalyRequest,
@@ -47,6 +49,7 @@ import { MqttCommandBusService } from '../mqtt/mqtt-command-bus.service.js';
 import { toAnomalyEventDto } from '../anomalies/anomaly.mapper.js';
 import { toAdminDeviceDto, toAdminSeatDetailDto } from '../seats/seat-device.mapper.js';
 import { StudyRecordsService } from '../study-records/study-records.service.js';
+import { hashPassword } from '../auth/password-auth.provider.js';
 
 const ACTIVE_RESERVATION_STATUSES = [
   ReservationStatus.WAITING_CHECKIN,
@@ -541,6 +544,150 @@ export class AdminService {
     };
   }
 
+  async listUsers(request: PageRequest): Promise<PageResponse<AdminUserDto>> {
+    const page = normalizePageRequest(request);
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: [{ createdAt: 'desc' }],
+        skip: page.skip,
+        take: page.pageSize
+      }),
+      this.prisma.user.count()
+    ]);
+
+    return {
+      items: items.map(toAdminUserDto),
+      page: page.page,
+      page_size: page.pageSize,
+      total
+    };
+  }
+
+  async updateUser(userId: string, request: AdminUpdateUserRequest): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (user === null) {
+      throw this.notFound('User was not found.', { user_id: userId });
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+
+    if (request.external_user_no !== undefined) {
+      const trimmed = request.external_user_no.trim();
+      if (trimmed.length === 0) {
+        throw new AppHttpException(
+          HttpStatus.BAD_REQUEST,
+          ApiErrorCode.VALIDATION_FAILED,
+          'external_user_no cannot be empty.',
+          { field: 'external_user_no' }
+        );
+      }
+      data.externalUserNo = trimmed;
+    }
+
+    if (request.password !== undefined) {
+      if (request.password.length === 0) {
+        throw new AppHttpException(
+          HttpStatus.BAD_REQUEST,
+          ApiErrorCode.VALIDATION_FAILED,
+          'Password cannot be empty.',
+          { field: 'password' }
+        );
+      }
+      data.passwordHash = await hashPassword(request.password);
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'No fields to update. Provide external_user_no or password.'
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { userId },
+      data
+    });
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (user === null) {
+      throw this.notFound('User was not found.', { user_id: userId });
+    }
+
+    await this.prisma.user.delete({ where: { userId } });
+  }
+
+  async listUsers(request: PageRequest): Promise<PageResponse<AdminUserDto>> {
+    const page = normalizePageRequest(request);
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        orderBy: [{ createdAt: 'desc' }],
+        skip: page.skip,
+        take: page.pageSize
+      }),
+      this.prisma.user.count()
+    ]);
+
+    return {
+      items: items.map(toAdminUserDto),
+      page: page.page,
+      page_size: page.pageSize,
+      total
+    };
+  }
+
+  async updateUser(userId: string, request: AdminUpdateUserRequest): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+
+    if (user === null) {
+      throw this.notFound('User was not found.', { user_id: userId });
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+
+    if (request.external_user_no !== undefined) {
+      const trimmed = request.external_user_no.trim();
+      if (trimmed.length === 0) {
+        throw new AppHttpException(
+          HttpStatus.BAD_REQUEST,
+          ApiErrorCode.VALIDATION_FAILED,
+          'external_user_no cannot be empty.',
+          { field: 'external_user_no' }
+        );
+      }
+      data.externalUserNo = trimmed;
+    }
+
+    if (request.password !== undefined) {
+      if (request.password.length === 0) {
+        throw new AppHttpException(
+          HttpStatus.BAD_REQUEST,
+          ApiErrorCode.VALIDATION_FAILED,
+          'Password cannot be empty.',
+          { field: 'password' }
+        );
+      }
+      data.passwordHash = await hashPassword(request.password);
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new AppHttpException(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.VALIDATION_FAILED,
+        'No fields to update. Provide external_user_no or password.'
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { userId },
+      data
+    });
+  }
+
   private async setSeatMaintenanceInternal(
     user: RequestUser,
     seatId: string,
@@ -986,3 +1133,29 @@ const toAdminActionLogDto = (log: AdminActionLog): AdminActionLogDto => {
 
   return dto;
 };
+
+const toAdminUserDto = (user: {
+  userId: string;
+  authProvider: string;
+  localSub: string | null;
+  externalUserNo: string | null;
+  displayName: string | null;
+  anonymousName: string;
+  roles: string[];
+  gender: string | null;
+  avatarUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): AdminUserDto => ({
+  user_id: user.userId,
+  auth_provider: user.authProvider as AdminUserDto['auth_provider'],
+  local_sub: user.localSub ?? undefined,
+  external_user_no: user.externalUserNo ?? undefined,
+  display_name: user.displayName ?? undefined,
+  anonymous_name: user.anonymousName,
+  roles: user.roles as AdminUserDto['roles'],
+  gender: user.gender ?? undefined,
+  avatar_url: user.avatarUrl ?? undefined,
+  created_at: user.createdAt.toISOString(),
+  updated_at: user.updatedAt.toISOString()
+});

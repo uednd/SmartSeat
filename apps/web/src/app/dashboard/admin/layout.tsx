@@ -11,18 +11,22 @@ import {
   LogoutOutlined,
   ArrowLeftOutlined,
   MenuOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  BellOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { getApiClient } from '@/lib/api';
 import { logout } from '@/lib/auth';
-import type { UserRole } from '@smartseat/contracts';
+import { UserRole } from '@smartseat/contracts';
 
 const { Sider, Header, Content } = Layout;
 
 const adminNavItems = [
   { key: '/dashboard/admin', label: '全局看板', icon: <DashboardOutlined /> },
+  { key: '/dashboard/admin/users', label: '用户管理', icon: <TeamOutlined /> },
   { key: '/dashboard/admin/seats', label: '座位与终端管理', icon: <AppstoreOutlined /> },
   { key: '/dashboard/admin/anomalies', label: '异常事件处理', icon: <AlertOutlined /> },
+  { key: '/dashboard/admin/messages', label: '消息推送', icon: <BellOutlined /> },
   { key: '/dashboard/admin/settings', label: '系统安全设置', icon: <SettingOutlined /> }
 ];
 
@@ -38,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     api.me.get()
       .then((me) => {
         const roles: UserRole[] = me.roles ?? [];
-        if (roles.includes('ADMIN' as UserRole)) {
+        if (roles.includes(UserRole.ADMIN)) {
           setAuthorized(true);
         } else {
           router.replace('/dashboard');

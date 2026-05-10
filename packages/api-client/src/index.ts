@@ -8,6 +8,8 @@ import {
   type AdminSeatDetailDto,
   type AdminSeatOverviewDto,
   type AdminSystemConfigDto,
+  type AdminUpdateUserRequest,
+  type AdminUserDto,
   type AnomalyEventDto,
   type AnomalyListRequest,
   type ApiErrorResponse,
@@ -20,9 +22,11 @@ import {
   type CreateDeviceRequest,
   type CreateReservationRequest,
   type CreateSeatRequest,
+  type CreateSystemMessageRequest,
   type CurrentUsageResponse,
   type DeviceDto,
   type DeviceListRequest,
+  type DismissSystemMessageRequest,
   type ExtendReservationRequest,
   type HandleAnomalyRequest,
   type LoginModeResponse,
@@ -43,6 +47,7 @@ import {
   type SeatListRequest,
   type SetSeatEnabledRequest,
   type StudyStatsDto,
+  type SystemMessageDto,
   type UnbindDeviceSeatRequest,
   type UpdateAuthConfigRequest,
   type UpdateDeviceMaintenanceRequest,
@@ -50,8 +55,7 @@ import {
   type UpdateLeaderboardPreferenceRequest,
   type UpdateSeatRequest,
   type UpdateSeatMaintenanceRequest,
-  type UserReleaseReservationRequest,
-  type WechatLoginRequest
+  type UserReleaseReservationRequest
 } from '@smartseat/contracts';
 
 export { ApiErrorCode } from '@smartseat/contracts';
@@ -333,7 +337,6 @@ function normalizeErrorResponse(payload: unknown): ApiErrorResponse {
 
 export interface AuthApi {
   getLoginMode(): Promise<LoginModeResponse>;
-  loginWechat(request: WechatLoginRequest): Promise<AuthSessionResponse>;
   getOidcAuthorizeUrl(): Promise<OidcAuthorizeUrlResponse>;
   startOidc(): Promise<OidcAuthorizeUrlResponse>;
   completeOidc(request: OidcCallbackRequest): Promise<AuthSessionResponse>;
@@ -344,6 +347,9 @@ export interface AuthApi {
 export interface MeApi {
   get(): Promise<MeResponse>;
   updateLeaderboardPreference(request: UpdateLeaderboardPreferenceRequest): Promise<MeResponse>;
+  listSystemMessages(): Promise<SystemMessageDto[]>;
+  getLatestSystemMessage(): Promise<SystemMessageDto | null>;
+  dismissSystemMessage(request: DismissSystemMessageRequest): Promise<void>;
 }
 
 export interface SeatsApi {
@@ -389,6 +395,9 @@ export interface LeaderboardApi {
 
 export interface AdminApi {
   dashboard(): Promise<AdminDashboardDto>;
+  listUsers(request?: PageRequest): Promise<PageResponse<AdminUserDto>>;
+  updateUser(user_id: string, request: AdminUpdateUserRequest): Promise<void>;
+  deleteUser(user_id: string): Promise<void>;
   listSeats(request?: PageRequest): Promise<PageResponse<AdminSeatOverviewDto>>;
   getSeat(seat_id: string): Promise<AdminSeatDetailDto>;
   createSeat(request: CreateSeatRequest): Promise<AdminSeatDetailDto>;
@@ -416,6 +425,7 @@ export interface AdminApi {
   getAuthConfig(): Promise<AuthConfigPublicDto>;
   updateAuthConfig(request: UpdateAuthConfigRequest): Promise<AuthConfigPublicDto>;
   actionLogs(request?: PageRequest): Promise<PageResponse<AdminActionLogDto>>;
+  createSystemMessage(request: CreateSystemMessageRequest): Promise<SystemMessageDto>;
 }
 
 export interface SmartSeatApiClient {
@@ -463,13 +473,6 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           method: 'GET',
           path: '/auth/mode'
         }),
-      loginWechat: (request) =>
-        transport.request({
-          operation_id: 'auth.loginWechat',
-          method: 'POST',
-          path: '/auth/wechat/login',
-          body: request
-        }),
       getOidcAuthorizeUrl: () =>
         transport.request({
           operation_id: 'auth.getOidcAuthorizeUrl',
@@ -516,6 +519,25 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           operation_id: 'me.updateLeaderboardPreference',
           method: 'PATCH',
           path: '/me/leaderboard-preference',
+          body: request
+        }),
+      listSystemMessages: () =>
+        transport.request({
+          operation_id: 'me.listSystemMessages',
+          method: 'GET',
+          path: '/me/system-messages'
+        }),
+      getLatestSystemMessage: () =>
+        transport.request({
+          operation_id: 'me.getLatestSystemMessage',
+          method: 'GET',
+          path: '/me/system-messages/latest'
+        }),
+      dismissSystemMessage: (request) =>
+        transport.request({
+          operation_id: 'me.dismissSystemMessage',
+          method: 'POST',
+          path: '/me/system-messages/dismiss',
           body: request
         })
     },
@@ -640,6 +662,26 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           operation_id: 'admin.dashboard',
           method: 'GET',
           path: '/admin/dashboard'
+        }),
+      listUsers: (request) =>
+        transport.request({
+          operation_id: 'admin.listUsers',
+          method: 'GET',
+          path: '/admin/users',
+          query: request
+        }),
+      updateUser: (user_id, request) =>
+        transport.request({
+          operation_id: 'admin.updateUser',
+          method: 'PATCH',
+          path: `/admin/users/${encodeURIComponent(user_id)}`,
+          body: request
+        }),
+      deleteUser: (user_id) =>
+        transport.request({
+          operation_id: 'admin.deleteUser',
+          method: 'DELETE',
+          path: `/admin/users/${encodeURIComponent(user_id)}`
         }),
       listSeats: (request) =>
         transport.request({
@@ -809,6 +851,13 @@ export function createSmartSeatApiClient(transport: ApiTransport): SmartSeatApiC
           method: 'GET',
           path: '/admin/action-logs',
           query: request
+        }),
+      createSystemMessage: (request) =>
+        transport.request({
+          operation_id: 'admin.createSystemMessage',
+          method: 'POST',
+          path: '/admin/system-messages',
+          body: request
         })
     }
   };

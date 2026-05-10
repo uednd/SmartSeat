@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   SeatStatus,
   SeatAvailability,
   type SeatDto,
-  type CreateReservationRequest
+  type CreateReservationRequest,
+  type SystemMessageDto
 } from '@smartseat/contracts';
 import { getApiClient } from '@/lib/api';
-import { Row, Col, Card, Statistic, Tag, Modal, Spin, Empty, App } from 'antd';
-import { EnvironmentOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, Tag, Modal, Spin, Empty, App, Button } from 'antd';
+import { EnvironmentOutlined, BellOutlined } from '@ant-design/icons';
 
 const statusTagMap: Record<SeatStatus, { label: string; color: string }> = {
   [SeatStatus.FREE]: { label: '空闲', color: 'success' },
@@ -24,6 +25,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [systemMessage, setSystemMessage] = useState<SystemMessageDto | null>(null);
+
   const [reserveSeat, setReserveSeat] = useState<SeatDto | null>(null);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -31,20 +34,35 @@ export default function DashboardPage() {
   const [reserveSuccess, setReserveSuccess] = useState(false);
   const { message } = App.useApp();
 
+  const dismissMessage = useCallback(async () => {
+    if (!systemMessage) return;
+    try {
+      const api = getApiClient();
+      await api.me.dismissSystemMessage({ message_id: systemMessage.id });
+    } catch {
+      // silently fail
+    }
+    setSystemMessage(null);
+  }, [systemMessage]);
+
   useEffect(() => {
-    async function loadSeats() {
+    async function load() {
       try {
         setError('');
         const api = getApiClient();
-        const result = await api.seats.list();
-        setSeats(result.items);
+        const [seatsResult, sysMsg] = await Promise.all([
+          api.seats.list(),
+          api.me.getLatestSystemMessage()
+        ]);
+        setSeats(seatsResult.items);
+        setSystemMessage(sysMsg);
       } catch {
         setError('无法加载座位数据');
       } finally {
         setLoading(false);
       }
     }
-    loadSeats();
+    load();
   }, []);
 
   async function refreshSeats() {
@@ -239,6 +257,34 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold">预约成功</h3>
           <p className="text-sm text-slate-500 mt-1">座位 {reserveSeat?.seat_no} 已预约</p>
         </div>
+      </Modal>
+
+      {/* System message modal */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <BellOutlined className="text-blue-500" />
+            <span>系统消息</span>
+          </div>
+        }
+        open={!!systemMessage}
+        closable={false}
+        mask={{ closable: false }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={dismissMessage}>关闭</Button>
+            <Button type="primary" onClick={dismissMessage}>
+              不再提示
+            </Button>
+          </div>
+        }
+      >
+        {systemMessage && (
+          <div className="space-y-3 pt-2">
+            <h3 className="text-base font-semibold">{systemMessage.title}</h3>
+            <p className="text-sm text-slate-600 whitespace-pre-wrap">{systemMessage.content}</p>
+          </div>
+        )}
       </Modal>
     </div>
   );

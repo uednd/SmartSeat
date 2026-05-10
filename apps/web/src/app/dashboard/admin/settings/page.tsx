@@ -8,8 +8,7 @@ import { AuthMode } from '@smartseat/contracts';
 
 const authModeLabels: Record<AuthMode, string> = {
   [AuthMode.LOCAL]: '本地账号 (LOCAL)',
-  [AuthMode.OIDC]: 'OIDC 单点登录',
-  [AuthMode.WECHAT]: '微信扫码登录'
+  [AuthMode.OIDC]: 'OIDC 单点登录'
 };
 
 export default function AdminSettingsPage() {
@@ -96,15 +95,6 @@ export default function AdminSettingsPage() {
           <Descriptions.Item label="Redirect URI">{config.oidc_redirect_uri || '未设置'}</Descriptions.Item>
           <Descriptions.Item label="Client Secret">
             {config.oidc_secret_configured ? <Tag color="success">已配置</Tag> : <Tag>未配置</Tag>}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
-
-      <Card style={{ background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 24px rgba(99,102,241,0.08)' }} title="微信登录配置" size="small">
-        <Descriptions column={1} size="small" colon={false}>
-          <Descriptions.Item label="App ID">{config.wechat_appid || '未设置'}</Descriptions.Item>
-          <Descriptions.Item label="App Secret">
-            {config.wechat_secret_configured ? <Tag color="success">已配置</Tag> : <Tag>未配置</Tag>}
           </Descriptions.Item>
         </Descriptions>
       </Card>

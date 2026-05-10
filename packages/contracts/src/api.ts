@@ -8,6 +8,7 @@ import type {
   DeviceOnlineStatus,
   LeaderboardMetric,
   LeaderboardTimePeriod,
+  MessageType,
   PresenceStatus,
   QRTokenStatus,
   ReservationStatus,
@@ -102,8 +103,6 @@ export interface AuthConfigPublicDto {
   oidc_client_id?: string;
   oidc_redirect_uri?: string;
   oidc_secret_configured: boolean;
-  wechat_appid?: string;
-  wechat_secret_configured: boolean;
   admin_mapping_rule?: string;
   updated_by?: EntityId;
   updated_at?: IsoDateTimeString;
@@ -112,12 +111,6 @@ export interface AuthConfigPublicDto {
 export interface LoginModeResponse {
   auth_mode: AuthMode;
   config: AuthConfigPublicDto;
-}
-
-export interface WechatLoginRequest {
-  code: string;
-  displayName?: string;
-  avatarUrl?: string;
 }
 
 export interface OidcStartRequest {
@@ -145,7 +138,7 @@ export interface RegisterRequest {
   username: string;
   password: string;
   display_name: string;
-  gender: string;
+  gender?: string;
 }
 
 export interface AuthSessionResponse {
@@ -521,17 +514,75 @@ export interface UpdateAuthConfigRequest {
   oidc_client_secret?: string;
   oidc_redirect_uri?: string;
   admin_mapping_rule?: string;
-  wechat_appid?: string;
-  wechat_secret?: string;
 }
 
 export interface AdminActionLogDto {
   log_id: EntityId;
   admin_id: EntityId;
   action_type: AdminActionType;
-  target_type: 'seat' | 'device' | 'reservation' | 'anomaly' | 'auth_config';
+  target_type: 'seat' | 'device' | 'reservation' | 'anomaly' | 'auth_config' | 'user';
   target_id: EntityId;
   reason?: string;
   detail?: Record<string, unknown>;
   created_at: IsoDateTimeString;
+}
+
+export interface AdminUserDto {
+  user_id: EntityId;
+  auth_provider: AuthProvider;
+  local_sub?: string;
+  external_user_no?: string;
+  display_name?: string;
+  anonymous_name: string;
+  roles: UserRole[];
+  gender?: string;
+  avatar_url?: string;
+  created_at: IsoDateTimeString;
+  updated_at: IsoDateTimeString;
+}
+
+export interface AdminUpdateUserRequest {
+  external_user_no?: string;
+  password?: string;
+}
+
+export interface AdminUserDto {
+  user_id: EntityId;
+  auth_provider: AuthProvider;
+  local_sub?: string;
+  external_user_no?: string;
+  display_name?: string;
+  anonymous_name: string;
+  roles: UserRole[];
+  gender?: string;
+  avatar_url?: string;
+  created_at: IsoDateTimeString;
+  updated_at: IsoDateTimeString;
+}
+
+export interface AdminUpdateUserRequest {
+  external_user_no?: string;
+  password?: string;
+}
+
+// System Messages
+export interface CreateSystemMessageRequest {
+  type?: MessageType;
+  user_id?: EntityId;
+  title: string;
+  content: string;
+}
+
+export interface SystemMessageDto {
+  id: EntityId;
+  type: MessageType;
+  user_id?: EntityId;
+  title: string;
+  content: string;
+  has_dismissed: boolean;
+  created_at: IsoDateTimeString;
+}
+
+export interface DismissSystemMessageRequest {
+  message_id: EntityId;
 }

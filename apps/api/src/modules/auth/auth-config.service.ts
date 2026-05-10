@@ -14,7 +14,7 @@ import { PrismaService } from '../../common/database/prisma.service.js';
 import { AppHttpException } from '../../common/errors/app-http.exception.js';
 
 const AUTH_CONFIG_ID = 'auth_config_default';
-const AUTH_MODES = new Set<string>([AuthMode.WECHAT, AuthMode.OIDC, AuthMode.LOCAL]);
+const AUTH_MODES = new Set<string>([AuthMode.OIDC, AuthMode.LOCAL]);
 
 type AuthConfigRecord = Awaited<ReturnType<PrismaService['authConfig']['findUnique']>>;
 
@@ -58,8 +58,7 @@ export class AuthConfigService {
         detail: {
           previous_auth_mode: before.authMode,
           auth_mode: updated.authMode,
-          oidc_secret_configured: updated.oidcClientSecret !== null,
-          wechat_secret_configured: updated.wechatSecret !== null
+          oidc_secret_configured: updated.oidcClientSecret !== null
         }
       }
     });
@@ -88,7 +87,6 @@ export class AuthConfigService {
     const dto: AuthConfigPublicDto = {
       auth_mode: config.authMode as AuthMode,
       oidc_secret_configured: config.oidcClientSecret !== null,
-      wechat_secret_configured: config.wechatSecret !== null,
       updated_at: config.updatedAt.toISOString()
     };
 
@@ -106,10 +104,6 @@ export class AuthConfigService {
 
     if (config.adminMappingRule !== null) {
       dto.admin_mapping_rule = config.adminMappingRule;
-    }
-
-    if (config.wechatAppid !== null) {
-      dto.wechat_appid = config.wechatAppid;
     }
 
     if (config.updatedById !== null) {
@@ -145,9 +139,7 @@ export class AuthConfigService {
       'oidc_client_id',
       'oidc_client_secret',
       'oidc_redirect_uri',
-      'admin_mapping_rule',
-      'wechat_appid',
-      'wechat_secret'
+      'admin_mapping_rule'
     ] as const;
 
     for (const key of optionalStringKeys) {
@@ -181,8 +173,6 @@ export class AuthConfigService {
     this.assignIfPresent(data, 'oidcClientSecret', request, 'oidc_client_secret');
     this.assignIfPresent(data, 'oidcRedirectUri', request, 'oidc_redirect_uri');
     this.assignIfPresent(data, 'adminMappingRule', request, 'admin_mapping_rule');
-    this.assignIfPresent(data, 'wechatAppid', request, 'wechat_appid');
-    this.assignIfPresent(data, 'wechatSecret', request, 'wechat_secret');
 
     return data;
   }
@@ -194,9 +184,7 @@ export class AuthConfigService {
       | 'oidcClientId'
       | 'oidcClientSecret'
       | 'oidcRedirectUri'
-      | 'adminMappingRule'
-      | 'wechatAppid'
-      | 'wechatSecret',
+      | 'adminMappingRule',
     request: UpdateAuthConfigRequest,
     requestKey: keyof UpdateAuthConfigRequest
   ): void {

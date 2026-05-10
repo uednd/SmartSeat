@@ -15,6 +15,7 @@ import {
 import { logout } from '@/lib/auth';
 import { getApiClient } from '@/lib/api';
 import { UserRole } from '@smartseat/contracts';
+import MessageCenter from './message-center';
 
 const { Sider, Header, Content } = Layout;
 
@@ -157,9 +158,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => setMobileOpen(true)}
             className="lg:hidden"
           />
-          <span className="text-sm font-medium text-slate-600">
+          <span className="text-sm font-medium text-slate-600 flex-1">
             {navItems.find((i) => i.key === pathname)?.label ?? 'SmartSeat'}
           </span>
+          <MessageCenter />
         </Header>
 
         <Content

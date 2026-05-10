@@ -1,5 +1,4 @@
 export enum AuthMode {
-  WECHAT = 'WECHAT',
   OIDC = 'OIDC',
   LOCAL = 'LOCAL'
 }
@@ -161,5 +160,16 @@ export enum AdminActionType {
   HANDLE_ANOMALY = 'HANDLE_ANOMALY',
   IGNORE_ANOMALY = 'IGNORE_ANOMALY',
   CLOSE_ANOMALY = 'CLOSE_ANOMALY',
-  UPDATE_AUTH_CONFIG = 'UPDATE_AUTH_CONFIG'
+  UPDATE_AUTH_CONFIG = 'UPDATE_AUTH_CONFIG',
+  UPDATE_USER = 'UPDATE_USER'
+}
+
+export enum MessageType {
+  BROADCAST = 'BROADCAST',
+  PERSONAL = 'PERSONAL'
+}
+
+export enum MessageType {
+  BROADCAST = 'BROADCAST',
+  PERSONAL = 'PERSONAL'
 }

@@ -14,14 +14,14 @@ export interface PasswordAuthIdentity {
 }
 
 export class PasswordAuthInvalidCredentialsError extends Error {
-  constructor(message = 'Invalid username or password.') {
+  constructor(message = '用户名或密码错误。') {
     super(message);
     this.name = 'PasswordAuthInvalidCredentialsError';
   }
 }
 
 export class PasswordAuthNotRegisteredError extends Error {
-  constructor(message = 'This account is not registered yet. Please register first.') {
+  constructor(message = '该账号尚未注册，请先注册。') {
     super(message);
     this.name = 'PasswordAuthNotRegisteredError';
   }
@@ -35,11 +35,11 @@ export interface PasswordAuthProvider {
 export class MockPasswordAuthProvider implements PasswordAuthProvider {
   async authenticate(username: string, password: string): Promise<PasswordAuthIdentity> {
     if (typeof username !== 'string' || username.trim().length === 0) {
-      throw new PasswordAuthInvalidCredentialsError('Username is required.');
+      throw new PasswordAuthInvalidCredentialsError('用户名不能为空。');
     }
 
     if (typeof password !== 'string' || password.trim().length === 0) {
-      throw new PasswordAuthInvalidCredentialsError('Password is required.');
+      throw new PasswordAuthInvalidCredentialsError('密码不能为空。');
     }
 
     return { username: username.trim() };
@@ -70,11 +70,11 @@ export class RealPasswordAuthProvider implements PasswordAuthProvider {
     const normalized = username.trim().toLowerCase();
 
     if (normalized.length === 0) {
-      throw new PasswordAuthInvalidCredentialsError('Username is required.');
+      throw new PasswordAuthInvalidCredentialsError('用户名不能为空。');
     }
 
     if (typeof password !== 'string' || password.length === 0) {
-      throw new PasswordAuthInvalidCredentialsError('Password is required.');
+      throw new PasswordAuthInvalidCredentialsError('密码不能为空。');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -82,12 +82,12 @@ export class RealPasswordAuthProvider implements PasswordAuthProvider {
     });
 
     if (user === null || user.passwordHash === null) {
-      throw new PasswordAuthInvalidCredentialsError('Invalid username or password.');
+      throw new PasswordAuthInvalidCredentialsError('用户名或密码错误。');
     }
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
-      throw new PasswordAuthInvalidCredentialsError('Invalid username or password.');
+      throw new PasswordAuthInvalidCredentialsError('用户名或密码错误。');
     }
 
     return { username: normalized };

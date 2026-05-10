@@ -93,7 +93,7 @@ export class PasswordAuthService {
     }
 
     const validGenders = ['MALE', 'FEMALE', 'OTHER'];
-    if (typeof request.gender !== 'string' || !validGenders.includes(request.gender)) {
+    if (request.gender !== undefined && (typeof request.gender !== 'string' || !validGenders.includes(request.gender))) {
       throw new AppHttpException(
         HttpStatus.BAD_REQUEST,
         ApiErrorCode.VALIDATION_FAILED,

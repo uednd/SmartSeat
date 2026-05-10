@@ -33,9 +33,8 @@ export async function login(username: string, password: string): Promise<LoginRe
 export async function userRegister(request: RegisterRequest): Promise<RegisterResult> {
   try {
     const api = getApiClient();
-    const response = await api.auth.register(request);
-    setAuthTokenCookie(response.token);
-    return { success: true, data: response };
+    await api.auth.register(request);
+    return { success: true };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Registration failed. Please try again.';
